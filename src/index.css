@@ -1,0 +1,175 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@200;300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --font-heading: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-serif: Georgia, 'Times New Roman', Times, serif;
+
+  --bg-color: #F8F6F0;
+  --text-main: #1E293B;
+  --border-color: rgba(0, 0, 0, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-body);
+  background: var(--bg-color);
+  color: var(--text-main);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Background graphics & image overlay */
+.roadmap-grid-bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: linear-gradient(rgba(0,0,0,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 50px 50px;
+  opacity: 0.8;
+}
+
+/* Adding the elevox2.png as a premium blurry backdrop/watermark */
+.roadmap-container::before {
+  content: '';
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120vw;
+  height: 120vh;
+  background-image: url('/elevox2.png');
+  background-size: cover;
+  background-position: center;
+  opacity: 0.05; /* very subtle */
+  z-index: 0;
+  pointer-events: none;
+  filter: blur(10px) grayscale(100%);
+}
+
+.roadmap-container {
+  min-height: 100vh;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+/* Hover effects for interactive elements */
+.sprint-item:hover {
+  background: rgba(26, 26, 26, 0.05) !important;
+}
+
+.task-tab-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0,0,0,0.1) !important;
+}
+
+.progress-item:hover {
+  transform: translateX(4px);
+  background: rgba(255, 255, 255, 0.8) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08) !important;
+}
+
+.tool-item:hover {
+  background: rgba(0,0,0,0.01) !important;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.4s ease forwards;
+}
+
+/* ─── Onboarding Design Tokens ─────────────────────────────── */
+:root {
+  --ob-bg:          #070B14;
+  --ob-surface:     #0D1220;
+  --ob-surface-2:   #111827;
+  --ob-border:      #1E2A3E;
+  --ob-accent:      #6366f1;
+  --ob-accent-2:    #8b5cf6;
+  --ob-accent-grad: linear-gradient(135deg, #6366f1, #8b5cf6);
+  --ob-text:        #F1F5F9;
+  --ob-text-muted:  #64748B;
+  --ob-text-dim:    #334155;
+  --ob-success:     #10b981;
+  --ob-danger:      #ef4444;
+  --ob-glow:        rgba(99,102,241,0.18);
+}
+
+/* ─── Onboarding Step Transitions ──────────────────────────── */
+@keyframes ob-slide-in {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes ob-slide-out {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-40px); }
+}
+@keyframes ob-field-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ob-hero-line {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes ob-pulse-ring {
+  0%   { transform: scale(1);   opacity: 0.6; }
+  100% { transform: scale(1.6); opacity: 0; }
+}
+@keyframes ob-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%       { background-position: 100% 50%; }
+}
+
+.ob-field-enter {
+  animation: ob-field-in 0.35s cubic-bezier(.22,1,.36,1) both;
+}
+.ob-step-enter {
+  animation: ob-slide-in 0.35s cubic-bezier(.22,1,.36,1) both;
+}
+
+/* ─── Onboarding Scrollbar ──────────────────────────────────── */
+.ob-wrapper ::-webkit-scrollbar       { width: 4px; }
+.ob-wrapper ::-webkit-scrollbar-track { background: transparent; }
+.ob-wrapper ::-webkit-scrollbar-thumb { background: #1E2A3E; border-radius: 2px; }
+.ob-wrapper ::-webkit-scrollbar-thumb:hover { background: #6366f1; }
+
+/* Typography styles inside roadmap */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+}
+
+.task-detail-content {
+  animation: fadeIn 0.5s ease;
+}
+
+.task-detail-sidebar {
+  animation: fadeIn 0.6s ease;
+}
