@@ -5,6 +5,7 @@
 //  - Pre-fills form with existing profile data if user returns
 // ─────────────────────────────────────────────────────────────
 import { useNavigate } from 'react-router-dom'
+import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
 import { useProfile } from '../hooks/useProfile'
 import OnboardingForm from '../components/OnboardingForm'
@@ -18,9 +19,29 @@ export default function OnboardingPage() {
     const { error } = await finishOnboarding(formData)
     if (error) {
       console.error('Failed to save onboarding:', error)
-      // Still navigate — data is in memory from the form
-      // TODO: show a toast error here
     }
+
+    // Send welcome email via send-notification Edge Function
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ type: 'welcome' }),
+          }
+        )
+      }
+    } catch (emailErr) {
+      // Non-fatal — don't block navigation if email fails
+      console.warn('Welcome email failed (non-fatal):', emailErr.message)
+    }
+
     navigate('/dashboard', { replace: true })
   }
 

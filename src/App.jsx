@@ -17,6 +17,7 @@ import LoginPage        from './pages/LoginPage'
 import SignupPage       from './pages/SignupPage'
 import AuthCallbackPage from './pages/AuthCallbackPage'
 import UpgradePage      from './pages/UpgradePage'
+import BrandBriefPage   from './pages/BrandBriefPage'
 
 // Protected pages (existing components — just re-exported from pages/)
 import Dashboard          from './components/Dashboard'
@@ -62,6 +63,10 @@ export default function App() {
 
           <Route path="/calendar" element={
             <ProtectedRoute><CalendarLogistics /></ProtectedRoute>
+          } />
+
+          <Route path="/brand-brief" element={
+            <ProtectedRoute><BrandBriefPage /></ProtectedRoute>
           } />
 
           <Route path="/upgrade" element={
