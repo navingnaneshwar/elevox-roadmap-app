@@ -2,6 +2,7 @@ import { useState } from "react";
 import EventsAnchors from './EventsAnchors';
 import ApprovalWorkflow from './ApprovalWorkflow';
 import ContentFormats from './ContentFormats';
+import GhostwriterPanel from './GhostwriterPanel';
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["March", "April", "May", "June"];
@@ -90,6 +91,13 @@ export default function CalendarLogistics() {
   const [eaName, setEaName] = useState("");
   const [activeTab, setActiveTab] = useState("schedule");
   const [saved, setSaved] = useState(false);
+  const [ghostwriterOpen, setGhostwriterOpen] = useState(false);
+  const [selectedDraft, setSelectedDraft] = useState(null);
+
+  function handleDraftSelected(body) {
+    setSelectedDraft(body);
+    setGhostwriterOpen(false);
+  }
 
   const currentFreq = POSTING_FREQ.find(f => f.id === postingFreq);
   const currentGhost = GHOST_LEVELS.find(g => g.id === ghostLevel);
@@ -306,8 +314,8 @@ export default function CalendarLogistics() {
                 </div>
               </div>
 
-              {/* Right: ghostwriting + preview */}
-              <div>
+              {/* Right: monthly preview + AI Ghostwriter */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                 {/* Monthly preview card */}
                 <div style={{ padding: "24px", background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
                   <div style={{ fontSize: "9px", letterSpacing: "4px", color: "#64748B", marginBottom: "18px", fontFamily: "monospace" }}>
@@ -320,11 +328,52 @@ export default function CalendarLogistics() {
                     ["Writing involvement", `${currentGhost?.pct}% — ${currentGhost?.label}`],
                     ["Content needed/week", `${currentFreq?.days.length || 3} pieces`],
                   ].map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #141D2C" }}>
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #E2E8F0" }}>
                       <span style={{ fontSize: "11px", color: "#64748B", fontFamily: "monospace" }}>{k}</span>
                       <span style={{ fontSize: "12px", color: "#4ECDC4", fontFamily: "monospace", textAlign: "right" }}>{v}</span>
                     </div>
                   ))}
+                </div>
+
+                {/* AI Ghostwriter toggle */}
+                <div>
+                  <div style={{ fontSize: "9px", letterSpacing: "4px", color: "#64748B", marginBottom: "12px", fontFamily: "monospace" }}>
+                    AI GHOSTWRITER
+                  </div>
+                  {!ghostwriterOpen ? (
+                    <button
+                      onClick={() => { setGhostwriterOpen(true); setSelectedDraft(null); }}
+                      style={{
+                        width: "100%", padding: "16px",
+                        background: "rgba(99,102,241,0.06)",
+                        border: "1px solid rgba(99,102,241,0.3)",
+                        color: "#a5b4fc", fontSize: "12px",
+                        fontFamily: "monospace", letterSpacing: "1px",
+                        cursor: "pointer", transition: "all 0.2s",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: "8px"
+                      }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(99,102,241,0.12)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "rgba(99,102,241,0.06)"}
+                    >
+                      <span style={{ fontSize: "14px" }}>✦</span>
+                      DRAFT A POST WITH AI
+                    </button>
+                  ) : (
+                    <GhostwriterPanel
+                      onSelectDraft={(body) => handleDraftSelected(body)}
+                      onClose={() => setGhostwriterOpen(false)}
+                    />
+                  )}
+                  {selectedDraft && !ghostwriterOpen && (
+                    <div style={{ marginTop: "12px", padding: "14px 16px", background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.25)", borderRadius: "6px" }}>
+                      <div style={{ fontSize: "9px", letterSpacing: "2px", color: "#10b981", marginBottom: "8px", fontFamily: "monospace" }}>✓ DRAFT SELECTED</div>
+                      <div style={{ fontSize: "12px", color: "#94A3B8", lineHeight: "1.6", whiteSpace: "pre-wrap", maxHeight: "120px", overflowY: "auto" }}>{selectedDraft}</div>
+                      <button
+                        onClick={() => { setGhostwriterOpen(true); setSelectedDraft(null); }}
+                        style={{ marginTop: "10px", padding: "6px 14px", background: "transparent", border: "1px solid #1E2A3E", color: "#64748B", fontSize: "11px", fontFamily: "monospace", cursor: "pointer" }}
+                      >Re-draft ↺</button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
