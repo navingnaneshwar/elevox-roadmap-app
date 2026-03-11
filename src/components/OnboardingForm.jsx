@@ -219,7 +219,7 @@ function FieldInput({ field, value, onChange }) {
 }
 
 /* ─── Hero Screen ───────────────────────────────────────────── */
-function HeroScreen({ onStart }) {
+function HeroScreen({ onStart, isResuming }) {
   useEffect(() => {
     const handler = e => { if (e.key === "Enter") onStart(); };
     window.addEventListener("keydown", handler);
@@ -325,7 +325,7 @@ function HeroScreen({ onStart }) {
             onMouseEnter={e => { e.target.style.transform = "translateY(-2px)"; e.target.style.boxShadow = "0 12px 40px rgba(99,102,241,0.5)"; }}
             onMouseLeave={e => { e.target.style.transform = "none"; e.target.style.boxShadow = "0 8px 32px rgba(99,102,241,0.35)"; }}
           >
-            Start the Brief →
+            {isResuming ? "Resume Brief →" : "Start the Brief →"}
           </button>
           <div style={{ marginTop: "14px", fontSize: "11px", color: "#334155", fontFamily: "'Inter', sans-serif", letterSpacing: "0.5px" }}>
             Press <kbd style={{ background: "#1E2A3E", color: "#a5b4fc", border: "1px solid #2D3D5A", borderRadius: "4px", padding: "1px 6px", fontSize: "10px" }}>Enter</kbd> to start
@@ -417,10 +417,27 @@ function SuccessScreen({ formData }) {
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
-export default function OnboardingForm({ onComplete }) {
+export default function OnboardingForm({ onComplete, onSaveProgress, initialData = {} }) {
+  const hasData = Object.keys(initialData).length > 0;
+
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({});
+  
+  const initialStep = (() => {
+    if (!hasData) return 0;
+    for (let i = 0; i < STEPS.length; i++) {
+      const step = STEPS[i];
+      const missing = step.fields.filter(f => f.required).some(f => {
+        const v = initialData[f.id];
+        if (Array.isArray(v)) return v.length === 0;
+        return !v || String(v).trim() === "";
+      });
+      if (missing) return i;
+    }
+    return STEPS.length - 1;
+  })();
+
+  const [currentStep, setCurrentStep] = useState(initialStep);
+  const [formData, setFormData] = useState(initialData);
   const [direction, setDirection] = useState(1); // 1=forward -1=back
   const [animKey, setAnimKey] = useState(0);
   const containerRef = useRef(null);
@@ -440,11 +457,17 @@ export default function OnboardingForm({ onComplete }) {
 
   const navigate = useCallback((dir) => {
     if (dir === 1 && !requiredFilled) return;
+    
+    // Auto-save on continuing to next step
+    if (dir === 1 && onSaveProgress) {
+      onSaveProgress(formData).catch(err => console.error("Auto save failed:", err));
+    }
+
     setDirection(dir);
     setAnimKey(k => k + 1);
     setCurrentStep(prev => prev + dir);
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, [requiredFilled]);
+  }, [requiredFilled, onSaveProgress, formData]);
 
   const handleSubmit = () => {
     if (!requiredFilled) return;
@@ -470,7 +493,7 @@ export default function OnboardingForm({ onComplete }) {
     return () => window.removeEventListener("keydown", handler);
   }, [phase, currentStep, navigate, requiredFilled]);
 
-  if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} />;
+  if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} isResuming={initialStep > 0} />;
   if (phase === "done") return <SuccessScreen formData={formData} />;
 
   return (
@@ -634,29 +657,56 @@ export default function OnboardingForm({ onComplete }) {
           justifyContent: "space-between",
           gap: "16px",
         }}>
-          {/* Back */}
-          <button
-            onClick={() => navigate(-1)}
-            disabled={currentStep === 0}
-            style={{
-              padding: "12px 24px",
-              background: "transparent",
-              border: `1px solid ${currentStep === 0 ? "#1E2A3E" : "#2D3D5A"}`,
-              borderRadius: "8px",
-              color: currentStep === 0 ? "#1E2A3E" : "#64748B",
-              fontSize: "12px",
-              fontWeight: "500",
-              fontFamily: "'Inter', sans-serif",
-              letterSpacing: "0.5px",
-              cursor: currentStep === 0 ? "default" : "pointer",
-              transition: "all 0.15s",
-              display: "flex", alignItems: "center", gap: "6px",
-            }}
-            onMouseEnter={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; }}}
-            onMouseLeave={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#2D3D5A"; e.currentTarget.style.color = "#64748B"; }}}
-          >
-            ← Back
-          </button>
+          {/* Back & Save Progress */}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button
+              onClick={() => navigate(-1)}
+              disabled={currentStep === 0}
+              style={{
+                padding: "12px 24px",
+                background: "transparent",
+                border: `1px solid ${currentStep === 0 ? "#1E2A3E" : "#2D3D5A"}`,
+                borderRadius: "8px",
+                color: currentStep === 0 ? "#1E2A3E" : "#64748B",
+                fontSize: "12px",
+                fontWeight: "500",
+                fontFamily: "'Inter', sans-serif",
+                cursor: currentStep === 0 ? "default" : "pointer",
+                transition: "all 0.15s",
+                display: "flex", alignItems: "center", gap: "6px",
+              }}
+              onMouseEnter={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; }}}
+              onMouseLeave={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#2D3D5A"; e.currentTarget.style.color = "#64748B"; }}}
+            >
+              ← Back
+            </button>
+            
+            {onSaveProgress && (
+              <button
+                onClick={() => {
+                  onSaveProgress(formData).then(() => {
+                    window.location.href = '/dashboard';
+                  });
+                }}
+                style={{
+                  padding: "12px 20px",
+                  background: "transparent",
+                  border: "1px solid rgba(99,102,241,0.3)",
+                  borderRadius: "8px",
+                  color: "#a5b4fc",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  fontFamily: "'Inter', sans-serif",
+                  cursor: "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+              >
+                Save & Exit
+              </button>
+            )}
+          </div>
 
           {/* Center: hint or nothing */}
           <div style={{ flex: 1, textAlign: "center" }}>
