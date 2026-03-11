@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import Logo from "./Logo";
 
 /* ─── Data ──────────────────────────────────────────────────── */
 const STEPS = [
@@ -254,7 +255,8 @@ function HeroScreen({ onStart }) {
           animation: "ob-hero-line 0.5s ease both",
         }}>
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#6366f1", display: "inline-block" }} />
-          <span style={{ fontSize: "11px", color: "#a5b4fc", letterSpacing: "2px", fontWeight: "500", fontFamily: "'Inter', sans-serif" }}>EXECBRAND™ CLIENT INTELLIGENCE BRIEF</span>
+          <Logo size="sm" theme="dark" />
+          <span style={{ fontSize: "11px", color: "#a5b4fc", letterSpacing: "2px", fontWeight: "500", fontFamily: "'Inter', sans-serif" }}>CLIENT INTELLIGENCE BRIEF</span>
         </div>
 
         {/* Headline */}
@@ -415,7 +417,7 @@ function SuccessScreen({ formData }) {
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
-export default function OnboardingForm() {
+export default function OnboardingForm({ onComplete }) {
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
   const [currentStep, setCurrentStep] = useState(0);
   const [formData, setFormData] = useState({});
@@ -447,7 +449,11 @@ export default function OnboardingForm() {
   const handleSubmit = () => {
     if (!requiredFilled) return;
     console.log("📋 Brand Brief Submitted:", formData);
-    setPhase("done");
+    if (onComplete) {
+      onComplete(formData);
+    } else {
+      setPhase("done");
+    }
   };
 
   // Keyboard: Enter = advance, Backspace on empty = back
@@ -500,7 +506,7 @@ export default function OnboardingForm() {
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 0" }}>
           {/* Brand */}
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "10px", fontWeight: "700", letterSpacing: "3px", color: "#6366f1" }}>EXECBRAND™</span>
+            <Logo size="md" theme="dark" />
             <span style={{ width: "1px", height: "14px", background: "#1E2A3E" }} />
             <span style={{ fontSize: "12px", color: "#334155", letterSpacing: "0.5px" }}>Client Brief</span>
           </div>

@@ -168,7 +168,7 @@ export default function CalendarLogistics() {
         }}>
           <div>
             <div style={{ fontSize: "9px", letterSpacing: "5px", color: accent, marginBottom: "8px", transition: "color 0.4s", fontFamily: "monospace" }}>
-              EXECBRAND™ — SECTION 06
+              ELEVOX — SECTION 06
             </div>
             <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "400", letterSpacing: "-0.5px", color: "#0F172A" }}>
               Calendar & Logistics

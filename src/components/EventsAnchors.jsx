@@ -115,7 +115,7 @@ export default function EventsAnchors() {
           <div style={{ padding: "28px 48px 24px", display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
               <div style={{ fontSize: "9px", letterSpacing: "6px", color: "#B8965A", marginBottom: "8px", fontFamily: "monospace" }}>
-                EXECBRAND™ — SECTION 06 — EVENTS & ANCHORS
+                ELEVOX — SECTION 06 — EVENTS &amp; ANCHORS
               </div>
               <h1 style={{ margin: 0, fontSize: "32px", fontWeight: "400", color: "#F2EDE3", letterSpacing: "-0.5px", lineHeight: 1.1 }}>
                 The 90-Day Content War Room

@@ -160,7 +160,7 @@ export default function ApprovalWorkflow() {
       {/* Header */}
       <div style={{ borderBottom: "1px solid #E2E8F0", padding: "24px 44px", display: "flex", justifyContent: "space-between", alignItems: "flex-end", background: "#FFFFFF" }}>
         <div>
-          <div style={{ fontSize: "8px", letterSpacing: "5px", color: "#4A9EFF", marginBottom: "6px" }}>EXECBRAND™ — SECTION 06 · APPROVAL WORKFLOW</div>
+          <div style={{ fontSize: "8px", letterSpacing: "5px", color: "#4A9EFF", marginBottom: "6px" }}>ELEVOX — SECTION 06 · APPROVAL WORKFLOW</div>
           <h1 style={{ margin: 0, fontSize: "22px", fontWeight: "400", color: "#0F172A", letterSpacing: "-0.3px" }}>Content Approval Engine</h1>
           <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#64748B", fontStyle: "italic" }}>
             Configure exactly how content flows from draft to live — zero friction, full control
