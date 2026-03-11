@@ -421,6 +421,7 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
   const hasData = Object.keys(initialData).length > 0;
 
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
+  const [isSaving, setIsSaving] = useState(false);
   
   const initialStep = (() => {
     if (!hasData) return 0;
@@ -468,6 +469,18 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
     setCurrentStep(prev => prev + dir);
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [requiredFilled, onSaveProgress, formData]);
+
+  const handleSaveAndExit = async () => {
+    if (!onSaveProgress) return;
+    setIsSaving(true);
+    try {
+      await onSaveProgress(formData);
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error(err);
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmit = () => {
     if (!requiredFilled) return;
@@ -552,9 +565,37 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
               />
             ))}
           </div>
-          {/* Progress % */}
-          <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
-            <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
+          {/* Right side: Progress + Save & Exit */}
+          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
+            <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
+              <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
+            </div>
+            
+            {onSaveProgress && (
+              <button
+                onClick={handleSaveAndExit}
+                disabled={isSaving}
+                style={{
+                  padding: "8px 16px",
+                  background: isSaving ? "rgba(99,102,241,0.1)" : "transparent",
+                  border: "1px solid rgba(99,102,241,0.3)",
+                  borderRadius: "6px",
+                  color: "#a5b4fc",
+                  fontSize: "11px",
+                  fontWeight: "500",
+                  fontFamily: "'Inter', sans-serif",
+                  cursor: isSaving ? "default" : "pointer",
+                  transition: "all 0.15s",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px"
+                }}
+                onMouseEnter={e => { if (!isSaving) e.currentTarget.style.background = "rgba(99,102,241,0.1)"; }}
+                onMouseLeave={e => { if (!isSaving) e.currentTarget.style.background = "transparent"; }}
+              >
+                {isSaving ? "Saving..." : "Save & Exit"}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -657,7 +698,7 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
           justifyContent: "space-between",
           gap: "16px",
         }}>
-          {/* Back & Save Progress */}
+          {/* Back */}
           <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
             <button
               onClick={() => navigate(-1)}
@@ -680,32 +721,6 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
             >
               ← Back
             </button>
-            
-            {onSaveProgress && (
-              <button
-                onClick={() => {
-                  onSaveProgress(formData).then(() => {
-                    window.location.href = '/dashboard';
-                  });
-                }}
-                style={{
-                  padding: "12px 20px",
-                  background: "transparent",
-                  border: "1px solid rgba(99,102,241,0.3)",
-                  borderRadius: "8px",
-                  color: "#a5b4fc",
-                  fontSize: "12px",
-                  fontWeight: "500",
-                  fontFamily: "'Inter', sans-serif",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,102,241,0.1)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-              >
-                Save & Exit
-              </button>
-            )}
           </div>
 
           {/* Center: hint or nothing */}
