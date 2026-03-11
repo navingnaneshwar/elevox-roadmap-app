@@ -1,4 +1,3 @@
-import ContentFormats from './ContentFormats'
 import { useState } from "react";
 import EventsAnchors from './EventsAnchors';
 import ApprovalWorkflow from './ApprovalWorkflow';
