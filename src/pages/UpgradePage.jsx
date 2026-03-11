@@ -1,8 +1,6 @@
 // src/pages/UpgradePage.jsx
-// Sprint 2 — Task 1: Stripe checkout wired to create-checkout Edge Function
-import { useState } from 'react'
-import { useLocation, Link, useNavigate } from 'react-router-dom'
-import { supabase } from '../lib/supabase'
+// Payments deferred to Sprint 3 — CTA routes to email for now
+import { useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Logo from '../components/Logo'
 
@@ -36,40 +34,14 @@ const PLANS = [
 
 export default function UpgradePage() {
   const location     = useLocation()
-  const navigate     = useNavigate()
   const { profile }  = useAuth()
   const requiredPlan = location.state?.requiredPlan
+  const currentPlan  = profile?.plan || null
 
-  const [loadingPlan, setLoadingPlan] = useState(null)
-  const [error,       setError]       = useState(null)
-  const currentPlan = profile?.plan || null
-
-  async function handleSelectPlan(planId) {
-    setLoadingPlan(planId)
-    setError(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { navigate('/login'); return }
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ plan: planId }),
-        }
-      )
-      const { url, error: fnError } = await res.json()
-      if (fnError) throw new Error(fnError)
-      if (!url)    throw new Error('No checkout URL returned.')
-      window.location.href = url
-    } catch (err) {
-      setError(err.message)
-      setLoadingPlan(null)
-    }
+  function handleSelectPlan(planId) {
+    const subject = encodeURIComponent(`Elevox — Interested in the ${planId} plan`)
+    const body    = encodeURIComponent(`Hi,\n\nI'd like to learn more about the ${planId} plan.\n\nName: ${profile?.full_name || ''}\nEmail: ${profile?.email || ''}\n`)
+    window.location.href = `mailto:hello@elevox.com?subject=${subject}&body=${body}`
   }
 
   return (
@@ -86,11 +58,9 @@ export default function UpgradePage() {
           <p style={{ fontSize: '15px', color: '#64748B', margin: 0 }}>Invest in your executive brand. Cancel anytime.</p>
         </div>
 
-        {error && (
-          <div style={{ marginBottom: '32px', padding: '14px 20px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px', textAlign: 'center' }}>
-            {error} — please try again or <a href="mailto:support@elevox.com" style={{ color: '#f87171' }}>contact support</a>.
-          </div>
-        )}
+        <div style={{ marginBottom: '32px', padding: '14px 20px', background: 'rgba(200,169,110,0.08)', border: '1px solid rgba(200,169,110,0.2)', borderRadius: '10px', color: '#C8A96E', fontSize: '13px', textAlign: 'center' }}>
+          🚀 We're onboarding founding members personally — click a plan to reach out directly.
+        </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
           {PLANS.map(plan => {
@@ -117,11 +87,11 @@ export default function UpgradePage() {
                   ))}
                 </ul>
                 <button
-                  onClick={() => !isCurrentPlan && !anyLoading && handleSelectPlan(plan.id)}
-                  disabled={isCurrentPlan || anyLoading}
-                  style={{ width: '100%', padding: '13px', background: isCurrentPlan ? '#1E2A3E' : isLoading ? `${plan.color}80` : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`, border: isCurrentPlan ? '1px solid #1E2A3E' : 'none', borderRadius: '8px', color: isCurrentPlan ? '#334155' : '#fff', fontSize: '13px', fontWeight: '600', cursor: isCurrentPlan || anyLoading ? 'default' : 'pointer', boxShadow: isCurrentPlan || isLoading ? 'none' : `0 4px 20px ${plan.color}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                  onClick={() => !isCurrentPlan && handleSelectPlan(plan.id)}
+                  disabled={isCurrentPlan}
+                  style={{ width: '100%', padding: '13px', background: isCurrentPlan ? '#1E2A3E' : `linear-gradient(135deg, ${plan.color}, ${plan.color}cc)`, border: isCurrentPlan ? '1px solid #1E2A3E' : 'none', borderRadius: '8px', color: isCurrentPlan ? '#334155' : '#fff', fontSize: '13px', fontWeight: '600', cursor: isCurrentPlan ? 'default' : 'pointer', boxShadow: isCurrentPlan ? 'none' : `0 4px 20px ${plan.color}40` }}
                 >
-                  {isLoading ? (<><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.3)', borderTop: '2px solid #fff', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Redirecting…</>) : isCurrentPlan ? 'Current plan' : 'Get started →'}
+                  {isCurrentPlan ? 'Current plan' : 'Get in touch →'}
                 </button>
               </div>
             )
