@@ -565,37 +565,8 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
               />
             ))}
           </div>
-          {/* Right side: Progress + Save & Exit */}
-          <div style={{ display: "flex", alignItems: "center", gap: "24px" }}>
-            <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
-              <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
-            </div>
-            
-            {onSaveProgress && (
-              <button
-                onClick={handleSaveAndExit}
-                disabled={isSaving}
-                style={{
-                  padding: "8px 16px",
-                  background: isSaving ? "rgba(99,102,241,0.1)" : "transparent",
-                  border: "1px solid rgba(99,102,241,0.3)",
-                  borderRadius: "6px",
-                  color: "#a5b4fc",
-                  fontSize: "11px",
-                  fontWeight: "500",
-                  fontFamily: "'Inter', sans-serif",
-                  cursor: isSaving ? "default" : "pointer",
-                  transition: "all 0.15s",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "6px"
-                }}
-                onMouseEnter={e => { if (!isSaving) e.currentTarget.style.background = "rgba(99,102,241,0.1)"; }}
-                onMouseLeave={e => { if (!isSaving) e.currentTarget.style.background = "transparent"; }}
-              >
-                {isSaving ? "Saving..." : "Save & Exit"}
-              </button>
-            )}
+          <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
+            <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
           </div>
         </div>
       </div>
@@ -737,51 +708,76 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
           </div>
 
           {/* Next / Submit */}
-          {currentStep < STEPS.length - 1 ? (
-            <button
-              onClick={() => navigate(1)}
-              disabled={!requiredFilled}
-              style={{
-                padding: "12px 28px",
-                background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
-                border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
-                borderRadius: "8px",
-                color: requiredFilled ? "#fff" : "#334155",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.5px",
-                cursor: requiredFilled ? "pointer" : "default",
-                boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 6px 28px rgba(99,102,241,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
-              onMouseLeave={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.3)"; e.currentTarget.style.transform = "none"; }}}
-            >
-              Continue →
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!requiredFilled}
-              style={{
-                padding: "12px 32px",
-                background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
-                border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
-                borderRadius: "8px",
-                color: requiredFilled ? "#fff" : "#334155",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.8px",
-                cursor: requiredFilled ? "pointer" : "default",
-                boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
-                transition: "all 0.15s",
-              }}
-            >
-              Submit Brief ✓
-            </button>
-          )}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {onSaveProgress && (
+              <button
+                onClick={handleSaveAndExit}
+                disabled={isSaving}
+                style={{
+                  padding: "12px 24px",
+                  background: "transparent",
+                  border: "1px solid #1E2A3E",
+                  borderRadius: "8px",
+                  color: "#64748B",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  fontFamily: "'Inter', sans-serif",
+                  cursor: isSaving ? "default" : "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (!isSaving) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; }}}
+                onMouseLeave={e => { if (!isSaving) { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.color = "#64748B"; }}}
+              >
+                {isSaving ? "Saving..." : "Save & Exit"}
+              </button>
+            )}
+
+            {currentStep < STEPS.length - 1 ? (
+              <button
+                onClick={() => navigate(1)}
+                disabled={!requiredFilled}
+                style={{
+                  padding: "12px 28px",
+                  background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
+                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  borderRadius: "8px",
+                  color: requiredFilled ? "#fff" : "#334155",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.5px",
+                  cursor: requiredFilled ? "pointer" : "default",
+                  boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 6px 28px rgba(99,102,241,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
+                onMouseLeave={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.3)"; e.currentTarget.style.transform = "none"; }}}
+              >
+                Continue →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!requiredFilled}
+                style={{
+                  padding: "12px 32px",
+                  background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
+                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  borderRadius: "8px",
+                  color: requiredFilled ? "#fff" : "#334155",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.8px",
+                  cursor: requiredFilled ? "pointer" : "default",
+                  boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                Submit Brief ✓
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
