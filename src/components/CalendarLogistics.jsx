@@ -1,3 +1,4 @@
+import ContentFormats from './ContentFormats'
 import { useState } from "react";
 import EventsAnchors from './EventsAnchors';
 import ApprovalWorkflow from './ApprovalWorkflow';
@@ -378,7 +379,7 @@ export default function CalendarLogistics() {
         {/* ── TAB: CONTENT FORMATS ── */}
         {activeTab === "formats" && (
           <div style={{ padding: "40px 48px" }}>
-             <p style={{ fontSize: "14px", color: "#A8E6FF" }}>Content Formats view is under construction.</p>
+             <p style={{ fontSize: "14px", color: "#A8E6FF" }}><ContentFormats />
           </div>
         )}
       </div>

@@ -1,84 +1,81 @@
-import { useState } from 'react'
-import Roadmap from './components/Roadmap'
-import OnboardingForm from './components/OnboardingForm'
-import CalendarLogistics from './components/CalendarLogistics'
-import Dashboard from './components/Dashboard'
-import ProfileView from './components/ProfileView'
+// src/App.jsx
+// ─────────────────────────────────────────────────────────────
+// Root router. Replaces the old useState-based navigation.
+//
+// HOW TO MIGRATE FROM THE OLD App.jsx:
+//  1. Delete the old navItems + activeComponent useState
+//  2. Delete the conditional rendering block at the bottom
+//  3. Replace with this file in full
+//  4. Wrap <App /> in <AuthProvider> in main.jsx (see below)
+// ─────────────────────────────────────────────────────────────
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider } from './context/AuthContext'
+import ProtectedRoute from './components/ProtectedRoute'
 
-function App() {
-  const [activeComponent, setActiveComponent] = useState('dashboard')
-  const [profileData, setProfileData] = useState(null)
+// Public pages
+import LoginPage        from './pages/LoginPage'
+import SignupPage       from './pages/SignupPage'
+import AuthCallbackPage from './pages/AuthCallbackPage'
+import UpgradePage      from './pages/UpgradePage'
 
-  const navItems = [
-    { id: 'dashboard',  label: 'DASHBOARD'  },
-    { id: 'onboarding', label: 'ONBOARDING' },
-    { id: 'profile',    label: 'PROFILE'    },
-    { id: 'roadmap',    label: 'ROADMAP'    },
-    { id: 'calendar',   label: 'CALENDAR'   },
-  ]
+// Protected pages (existing components — just re-exported from pages/)
+import Dashboard          from './components/Dashboard'
+import OnboardingForm     from './components/OnboardingForm'
+import ProfileView        from './components/ProfileView'
+import Roadmap            from './components/Roadmap'
+import CalendarLogistics  from './components/CalendarLogistics'
 
-  const navBg = activeComponent === 'dashboard' || activeComponent === 'onboarding'
-    ? 'rgba(7,11,20,0.85)'
-    : 'rgba(255,255,255,0.7)'
+// ── Thin page wrappers that pass auth context to existing components ──────
+import DashboardPage    from './pages/DashboardPage'
+import OnboardingPage   from './pages/OnboardingPage'
+import ProfilePage      from './pages/ProfilePage'
 
-  const btnActive   = { background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: '#fff', border: '1px solid transparent' }
-  const btnInactive = { background: navBg, color: '#6366f1', border: '1px solid rgba(99,102,241,0.35)' }
-
+export default function App() {
   return (
-    <>
-      {/* Universal Top Nav */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        right: 0,
-        zIndex: 200,
-        display: 'flex',
-        padding: '12px 20px',
-        gap: '6px',
-      }}>
-        {navItems.map(({ id, label }) => (
-          <button
-            key={id}
-            onClick={() => setActiveComponent(id)}
-            style={{
-              padding: '7px 14px',
-              borderRadius: '7px',
-              fontFamily: "'Inter', sans-serif",
-              fontSize: '10px',
-              fontWeight: '600',
-              letterSpacing: '1.2px',
-              cursor: 'pointer',
-              backdropFilter: 'blur(8px)',
-              transition: 'all 0.18s',
-              ...(activeComponent === id ? btnActive : btnInactive),
-            }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
 
-      {activeComponent === 'dashboard'  && (
-        <Dashboard
-          profileData={profileData}
-          onSwitchTo={setActiveComponent}
-        />
-      )}
-      {activeComponent === 'onboarding' && (
-        <OnboardingForm
-          onComplete={(data) => { setProfileData(data); setActiveComponent('dashboard'); }}
-        />
-      )}
-      {activeComponent === 'profile'    && (
-        <ProfileView
-          profileData={profileData}
-          onStartOnboarding={() => setActiveComponent('onboarding')}
-        />
-      )}
-      {activeComponent === 'roadmap'    && <Roadmap />}
-      {activeComponent === 'calendar'   && <CalendarLogistics />}
-    </>
+          {/* ── Public routes ────────────────────────────── */}
+          <Route path="/login"          element={<LoginPage />} />
+          <Route path="/signup"         element={<SignupPage />} />
+          <Route path="/auth/callback"  element={<AuthCallbackPage />} />
+
+          {/* ── Protected routes ─────────────────────────── */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+          } />
+
+          <Route path="/onboarding" element={
+            // Onboarding is protected (must be logged in) but
+            // doesn't require onboarding_complete — that's its purpose
+            <ProtectedRoute skipOnboardingCheck><OnboardingPage /></ProtectedRoute>
+          } />
+
+          <Route path="/profile" element={
+            <ProtectedRoute><ProfilePage /></ProtectedRoute>
+          } />
+
+          <Route path="/roadmap" element={
+            <ProtectedRoute><Roadmap /></ProtectedRoute>
+          } />
+
+          <Route path="/calendar" element={
+            <ProtectedRoute><CalendarLogistics /></ProtectedRoute>
+          } />
+
+          <Route path="/upgrade" element={
+            <ProtectedRoute><UpgradePage /></ProtectedRoute>
+          } />
+
+          {/* Redirect root to dashboard (ProtectedRoute handles auth) */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+          {/* 404 fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
   )
 }
-
-export default App

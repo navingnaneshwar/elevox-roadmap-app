@@ -22,3 +22,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Elevox env
+.env
+.env.local
+.env.production
+
+# Supabase
+supabase/.temp/
