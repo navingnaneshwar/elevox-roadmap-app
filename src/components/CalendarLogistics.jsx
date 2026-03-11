@@ -2,6 +2,7 @@ import ContentFormats from './ContentFormats'
 import { useState } from "react";
 import EventsAnchors from './EventsAnchors';
 import ApprovalWorkflow from './ApprovalWorkflow';
+import ContentFormats from './ContentFormats';
 
 const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTHS = ["March", "April", "May", "June"];
@@ -378,9 +379,7 @@ export default function CalendarLogistics() {
 
         {/* ── TAB: CONTENT FORMATS ── */}
         {activeTab === "formats" && (
-          <div style={{ padding: "40px 48px" }}>
-             <p style={{ fontSize: "14px", color: "#A8E6FF" }}><ContentFormats />
-          </div>
+          <ContentFormats />
         )}
       </div>
     </div>
