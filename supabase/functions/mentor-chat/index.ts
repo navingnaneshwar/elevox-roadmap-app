@@ -106,8 +106,15 @@ IMPORTANT COACHING RULES:
     })
 
     if (!anthropicRes.ok) {
-      const err = await anthropicRes.text()
-      throw new Error(`Anthropic error: ${err}`)
+      const errText = await anthropicRes.text()
+      // Surface billing errors as a user-friendly message
+      if (anthropicRes.status === 403 || errText.includes('credit balance')) {
+        return new Response(
+          JSON.stringify({ error: 'billing', reply: null }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+      throw new Error(`Anthropic error: ${errText}`)
     }
 
     const anthropicData = await anthropicRes.json()

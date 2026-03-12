@@ -266,6 +266,10 @@ export default function CoachingSessionPage() {
     )
 
     if (!res.ok) {
+      // Billing error — show a friendly in-chat message
+      if (res.status === 402) {
+        return "⚠️ The AI mentor is temporarily unavailable — the Anthropic API credits need to be topped up. Please visit **console.anthropic.com/settings/billing** to add credits, then try again."
+      }
       const text = await res.text()
       throw new Error(`AI error (${res.status}): ${text}`)
     }
