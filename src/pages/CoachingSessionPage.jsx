@@ -233,7 +233,8 @@ export default function CoachingSessionPage() {
     if (!meta) return
     setThinking(true)
     try {
-      const aiReply = await callAI(meta.component.prompt, [])
+      // Pass a special opener message so the AI introduces the session
+      const aiReply = await callMentorAPI(meta.component.prompt, [], '__start__')
       const initial = [{ role: 'assistant', content: aiReply, ts: Date.now() }]
       setMessages(initial)
       await persist(initial)
@@ -244,26 +245,12 @@ export default function CoachingSessionPage() {
     }
   }
 
-  const callAI = useCallback(async (systemPrompt, history) => {
+  const callMentorAPI = useCallback(async (sessionPrompt, history, userMessage) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('Session expired — please log in again.')
 
-    // Build a conversation context for the AI
-    const userContext = profile ? `
-Executive context:
-- Name: ${profile.full_name || 'Executive'}
-- Title: ${profile.current_title || 'CxO'}
-- Company: ${profile.company || ''}
-- Industry: ${profile.industry || ''}
-- Primary goal: ${profile.primary_goal || ''}
-- Location: ${profile.location || ''}
-` : ''
-
-    const fullPrompt = systemPrompt + '\n\n' + userContext
-
-    // Use generate-brief edge fn style — route AI through Supabase Edge Function
     const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ghostwrite-post`,
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mentor-chat`,
       {
         method: 'POST',
         headers: {
@@ -271,9 +258,9 @@ Executive context:
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          topic: fullPrompt,
-          content_type: 'mentor_chat',
-          history: history.slice(-10), // last 10 messages for context
+          session_prompt: sessionPrompt,
+          history: history.slice(-10),
+          message: userMessage,
         }),
       }
     )
@@ -284,12 +271,9 @@ Executive context:
     }
 
     const json = await res.json()
-    // ghostwrite-post returns { drafts: [{angle, body, word_count}] }
-    // We use the first draft's body as the mentor reply
     if (json.error) throw new Error(json.error)
-    const reply = json.drafts?.[0]?.body || json.reply || "I'm thinking through your question..."
-    return reply
-  }, [profile])
+    return json.reply || "I'm thinking through your response..."
+  }, [])
 
   async function persist(msgs) {
     if (!user) return
@@ -308,7 +292,7 @@ Executive context:
     setThinking(true)
 
     try {
-      const aiReply = await callAI(meta.component.prompt, updated)
+      const aiReply = await callMentorAPI(meta.component.prompt, updated, text)
       const assistantMsg = { role: 'assistant', content: aiReply, ts: Date.now() }
       const final = [...updated, assistantMsg]
       setMessages(final)
