@@ -419,9 +419,24 @@ function SuccessScreen({ formData }) {
 /* ─── Main Component ────────────────────────────────────────── */
 export default function OnboardingForm({ onComplete }) {
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
-  const [currentStep, setCurrentStep] = useState(0);
-  const [formData, setFormData] = useState({});
-  const [direction, setDirection] = useState(1); // 1=forward -1=back
+  const [isSaving, setIsSaving] = useState(false);
+  
+  const initialStep = (() => {
+    if (!hasData) return 0;
+    for (let i = 0; i < STEPS.length; i++) {
+      const step = STEPS[i];
+      const missing = step.fields.filter(f => f.required).some(f => {
+        const v = initialData[f.id];
+        if (Array.isArray(v)) return v.length === 0;
+        return !v || String(v).trim() === "";
+      });
+      if (missing) return i;
+    }
+    return STEPS.length - 1;
+  })();
+
+  const [currentStep, setCurrentStep] = useState(initialStep);
+  const [formData, setFormData] = useState(initialData);
   const [animKey, setAnimKey] = useState(0);
   const containerRef = useRef(null);
 
@@ -440,13 +455,18 @@ export default function OnboardingForm({ onComplete }) {
 
   const navigate = useCallback((dir) => {
     if (dir === 1 && !requiredFilled) return;
-    setDirection(dir);
+    
+    // Auto-save on continuing to next step
+    if (dir === 1 && onSaveProgress) {
+      onSaveProgress(formData).catch(err => console.error("Auto save failed:", err));
+    }
+
     setAnimKey(k => k + 1);
     setCurrentStep(prev => prev + dir);
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   }, [requiredFilled]);
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!requiredFilled) return;
     console.log("📋 Brand Brief Submitted:", formData);
     if (onComplete) {
@@ -454,7 +474,7 @@ export default function OnboardingForm({ onComplete }) {
     } else {
       setPhase("done");
     }
-  };
+  }, [requiredFilled, formData, onComplete]);
 
   // Keyboard: Enter = advance, Backspace on empty = back
   useEffect(() => {
@@ -468,7 +488,7 @@ export default function OnboardingForm({ onComplete }) {
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [phase, currentStep, navigate, requiredFilled]);
+  }, [phase, currentStep, navigate, requiredFilled, handleSubmit]);
 
   if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} />;
   if (phase === "done") return <SuccessScreen formData={formData} />;
@@ -515,7 +535,7 @@ export default function OnboardingForm({ onComplete }) {
             {STEPS.map((_, i) => (
               <button
                 key={i}
-                onClick={() => i < currentStep ? (setDirection(-1), setAnimKey(k => k+1), setCurrentStep(i)) : null}
+                onClick={() => i < currentStep ? (setAnimKey(k => k+1), setCurrentStep(i)) : null}
                 style={{
                   width: i === currentStep ? "22px" : "6px",
                   height: "6px",

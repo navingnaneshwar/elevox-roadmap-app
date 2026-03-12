@@ -106,7 +106,6 @@ export default function ApprovalWorkflow() {
 
   useEffect(() => {
     if (tab === "sim") {
-      setSimStep(0);
       const t = setInterval(() => setSimStep(s => s < 6 ? s + 1 : 0), 1200);
       return () => clearInterval(t);
     }
@@ -184,7 +183,7 @@ export default function ApprovalWorkflow() {
           { id: "sim",    label: "Simulation" },
           { id: "sla",    label: "SLA & Escalation" },
         ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
+          <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "sim") setSimStep(0); }} style={{
             padding: "14px 24px",
             background: "transparent", border: "none",
             borderBottom: `2px solid ${tab === t.id ? "#4A9EFF" : "transparent"}`,

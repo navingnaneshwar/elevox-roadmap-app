@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 
 const EVENT_TYPES = [
   { id: "speaking",      label: "Speaking / Panel",           color: "#B8965A", bg: "#B8965A12", icon: "◆", pre: 3, post: 2 },
@@ -35,21 +35,7 @@ const MONTHS = [
 
 const WEEK_DAYS = ["M","T","W","T","F","S","S"];
 
-function buildCalendar() {
-  const weeks = [];
-  let dayCounter = 1;
-  MONTHS.forEach((m, mi) => {
-    const firstDow = [6,2,4,0][mi]; // approximate first weekday for each month
-    let week = [];
-    for (let d = 0; d < firstDow; d++) week.push(null);
-    for (let d = 1; d <= m.days; d++) {
-      week.push({ month: m.name, day: d, monthIdx: mi });
-      if (week.length === 7) { weeks.push({ month: m.name, cells: week }); week = []; }
-    }
-    if (week.length > 0) { while (week.length < 7) week.push(null); weeks.push({ month: m.name, cells: week }); }
-  });
-  return weeks;
-}
+
 
 export default function EventsAnchors() {
   const [events, setEvents] = useState([
@@ -82,8 +68,6 @@ export default function EventsAnchors() {
   };
 
   const typeFor = (e) => EVENT_TYPES.find(t => t.id === e.type);
-
-  const angles = selectedEvent ? (CONTENT_ANGLES[selectedEvent.type] || []) : [];
 
   // Build month-keyed event map
   const eventsByMonth = {};
@@ -255,7 +239,7 @@ export default function EventsAnchors() {
             {/* ── TIMELINE VIEW ── */}
             {view === "timeline" && (
               <div style={{ padding: "32px 40px" }} ref={timelineRef}>
-                {MONTHS.map((month, mi) => {
+                {MONTHS.map((month) => {
                   const mEvents = filtered.filter(e => e.month === month.name);
                   return (
                     <div key={month.name} style={{ marginBottom: "48px" }}>
@@ -277,7 +261,7 @@ export default function EventsAnchors() {
                           {/* Timeline spine */}
                           <div style={{ position: "absolute", left: "16px", top: 0, bottom: 0, width: "1px", background: "#DDD5C0" }} />
 
-                          {mEvents.map((ev, ei) => {
+                          {mEvents.map((ev) => {
                             const t = typeFor(ev);
                             const isSelected = selectedEvent?.id === ev.id;
                             const postCount = t ? t.pre + t.post : 4;

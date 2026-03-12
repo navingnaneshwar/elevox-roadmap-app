@@ -182,7 +182,7 @@ function PhaseCard({ phase, unlocked, isExpanded, onToggle }) {
   )
 }
 
-export default function Roadmap({ profileData, onSwitchTo, onSignOut }) {
+export default function Roadmap({ profileData }) {
   const navigate = useNavigate()
   const { profile: authProfile } = useAuth()
   const profile = profileData || authProfile
@@ -194,7 +194,6 @@ export default function Roadmap({ profileData, onSwitchTo, onSignOut }) {
              : 'starter'
 
   const unlockedPhases = PLAN_PHASES[plan] || PLAN_PHASES.starter
-  const totalComponents = PHASES.reduce((sum, p) => sum + p.components.length, 0)
   const unlockedComponents = PHASES
     .filter(p => unlockedPhases.includes(p.id))
     .reduce((sum, p) => sum + p.components.length, 0)

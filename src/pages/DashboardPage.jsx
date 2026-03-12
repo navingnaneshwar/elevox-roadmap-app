@@ -3,7 +3,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Dashboard from '../components/Dashboard'
-import { dbToFormData } from './OnboardingPage'
+import { profileToFormData } from './OnboardingPage'
 
 export default function DashboardPage() {
   const { profile, signOut } = useAuth()
@@ -23,7 +23,7 @@ export default function DashboardPage() {
 
   return (
     <Dashboard
-      profileData={profile ? dbToFormData(profile) : null}
+      profileData={profile ? profileToFormData(profile) : null}
       onSwitchTo={handleSwitchTo}
       onSignOut={signOut}
     />

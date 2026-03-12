@@ -79,16 +79,8 @@ export default function CalendarLogistics() {
   const [postingFreq, setPostingFreq] = useState("3x");
   const [activeDays, setActiveDays] = useState([0, 2, 4]);
   const [blackoutDays, setBlackoutDays] = useState([]);
-  const [formats, setFormats] = useState(["text", "image", "carousel"]);
-  const [approvalChannel, setApprovalChannel] = useState("whatsapp");
-  const [approvalSLA, setApprovalSLA] = useState("24h");
   const [weeklyTime, setWeeklyTime] = useState("15min");
   const [ghostLevel, setGhostLevel] = useState("light");
-  const [events, setEvents] = useState([]);
-  const [newEvent, setNewEvent] = useState({ title: "", type: "speaking", month: "March", week: 1, notes: "" });
-  const [showEventForm, setShowEventForm] = useState(false);
-  const [approvalDelegate, setApprovalDelegate] = useState(false);
-  const [eaName, setEaName] = useState("");
   const [activeTab, setActiveTab] = useState("schedule");
   const [ghostwriterOpen, setGhostwriterOpen] = useState(false);
   const [draftSelected, setDraftSelected] = useState(null);
@@ -109,21 +101,6 @@ export default function CalendarLogistics() {
   const toggleBlackout = (key) => {
     if (blackoutDays.includes(key)) setBlackoutDays(blackoutDays.filter(x => x !== key));
     else setBlackoutDays([...blackoutDays, key]);
-  };
-
-  const addEvent = () => {
-    if (!newEvent.title.trim()) return;
-    setEvents([...events, { ...newEvent, id: Date.now() }]);
-    setNewEvent({ title: "", type: "speaking", month: "March", week: 1, notes: "" });
-    setShowEventForm(false);
-  };
-
-  const removeEvent = (id) => setEvents(events.filter(e => e.id !== id));
-
-  const toggleFormat = (id) => {
-    if (formats.includes(id)) {
-      if (formats.length > 1) setFormats(formats.filter(f => f !== id));
-    } else setFormats([...formats, id]);
   };
 
   const handleSave = () => {

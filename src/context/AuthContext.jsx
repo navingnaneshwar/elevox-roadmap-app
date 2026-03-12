@@ -10,6 +10,19 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+
+  async function fetchProfile(userId) {
+    try {
+      const { data } = await getProfile(userId)
+      setProfile(data)
+    } catch {
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ── Load session on mount ────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -27,17 +40,6 @@ export function AuthProvider({ children }) {
 
     return () => subscription.unsubscribe()
   }, [])
-
-  async function fetchProfile(userId) {
-    try {
-      const { data } = await getProfile(userId)
-      setProfile(data)
-    } catch {
-      setProfile(null)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function refreshProfile() {
     if (!user) return
@@ -60,6 +62,7 @@ export function AuthProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')
