@@ -33,3 +33,14 @@ dist-ssr
 # Supabase
 supabase/.temp/
 .env*.local
+
+# Ralph autonomous loop state (runtime files, not config)
+.ralph/logs/
+.ralph/.call_count
+.ralph/.exit_signals
+.ralph/.circuit_breaker_state
+.ralph/.response_analysis
+.ralph/.claude_session_id
+.ralph/.ralph_session_history
+.ralph/status.json
+.ralph/docs/generated/
