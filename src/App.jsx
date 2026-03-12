@@ -13,7 +13,8 @@ import DashboardPage   from './pages/DashboardPage'
 import OnboardingPage  from './pages/OnboardingPage'
 import ProfilePage     from './pages/ProfilePage'
 import UpgradePage     from './pages/UpgradePage'
-import BrandBriefPage  from './pages/BrandBriefPage'
+import BrandBriefPage       from './pages/BrandBriefPage'
+import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
 
 // Feature components used as full pages
@@ -55,7 +56,7 @@ export default function App() {
 
           {/* Coaching session — phase + component driven */}
           <Route path="/coach/:phaseId/:componentId" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            <ProtectedRoute><CoachingSessionPage /></ProtectedRoute>
           } />
 
           <Route path="/brand-brief" element={
