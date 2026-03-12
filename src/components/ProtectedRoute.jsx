@@ -24,7 +24,7 @@ function hasPlan(userPlan, requiredPlan) {
   return (PLAN_RANK[userPlan] ?? 0) >= (PLAN_RANK[requiredPlan] ?? 0)
 }
 
-export default function ProtectedRoute({ children, requiredPlan = null }) {
+export default function ProtectedRoute({ children, requiredPlan = null, skipOnboardingCheck = false }) {
   const { user, profile, loading } = useAuth()
   const location = useLocation()
 
@@ -55,8 +55,8 @@ export default function ProtectedRoute({ children, requiredPlan = null }) {
   }
 
   // Authenticated but onboarding not complete → go to onboarding
-  // (allow /onboarding itself through to avoid redirect loop)
-  if (profile && !profile.onboarding_complete && location.pathname !== '/onboarding') {
+  // (allow /onboarding itself through by checking skipOnboardingCheck)
+  if (profile && !profile.onboarding_complete && !skipOnboardingCheck) {
     return <Navigate to="/onboarding" replace />
   }
 

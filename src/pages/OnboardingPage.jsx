@@ -1,4 +1,5 @@
 // src/pages/OnboardingPage.jsx
+/* eslint-disable react-refresh/only-export-components */
 // ─────────────────────────────────────────────────────────────
 // Wraps the existing OnboardingForm, wiring:
 //  - onComplete → saves to Supabase + navigates to /dashboard

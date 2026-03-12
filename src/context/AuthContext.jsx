@@ -16,6 +16,12 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  async function fetchProfile(userId) {
+    const { data } = await getProfile(userId)
+    setProfile(data)
+    setLoading(false)
+  }
+
   // ── Load session on mount ────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -36,11 +42,7 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe()
   }, [])
 
-  async function fetchProfile(userId) {
-    const { data } = await getProfile(userId)
-    setProfile(data)
-    setLoading(false)
-  }
+
 
   // Call this after onboarding data changes to refresh the profile in context
   async function refreshProfile() {
@@ -62,6 +64,7 @@ export function AuthProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   const ctx = useContext(AuthContext)
   if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>')

@@ -1,5 +1,6 @@
 // src/pages/UpgradePage.jsx
 // Payments deferred to Sprint 3 — CTA routes to email for now
+import { useState } from 'react'
 import { useLocation, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Logo from '../components/Logo'
@@ -37,11 +38,12 @@ export default function UpgradePage() {
   const { profile }  = useAuth()
   const requiredPlan = location.state?.requiredPlan
   const currentPlan  = profile?.plan || null
+  const [loadingPlan] = useState(null)
 
   function handleSelectPlan(planId) {
     const subject = encodeURIComponent(`Elevox — Interested in the ${planId} plan`)
     const body    = encodeURIComponent(`Hi,\n\nI'd like to learn more about the ${planId} plan.\n\nName: ${profile?.full_name || ''}\nEmail: ${profile?.email || ''}\n`)
-    window.location.href = `mailto:hello@elevox.com?subject=${subject}&body=${body}`
+    window.location.assign(`mailto:hello@elevox.com?subject=${subject}&body=${body}`)
   }
 
   return (

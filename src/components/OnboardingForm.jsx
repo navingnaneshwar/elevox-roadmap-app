@@ -439,7 +439,6 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
 
   const [currentStep, setCurrentStep] = useState(initialStep);
   const [formData, setFormData] = useState(initialData);
-  const [direction, setDirection] = useState(1); // 1=forward -1=back
   const [animKey, setAnimKey] = useState(0);
   const containerRef = useRef(null);
 
@@ -464,7 +463,6 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
       onSaveProgress(formData).catch(err => console.error("Auto save failed:", err));
     }
 
-    setDirection(dir);
     setAnimKey(k => k + 1);
     setCurrentStep(prev => prev + dir);
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
@@ -482,7 +480,7 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = useCallback(() => {
     if (!requiredFilled) return;
     console.log("📋 Brand Brief Submitted:", formData);
     if (onComplete) {
@@ -490,7 +488,7 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
     } else {
       setPhase("done");
     }
-  };
+  }, [requiredFilled, formData, onComplete]);
 
   // Keyboard: Enter = advance, Backspace on empty = back
   useEffect(() => {
@@ -504,7 +502,7 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [phase, currentStep, navigate, requiredFilled]);
+  }, [phase, currentStep, navigate, requiredFilled, handleSubmit]);
 
   if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} isResuming={initialStep > 0} />;
   if (phase === "done") return <SuccessScreen formData={formData} />;
@@ -551,7 +549,7 @@ export default function OnboardingForm({ onComplete, onSaveProgress, initialData
             {STEPS.map((_, i) => (
               <button
                 key={i}
-                onClick={() => i < currentStep ? (setDirection(-1), setAnimKey(k => k+1), setCurrentStep(i)) : null}
+                onClick={() => i < currentStep ? (setAnimKey(k => k+1), setCurrentStep(i)) : null}
                 style={{
                   width: i === currentStep ? "22px" : "6px",
                   height: "6px",

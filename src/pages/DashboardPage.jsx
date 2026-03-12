@@ -3,6 +3,7 @@
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Dashboard from '../components/Dashboard'
+import { profileToFormData } from './OnboardingPage'
 
 export default function DashboardPage() {
   const { profile, signOut } = useAuth()

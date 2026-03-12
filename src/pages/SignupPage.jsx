@@ -1,12 +1,10 @@
 // src/pages/SignupPage.jsx
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
 export default function SignupPage() {
-  const navigate = useNavigate()
-
   const [fullName,  setFullName]  = useState('')
   const [email,     setEmail]     = useState('')
   const [password,  setPassword]  = useState('')

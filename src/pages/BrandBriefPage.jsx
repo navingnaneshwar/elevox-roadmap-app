@@ -150,20 +150,19 @@ export default function BrandBriefPage() {
   // Load existing brief on mount
   useEffect(() => {
     if (!user) return
+    async function loadBrief() {
+      setLoading(true)
+      try {
+        const { data } = await getBrandBrief(user.id)
+        setBrief(data || null)
+      } catch {
+        // No brief yet — that's fine
+      } finally {
+        setLoading(false)
+      }
+    }
     loadBrief()
   }, [user])
-
-  async function loadBrief() {
-    setLoading(true)
-    try {
-      const { data } = await getBrandBrief(user.id)
-      setBrief(data || null)
-    } catch {
-      // No brief yet — that's fine
-    } finally {
-      setLoading(false)
-    }
-  }
 
   async function generateBrief() {
     setGenerating(true)
