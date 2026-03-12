@@ -172,9 +172,9 @@ export default function BillingPage() {
             <div style={{ fontSize: '13px', color: '#94A3B8', lineHeight: '1.6' }}>
               Your last payment failed. Update your payment method to keep access to your coaching sessions and content engine.
             </div>
-            <button onClick={openPortal} disabled={portalLoading} style={{ marginTop: '14px', padding: '10px 20px', background: '#E8935A', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-              {portalLoading ? 'Opening…' : 'Update payment method →'}
-            </button>
+            <a href="mailto:support@elevox.com?subject=Payment%20update%20request" style={{ display: 'inline-block', marginTop: '14px', padding: '10px 20px', background: '#E8935A', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+              Contact support to update payment →
+            </a>
           </div>
         )}
 
@@ -203,35 +203,20 @@ export default function BillingPage() {
           </div>
         )}
 
-        {/* Manage / cancel — Stripe Portal */}
+        {/* Manage / cancel — Payment portal coming soon */}
         {plan && planStatus !== 'cancelled' && (
           <div style={{ padding: '24px', background: 'rgba(13,18,32,0.4)', border: '1px solid #1E2A3E', borderRadius: '12px', marginBottom: '24px' }}>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', marginBottom: '6px' }}>
               Manage subscription
             </div>
             <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', marginBottom: '16px' }}>
-              Update your payment method, download invoices, or cancel your plan — all via the secure Stripe portal.
+              Self-service billing management (update payment method, invoices, cancellation)
+              is launching soon via our payment portal. For immediate changes, contact{' '}
+              <a href="mailto:support@elevox.com" style={{ color: '#6366f1', textDecoration: 'none' }}>support@elevox.com</a>.
             </div>
-            <button
-              onClick={openPortal}
-              disabled={portalLoading}
-              style={{
-                padding: '12px 24px',
-                background: portalLoading ? '#1E2A3E' : 'rgba(99,102,241,0.12)',
-                border: '1px solid rgba(99,102,241,0.25)',
-                borderRadius: '8px',
-                color: portalLoading ? '#64748B' : '#a5b4fc',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: portalLoading ? 'default' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: '8px',
-              }}
-            >
-              {portalLoading
-                ? <><div style={{ width: '14px', height: '14px', border: '2px solid #334155', borderTop: '2px solid #6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Opening Stripe portal…</>
-                : '⚙ Manage billing via Stripe →'
-              }
-            </button>
+            <div style={{ padding: '10px 16px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '8px', fontSize: '12px', color: '#64748B', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+              ⚡ PAYMENT PORTAL — LAUNCHING FINAL SPRINT
+            </div>
           </div>
         )}
 

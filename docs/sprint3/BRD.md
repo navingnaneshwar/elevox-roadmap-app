@@ -55,10 +55,17 @@ A white-glove, AI-powered coaching experience that helps C-suite executives buil
 
 ## 3. Business Requirements
 
-### BR-01 — Payments Must Be Live
-**Priority:** Critical
-**Description:** Users who click "Upgrade" on any plan must be redirected to a Stripe-hosted Checkout page. Successful payment must automatically update their plan and unlock the corresponding phases. Failed payments must trigger a notification.
-**Acceptance:** Stripe test card `4242 4242 4242 4242` successfully creates a subscription and updates `profiles.plan` in the DB.
+### BR-01 — Payment Placeholder + Interest Capture (Sprint 3) / Live Payments (Final Sprint)
+**Priority:** High (placeholder Sprint 3) → Critical (final sprint)
+**Description:** Stripe is not usable from an India-incorporated entity without a US/EU entity. Payment integration is deferred to the final sprint using **Razorpay** (India-compatible, supports international cards, UPI, and recurring subscriptions).
+
+**Sprint 3 scope (placeholder):** UpgradePage shows plan cards. Clicking "Select Plan" captures interest via inline confirmation (no payment). Team manually activates `profiles.plan` for enrolled users.
+
+**Final sprint scope (live):** Razorpay checkout modal wired to `create-razorpay-order` Edge Function. Webhook updates `profiles.plan` automatically on payment success.
+
+**See:** `docs/PAYMENT_GATEWAY.md` for full technical decision and integration plan.
+**Acceptance (Sprint 3):** Interest confirmation flow works, no broken UI, no mailto links.
+**Acceptance (Final Sprint):** Razorpay test payment completes, `profiles.plan` updated in DB.
 
 ### BR-02 — Plan Access Must Be Server-Enforced
 **Priority:** Critical

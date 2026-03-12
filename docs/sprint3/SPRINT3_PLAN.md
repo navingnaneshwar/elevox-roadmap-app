@@ -28,29 +28,29 @@
 
 ---
 
-### S3-01 — Stripe Checkout Live
-**Priority:** P0 — Blocker
-**Estimate:** 3 points
-**Linked FRS:** FR-01
-**Linked TDD:** Section 2.1
+### S3-01 — Payment Placeholder: Interest Capture Flow
+**Priority:** P1
+**Estimate:** 2 points
+**Linked FRS:** FR-01 (updated)
+**Linked TDD:** Section 2.1 (updated)
+**Note:** Stripe removed — India restrictions. Live payment via Razorpay deferred to final sprint. See `docs/PAYMENT_GATEWAY.md`.
 
 **As a** CxO who wants to upgrade,
-**I want** clicking "Get Started" on any plan to take me to Stripe's checkout,
-**So that** I can pay and immediately access my coaching phases.
+**I want** to select a plan and register my interest clearly,
+**So that** the team knows which plan I want and can contact me to complete enrollment.
 
 **Acceptance Criteria:**
-- [ ] AC1: Clicking "Get Started" on Foundation plan redirects to Stripe Checkout for `starter` price
-- [ ] AC2: Clicking "Get Started" on Authority plan redirects to Stripe Checkout for `authority` price
-- [ ] AC3: Clicking "Get Started" on Legacy plan redirects to Stripe Checkout for `legacy` price
-- [ ] AC4: Button shows loading state while API call is in flight
-- [ ] AC5: Completing checkout with test card `4242 4242 4242 4242` updates `profiles.plan` in DB
-- [ ] AC6: After checkout, user is redirected to `/dashboard?welcome=1`
-- [ ] AC7: Dashboard shows newly unlocked phases after successful checkout
-- [ ] AC8: Cancelling at Stripe checkout returns user to `/upgrade`
-- [ ] AC9: If the Edge Function returns an error, an inline error message appears (no `alert()`)
-- [ ] AC10: Currently subscribed users see "Manage Subscription" linking to Stripe Portal
+- [x] AC1: Plan cards display with correct pricing, phases, and feature lists *(done)*
+- [x] AC2: No `alert()` or `mailto:` links on plan buttons *(done)*
+- [ ] AC3: Clicking "Select [Plan]" shows an inline confirm step ("No payment collected yet")
+- [ ] AC4: Confirming shows a green success banner with the user's email and "team will reach out" message
+- [ ] AC5: Confirmed plan card shows "INTEREST REGISTERED" badge and disabled state
+- [ ] AC6: Cancelling the confirm step returns card to its default state
+- [ ] AC7: "Secure payment via Razorpay (launching soon)" trust badge is visible
+- [ ] AC8: BillingPage shows "Payment portal launching soon" instead of Stripe portal button
+- [ ] AC9: No broken UI, console errors, or references to Stripe in the user-facing flow
 
-**Definition of Done:** Stripe test card flow completes end-to-end, `profiles.plan` updated in DB, correct phases unlocked in dashboard.
+**Definition of Done:** Full interest-capture flow works without errors. No payment collected. Razorpay mentioned as coming-soon gateway.
 
 ---
 
@@ -196,16 +196,16 @@
 
 ## Sprint 3 Velocity Summary
 
-| Story | Points | Priority |
-|---|---|---|
-| S3-01 Stripe Checkout | 3 | P0 |
-| S3-02 Server Plan Enforcement | 2 | P0 |
-| S3-03 Ghostwriter Pipeline | 5 | P1 |
-| S3-04 Roadmap Navigation | 2 | P1 |
-| S3-05 ApprovalWorkflow Fix | 1 | P1 |
-| S3-06 Theme + Cleanup | 1 | P2 |
-| S3-07 Issue Log | 1 | P1 |
-| **Total** | **15 pts** | |
+| Story | Points | Priority | Notes |
+|---|---|---|---|
+| S3-01 Payment Placeholder | 2 | P1 | Stripe removed; Razorpay deferred to final sprint |
+| S3-02 Server Plan Enforcement | 2 | P0 | |
+| S3-03 Ghostwriter Pipeline | 5 | P1 | |
+| S3-04 Roadmap Navigation | 2 | P1 | |
+| S3-05 ApprovalWorkflow Fix | 1 | P1 | |
+| S3-06 Theme + Cleanup | 1 | P2 | |
+| S3-07 Issue Log | 1 | P1 | |
+| **Total** | **14 pts** | | |
 
 ---
 
