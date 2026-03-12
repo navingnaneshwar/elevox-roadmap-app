@@ -183,6 +183,43 @@ await saveStep({ fullName: 'Alexandra', currentTitle: 'CEO' })
 await supabase.from('profiles').update({ full_name: 'Alexandra' }).eq('id', user.id)
 ```
 
+### Rule 7 — ALWAYS log bugs and errors to the Issue Log
+Every bug, production error, or unexpected failure MUST be recorded in
+`docs/ISSUE_LOG.md` within 24 hours of discovery — before or alongside the fix.
+This is non-negotiable. It builds institutional memory for production operations.
+
+**Required fields per entry:**
+- **ID** — sequential `ISS-NNN`
+- **Date** — date discovered (not fixed)
+- **Severity** — P0 (outage) / P1 (broken feature) / P2 (degraded) / P3 (cosmetic) / P4 (debt)
+- **Sprint** — which sprint it was found in
+- **Component** — file or system area affected
+- **Error Description** — what the user/developer sees
+- **RCA** — root cause analysis: WHY did this happen? (not just what)
+- **Fix** — specific file, approach, commit hash when available
+- **Status** — `Open`, `In Progress`, `Open — Sprint X SX-YY`, or `Resolved`
+
+✅ CORRECT:
+```markdown
+| ISS-009 | 2026-03-12 | P1 | S2 | mentor-chat/index.ts | No server-side plan check |
+  User can access Phase 5 content on starter plan | Plan guard never added to Edge Function |
+  Add PLAN_PHASE_ACCESS map + guard; return 403 if phase exceeds plan | Open — Sprint 3 S3-02 |
+```
+
+❌ WRONG:
+```markdown
+| ISS-009 | - | - | - | mentor-chat | broken | - | fixed | done |
+```
+
+**Severity guide:**
+- P0: Production outage / data loss — log immediately
+- P1: Feature completely broken — log within 4 hours
+- P2: Feature degraded — log within 24 hours
+- P3/P4: Cosmetic / tech debt — log within the sprint
+
+**Never delete rows** — resolved issues stay in the Resolved table permanently.
+**See:** `docs/ISSUE_LOG.md` for the live tracker.
+
 ### Rule 6 — ALWAYS follow the existing design system
 All colour values, font families, and spacing patterns come from
 `src/index.css`. Do not introduce new hex values or Google Font imports.
@@ -460,17 +497,29 @@ Template: welcome email with their name, plan, and link back to dashboard.
 
 ## Known Issues (do not re-introduce)
 
-1. **App.css** contains default Vite boilerplate (logo spin animation etc).
-   It does nothing useful. Delete it and remove the import in App.jsx.
+See `docs/ISSUE_LOG.md` for the full issue tracker with RCA and fix details.
+Active issues as of Sprint 3 start:
 
-2. **Roadmap.jsx** is currently an agency ops tool, not a CxO coaching roadmap.
-   See Sprint 2 Task 4.
+1. **ISS-008 — UpgradePage Stripe not wired** (P1) — buttons call `mailto:` instead of
+   `create-checkout` Edge Function. Sprint 3 S3-01.
 
-3. **UpgradePage plan buttons** call `alert()`. See Sprint 2 Task 1.
+2. **ISS-009 — No server-side plan enforcement** (P1) — `mentor-chat` Edge Function
+   does not check `profiles.plan` before serving AI responses. Sprint 3 S3-02.
 
-4. **Session continuity** — returning to a mentor chat starts fresh instead of
-   resuming. `upsertMentorSession()` in supabase.js is built and waiting.
-   The chat component just needs to call it on each message.
+3. **ISS-010 — GhostwriterPanel draft not saved to DB** (P2) — selecting a draft
+   only updates local state; no write to `content_drafts` or `content_calendar`.
+   Sprint 3 S3-03.
+
+4. **ISS-011 — Roadmap has no click navigation** (P2) — component cards have no
+   handler to navigate to `/coach/:phaseId/:componentId`. Sprint 3 S3-04.
+
+5. **ISS-012 — ApprovalWorkflow lint error** (P2) — `setSimStep` in useEffect causing
+   cascading re-renders. Sprint 3 S3-05.
+
+6. **ISS-013 — CalendarLogistics light background** (P3) — one section uses `#F8FAFC`
+   instead of dark theme. Sprint 3 S3-06.
+
+7. **ISS-014 — App.css not deleted** (P3) — Vite boilerplate remains. Sprint 3 S3-06.
 
 5. **Phase lock is only enforced client-side** in Dashboard.jsx via the
    `unlockedPhases` array. The chat route has no server-side plan check.
