@@ -14,7 +14,7 @@ import OnboardingForm from '../components/OnboardingForm'
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { finishOnboarding } = useProfile()
+  const { finishOnboarding, saveStep } = useProfile()
 
   async function handleComplete(formData) {
     const { error } = await finishOnboarding(formData)
@@ -47,12 +47,25 @@ export default function OnboardingPage() {
   }
 
   // Convert profile DB row → form camelCase keys for pre-fill
-  const initialData = profile ? dbToFormData(profile) : null
+  const initialData = profile ? dbToFormData(profile) : {}
+  // Filter out empty arrays or nulls so OnboardingForm logic cleanly detects missing vs present
+  const cleanedData = {}
+  Object.keys(initialData || {}).forEach(k => {
+    if (initialData[k] !== null && initialData[k] !== undefined) {
+      cleanedData[k] = initialData[k]
+    }
+  })
+
+  async function handleSaveProgress(formData) {
+    await saveStep(formData)
+    // Optional UI toast or just let it autosave
+  }
 
   return (
     <OnboardingForm
       onComplete={handleComplete}
-      initialData={initialData}
+      onSaveProgress={handleSaveProgress}
+      initialData={cleanedData}
     />
   )
 }

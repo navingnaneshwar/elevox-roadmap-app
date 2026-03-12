@@ -219,7 +219,7 @@ function FieldInput({ field, value, onChange }) {
 }
 
 /* ─── Hero Screen ───────────────────────────────────────────── */
-function HeroScreen({ onStart }) {
+function HeroScreen({ onStart, isResuming }) {
   useEffect(() => {
     const handler = e => { if (e.key === "Enter") onStart(); };
     window.addEventListener("keydown", handler);
@@ -325,7 +325,7 @@ function HeroScreen({ onStart }) {
             onMouseEnter={e => { e.target.style.transform = "translateY(-2px)"; e.target.style.boxShadow = "0 12px 40px rgba(99,102,241,0.5)"; }}
             onMouseLeave={e => { e.target.style.transform = "none"; e.target.style.boxShadow = "0 8px 32px rgba(99,102,241,0.35)"; }}
           >
-            Start the Brief →
+            {isResuming ? "Resume Brief →" : "Start the Brief →"}
           </button>
           <div style={{ marginTop: "14px", fontSize: "11px", color: "#334155", fontFamily: "'Inter', sans-serif", letterSpacing: "0.5px" }}>
             Press <kbd style={{ background: "#1E2A3E", color: "#a5b4fc", border: "1px solid #2D3D5A", borderRadius: "4px", padding: "1px 6px", fontSize: "10px" }}>Enter</kbd> to start
@@ -417,7 +417,9 @@ function SuccessScreen({ formData }) {
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
-export default function OnboardingForm({ onComplete }) {
+export default function OnboardingForm({ onComplete, onSaveProgress, initialData = {} }) {
+  const hasData = Object.keys(initialData).length > 0;
+
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
   const [isSaving, setIsSaving] = useState(false);
   
@@ -464,7 +466,19 @@ export default function OnboardingForm({ onComplete }) {
     setAnimKey(k => k + 1);
     setCurrentStep(prev => prev + dir);
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, [requiredFilled]);
+  }, [requiredFilled, onSaveProgress, formData]);
+
+  const handleSaveAndExit = async () => {
+    if (!onSaveProgress) return;
+    setIsSaving(true);
+    try {
+      await onSaveProgress(formData);
+      window.location.href = '/dashboard';
+    } catch (err) {
+      console.error(err);
+      setIsSaving(false);
+    }
+  };
 
   const handleSubmit = useCallback(() => {
     if (!requiredFilled) return;
@@ -490,7 +504,7 @@ export default function OnboardingForm({ onComplete }) {
     return () => window.removeEventListener("keydown", handler);
   }, [phase, currentStep, navigate, requiredFilled, handleSubmit]);
 
-  if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} />;
+  if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} isResuming={initialStep > 0} />;
   if (phase === "done") return <SuccessScreen formData={formData} />;
 
   return (
@@ -549,7 +563,6 @@ export default function OnboardingForm({ onComplete }) {
               />
             ))}
           </div>
-          {/* Progress % */}
           <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
             <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
           </div>
@@ -655,28 +668,29 @@ export default function OnboardingForm({ onComplete }) {
           gap: "16px",
         }}>
           {/* Back */}
-          <button
-            onClick={() => navigate(-1)}
-            disabled={currentStep === 0}
-            style={{
-              padding: "12px 24px",
-              background: "transparent",
-              border: `1px solid ${currentStep === 0 ? "#1E2A3E" : "#2D3D5A"}`,
-              borderRadius: "8px",
-              color: currentStep === 0 ? "#1E2A3E" : "#64748B",
-              fontSize: "12px",
-              fontWeight: "500",
-              fontFamily: "'Inter', sans-serif",
-              letterSpacing: "0.5px",
-              cursor: currentStep === 0 ? "default" : "pointer",
-              transition: "all 0.15s",
-              display: "flex", alignItems: "center", gap: "6px",
-            }}
-            onMouseEnter={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; }}}
-            onMouseLeave={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#2D3D5A"; e.currentTarget.style.color = "#64748B"; }}}
-          >
-            ← Back
-          </button>
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            <button
+              onClick={() => navigate(-1)}
+              disabled={currentStep === 0}
+              style={{
+                padding: "12px 24px",
+                background: "transparent",
+                border: `1px solid ${currentStep === 0 ? "#1E2A3E" : "#2D3D5A"}`,
+                borderRadius: "8px",
+                color: currentStep === 0 ? "#1E2A3E" : "#64748B",
+                fontSize: "12px",
+                fontWeight: "500",
+                fontFamily: "'Inter', sans-serif",
+                cursor: currentStep === 0 ? "default" : "pointer",
+                transition: "all 0.15s",
+                display: "flex", alignItems: "center", gap: "6px",
+              }}
+              onMouseEnter={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; }}}
+              onMouseLeave={e => { if (currentStep > 0) { e.currentTarget.style.borderColor = "#2D3D5A"; e.currentTarget.style.color = "#64748B"; }}}
+            >
+              ← Back
+            </button>
+          </div>
 
           {/* Center: hint or nothing */}
           <div style={{ flex: 1, textAlign: "center" }}>
@@ -692,51 +706,76 @@ export default function OnboardingForm({ onComplete }) {
           </div>
 
           {/* Next / Submit */}
-          {currentStep < STEPS.length - 1 ? (
-            <button
-              onClick={() => navigate(1)}
-              disabled={!requiredFilled}
-              style={{
-                padding: "12px 28px",
-                background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
-                border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
-                borderRadius: "8px",
-                color: requiredFilled ? "#fff" : "#334155",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.5px",
-                cursor: requiredFilled ? "pointer" : "default",
-                boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
-                transition: "all 0.15s",
-              }}
-              onMouseEnter={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 6px 28px rgba(99,102,241,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
-              onMouseLeave={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.3)"; e.currentTarget.style.transform = "none"; }}}
-            >
-              Continue →
-            </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!requiredFilled}
-              style={{
-                padding: "12px 32px",
-                background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
-                border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
-                borderRadius: "8px",
-                color: requiredFilled ? "#fff" : "#334155",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.8px",
-                cursor: requiredFilled ? "pointer" : "default",
-                boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
-                transition: "all 0.15s",
-              }}
-            >
-              Submit Brief ✓
-            </button>
-          )}
+          <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+            {onSaveProgress && (
+              <button
+                onClick={handleSaveAndExit}
+                disabled={isSaving}
+                style={{
+                  padding: "12px 24px",
+                  background: "transparent",
+                  border: "1px solid #1E2A3E",
+                  borderRadius: "8px",
+                  color: "#64748B",
+                  fontSize: "12px",
+                  fontWeight: "500",
+                  fontFamily: "'Inter', sans-serif",
+                  cursor: isSaving ? "default" : "pointer",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (!isSaving) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; }}}
+                onMouseLeave={e => { if (!isSaving) { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.color = "#64748B"; }}}
+              >
+                {isSaving ? "Saving..." : "Save & Exit"}
+              </button>
+            )}
+
+            {currentStep < STEPS.length - 1 ? (
+              <button
+                onClick={() => navigate(1)}
+                disabled={!requiredFilled}
+                style={{
+                  padding: "12px 28px",
+                  background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
+                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  borderRadius: "8px",
+                  color: requiredFilled ? "#fff" : "#334155",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.5px",
+                  cursor: requiredFilled ? "pointer" : "default",
+                  boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 6px 28px rgba(99,102,241,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
+                onMouseLeave={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.3)"; e.currentTarget.style.transform = "none"; }}}
+              >
+                Continue →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!requiredFilled}
+                style={{
+                  padding: "12px 32px",
+                  background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
+                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  borderRadius: "8px",
+                  color: requiredFilled ? "#fff" : "#334155",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.8px",
+                  cursor: requiredFilled ? "pointer" : "default",
+                  boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                Submit Brief ✓
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>
