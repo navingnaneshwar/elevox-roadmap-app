@@ -70,7 +70,7 @@ const PHASES = [
       { name: 'Private Community Blueprint', desc: 'Design a high-value private community — the inner sanctum for your most engaged followers.', deliverable: 'Community Blueprint' },
     ],
     plans: ['legacy'],
-    outcome: 'An audience that doesn't just follow you — it advocates for you.',
+    outcome: "An audience that doesn't just follow you — it advocates for you.",
   },
   {
     id: 6, label: '06', title: 'Measure & Scale',

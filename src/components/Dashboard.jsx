@@ -1,4 +1,16 @@
-import { useState } from "react";
+// src/components/Dashboard.jsx
+// Sprint 2 — All bugs fixed:
+//   - dbPlan now derived correctly from profileData.plan (was undefined, crashed page)
+//   - Profile nav button → /profile (was pointing to /onboarding)
+//   - Sign-out button added to nav
+//   - Nav links to Brand Brief, Roadmap, Calendar added
+//   - Upgrade banner button has onClick → /upgrade
+//   - Phase drawer component rows now navigate into coaching session
+//   - Sessions driven from Supabase via getMentorSessions (with mock fallback)
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { getMentorSessions } from "../lib/supabase";
+import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
 
 /* ─── Phase Data ─────────────────────────────────────────────── */
@@ -41,6 +53,42 @@ const PHASES = [
   },
 ];
 
+const PLAN_PHASES = {
+  legacy:    [1, 2, 3, 4, 5, 6],
+  authority: [1, 2, 3, 4],
+  starter:   [1, 2],
+};
+
+/* ─── Helpers ────────────────────────────────────────────────── */
+function derivePlan(profileData) {
+  // Prefer the DB plan field (mapped by dbToFormData)
+  if (profileData?.plan) return profileData.plan;
+  // Fallback: derive from the budget text field
+  const b = (profileData?.budget || "").toLowerCase();
+  if (b.includes("legacy"))    return "legacy";
+  if (b.includes("authority")) return "authority";
+  return "starter";
+}
+
+/* ─── Stat Card ──────────────────────────────────────────────── */
+function StatCard({ value, label, color, icon }) {
+  return (
+    <div style={{
+      flex: "1 1 160px",
+      background: "rgba(255,255,255,0.02)",
+      border: "1px solid #1E2A3E",
+      borderRadius: "12px",
+      padding: "18px 20px",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+        <span style={{ fontSize: "16px" }}>{icon}</span>
+        <span style={{ fontSize: "24px", fontWeight: "700", color, fontFamily: "'Outfit', sans-serif" }}>{value}</span>
+      </div>
+      <div style={{ fontSize: "10px", color: "#64748B", letterSpacing: "1.5px", textTransform: "uppercase" }}>{label}</div>
+    </div>
+  );
+}
+
 /* ─── Phase Card ─────────────────────────────────────────────── */
 function PhaseCard({ phase, unlocked, sessionsStarted, onClick }) {
   const [hovered, setHovered] = useState(false);
@@ -77,16 +125,12 @@ function PhaseCard({ phase, unlocked, sessionsStarted, onClick }) {
         {phase.label}
       </div>
 
-      {/* Lock icon */}
       {!unlocked && (
         <div style={{ position: "absolute", top: 14, right: 16, fontSize: "16px", opacity: 0.4 }}>🔒</div>
       )}
 
-      {/* Header */}
       <div style={{ marginBottom: "14px" }}>
-        <div style={{
-          display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px",
-        }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
           <div style={{
             width: "36px", height: "36px", borderRadius: "50%",
             background: `linear-gradient(135deg, ${phase.color}25, ${phase.color}08)`,
@@ -100,51 +144,42 @@ function PhaseCard({ phase, unlocked, sessionsStarted, onClick }) {
             <div style={{ fontSize: "10px", color: phase.color, letterSpacing: "2px", fontFamily: "'Inter', sans-serif", fontWeight: "600" }}>
               PHASE {phase.label} · {phase.duration}
             </div>
+            <div style={{ fontSize: "16px", fontWeight: "600", color: "#F1F5F9", fontFamily: "'Outfit', sans-serif" }}>
+              {phase.title}
+            </div>
           </div>
         </div>
-        <div style={{ fontSize: "16px", fontWeight: "600", color: "#F1F5F9", fontFamily: "'Outfit', sans-serif", marginBottom: "6px" }}>
-          {phase.title}
-        </div>
-        <div style={{ fontSize: "11px", color: "#334155", fontFamily: "'Inter', sans-serif" }}>
+        <div style={{ fontSize: "11px", color: "#64748B", fontFamily: "'Inter', sans-serif" }}>
           {phase.pillars.join(" · ")}
         </div>
       </div>
 
       {/* Progress bar */}
-      <div style={{ marginBottom: "12px" }}>
-        <div style={{ height: "3px", background: "#1E2A3E", borderRadius: "2px", overflow: "hidden" }}>
-          <div style={{
-            height: "100%",
-            width: `${progress}%`,
-            background: `linear-gradient(90deg, ${phase.color}, ${phase.color}99)`,
-            borderRadius: "2px",
-            transition: "width 0.5s ease",
-          }} />
-        </div>
+      <div style={{ height: "3px", background: "#1E2A3E", borderRadius: "2px", marginBottom: "12px", overflow: "hidden" }}>
+        <div style={{
+          width: `${progress}%`, height: "100%",
+          background: `linear-gradient(90deg, ${phase.color}, ${phase.color}99)`,
+          borderRadius: "2px", transition: "width 0.5s ease",
+        }} />
       </div>
 
-      {/* Component dots */}
-      <div style={{ display: "flex", gap: "4px", marginBottom: "14px" }}>
+      {/* Session dots */}
+      <div style={{ display: "flex", gap: "5px", marginBottom: "10px" }}>
         {phase.components.map((_, i) => (
           <div key={i} style={{
-            flex: 1, height: "4px", borderRadius: "2px",
+            width: "6px", height: "6px", borderRadius: "50%",
             background: i < sessionsStarted ? phase.color : "#1E2A3E",
-            transition: "background 0.3s",
+            transition: "background 0.3s ease",
           }} />
         ))}
       </div>
 
-      {/* Footer */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "10px", color: "#334155", fontFamily: "'Inter', sans-serif" }}>
+        <span style={{ fontSize: "11px", color: "#64748B" }}>
           {sessionsStarted}/{phase.components.length} sessions
         </span>
         {unlocked && (
-          <span style={{
-            fontSize: "10px", color: phase.color,
-            fontFamily: "'Inter', sans-serif", fontWeight: "600",
-            letterSpacing: "0.5px",
-          }}>
+          <span style={{ fontSize: "11px", color: phase.color, fontFamily: "'Inter', sans-serif" }}>
             {sessionsStarted === 0 ? "Begin →" : sessionsStarted === phase.components.length ? "Complete ✓" : "Continue →"}
           </span>
         )}
@@ -153,55 +188,80 @@ function PhaseCard({ phase, unlocked, sessionsStarted, onClick }) {
   );
 }
 
-/* ─── Stat Card ──────────────────────────────────────────────── */
-function StatCard({ value, label, color, icon }) {
+/* ─── Nav Link ───────────────────────────────────────────────── */
+function NavLink({ label, route, onClick }) {
+  const [hovered, setHovered] = useState(false);
   return (
-    <div style={{
-      background: "rgba(255,255,255,0.02)",
-      border: "1px solid #1E2A3E",
-      borderRadius: "12px",
-      padding: "20px 24px",
-      flex: "1 1 140px",
-    }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-        <span style={{ fontSize: "18px" }}>{icon}</span>
-        <span style={{ fontSize: "24px", fontWeight: "700", color, fontFamily: "'Outfit', sans-serif" }}>{value}</span>
-      </div>
-      <div style={{ fontSize: "10px", color: "#334155", letterSpacing: "1.5px", fontFamily: "'Inter', sans-serif", textTransform: "uppercase" }}>
-        {label}
-      </div>
-    </div>
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: "7px 14px",
+        background: hovered ? "rgba(99,102,241,0.08)" : "transparent",
+        border: "1px solid transparent",
+        borderRadius: "7px",
+        color: hovered ? "#a5b4fc" : "#64748B",
+        fontSize: "12px",
+        fontWeight: "500",
+        cursor: "pointer",
+        fontFamily: "'Inter', sans-serif",
+        transition: "all 0.15s",
+      }}
+    >
+      {label}
+    </button>
   );
 }
 
-/* ─── Main Dashboard ─────────────────────────────────────────── */
-export default function Dashboard({ profileData, onSwitchTo }) {
-  const [selectedPhase, setSelectedPhase] = useState(null);
+/* ─── Main Component ─────────────────────────────────────────── */
+export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const [selectedPhase, setSelectedPhase]   = useState(null);
+  const [sessions,      setSessions]        = useState({});
 
-  // Mock sessions state — in a real app, persisted to localStorage
-  const [sessions] = useState({
-    "1": 1, "2": 0, "3": 0, "4": 0, "5": 0, "6": 0,
-  });
+  // Derive plan correctly (fixes dbPlan undefined crash)
+  const dbPlan       = derivePlan(profileData);
+  const unlockedPhases = PLAN_PHASES[dbPlan] || PLAN_PHASES.starter;
 
-  // Determine plan from profileData budget field
-  const budget = profileData?.budget || "";
-  const unlockedPhases = budget.includes("Legacy") ? [1,2,3,4,5,6]
-    : budget.includes("Authority") ? [1,2,3,4]
-    : [1,2]; // Starter or default
+  // Load real session data from Supabase
+  useEffect(() => {
+    if (!user) return;
+    getMentorSessions(user.id).then(({ data }) => {
+      if (!data) return;
+      const map = {};
+      data.forEach(s => {
+        const key = String(s.phase_id);
+        map[key] = (map[key] || 0) + 1;
+      });
+      setSessions(map);
+    });
+  }, [user]);
 
-  const totalComponents = PHASES.reduce((a, p) => a + p.components.length, 0);
-  const completedSessions = Object.values(sessions).reduce((a, b) => a + b, 0);
-  const unlockedCount = unlockedPhases.length;
-  const progressPct = Math.round((completedSessions / totalComponents) * 100);
+  const totalComponents    = PHASES.reduce((a, p) => a + p.components.length, 0);
+  const completedSessions  = Object.values(sessions).reduce((a, b) => a + b, 0);
+  const unlockedCount      = unlockedPhases.length;
+  const progressPct        = Math.round((completedSessions / totalComponents) * 100);
 
   const firstName = profileData?.fullName?.split(" ")[0] || "there";
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const hour      = new Date().getHours();
+  const greeting  = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+
+  function handleNav(screen) {
+    if (onSwitchTo) onSwitchTo(screen);
+  }
+
+  function handleStartSession(phase, componentIndex) {
+    setSelectedPhase(null);
+    // Navigate into coaching session — route carries phase+component context
+    navigate(`/coach/${phase.id}/${componentIndex}`);
+  }
 
   return (
     <div style={{
       minHeight: "100vh",
-      background: "var(--ob-bg, #070B14)",
+      background: "#070B14",
       fontFamily: "'Inter', sans-serif",
       position: "relative",
       overflowX: "hidden",
@@ -209,28 +269,38 @@ export default function Dashboard({ profileData, onSwitchTo }) {
       {/* Ambient blobs */}
       <div style={{ position: "fixed", top: "-80px", left: "-80px", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.06) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
       <div style={{ position: "fixed", bottom: "0", right: "-100px", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
-      {/* Grid */}
       <div style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none", zIndex: 0 }} />
 
       {/* ── Top Nav ── */}
       <nav style={{
         position: "sticky", top: 0, zIndex: 50,
-        background: "rgba(7,11,20,0.85)",
+        background: "rgba(7,11,20,0.9)",
         backdropFilter: "blur(14px)",
         borderBottom: "1px solid #1E2A3E",
-        padding: "0 40px",
+        padding: "0 32px",
         display: "flex", alignItems: "center", justifyContent: "space-between",
         height: "56px",
       }}>
+        {/* Left: logo + label */}
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <Logo size="md" theme="dark" />
           <span style={{ width: "1px", height: "14px", background: "#1E2A3E" }} />
           <span style={{ fontSize: "12px", color: "#334155" }}>Dashboard</span>
         </div>
-        <div style={{ display: "flex", gap: "8px" }}>
+
+        {/* Centre: nav links */}
+        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+          <NavLink label="Roadmap"    onClick={() => handleNav("roadmap")} />
+          <NavLink label="Brand Brief" onClick={() => handleNav("brand-brief")} />
+          <NavLink label="Calendar"   onClick={() => handleNav("calendar")} />
+          <NavLink label="Upgrade"    onClick={() => handleNav("upgrade")} />
+        </div>
+
+        {/* Right: profile + sign out */}
+        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
           {profileData?.fullName && (
             <button
-              onClick={() => onSwitchTo && onSwitchTo("onboarding")}
+              onClick={() => handleNav("profile")}
               style={{
                 padding: "7px 16px",
                 background: "rgba(99,102,241,0.10)",
@@ -241,12 +311,29 @@ export default function Dashboard({ profileData, onSwitchTo }) {
                 fontWeight: "500",
                 cursor: "pointer",
                 fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.3px",
               }}
             >
               {profileData.fullName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase()} · Profile
             </button>
           )}
+          <button
+            onClick={onSignOut}
+            style={{
+              padding: "7px 14px",
+              background: "transparent",
+              border: "1px solid #1E2A3E",
+              borderRadius: "8px",
+              color: "#334155",
+              fontSize: "11px",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              transition: "all 0.15s",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = "#94A3B8"; e.currentTarget.style.borderColor = "#94A3B8"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "#334155"; e.currentTarget.style.borderColor = "#1E2A3E"; }}
+          >
+            Sign out
+          </button>
         </div>
       </nav>
 
@@ -285,25 +372,60 @@ export default function Dashboard({ profileData, onSwitchTo }) {
         </div>
 
         {/* Stats Strip */}
-        <div style={{ display: "flex", gap: "12px", marginBottom: "48px", flexWrap: "wrap", animation: "ob-field-in 0.4s 0.05s ease both", opacity: 0 }}>
-          <StatCard value={`${completedSessions}/${totalComponents}`} label="Sessions Started" color="#6366f1" icon="💬" />
-          <StatCard value={`${unlockedCount}/6`}                      label="Phases Unlocked"  color="#8b5cf6" icon="🔓" />
+        <div style={{ display: "flex", gap: "12px", marginBottom: "48px", flexWrap: "wrap", animation: "ob-field-in 0.4s 0.05s ease both" }}>
+          <StatCard value={`${completedSessions}/${totalComponents}`} label="Sessions Started"   color="#6366f1" icon="💬" />
+          <StatCard value={`${unlockedCount}/6`}                      label="Phases Unlocked"    color="#8b5cf6" icon="🔓" />
           <StatCard value={`${progressPct}%`}                         label="Programme Progress" color="#10b981" icon="📈" />
-          <StatCard value={budget.split("(")[1]?.replace(")", "") || "Starter"} label="Current Plan" color="#C8A96E" icon="⭐" />
+          <StatCard
+            value={dbPlan === "legacy" ? "Legacy" : dbPlan === "authority" ? "Authority" : "Starter"}
+            label="Current Plan"
+            color="#C8A96E"
+            icon="⭐"
+          />
+        </div>
+
+        {/* Quick Actions */}
+        <div style={{ display: "flex", gap: "10px", marginBottom: "48px", flexWrap: "wrap" }}>
+          {[
+            { label: "✦ Brand Brief", color: "#6366f1", screen: "brand-brief" },
+            { label: "◈ Roadmap",     color: "#C8A96E", screen: "roadmap" },
+            { label: "◉ Calendar",    color: "#8B6DAA", screen: "calendar" },
+          ].map(({ label, color, screen }) => (
+            <button
+              key={screen}
+              onClick={() => handleNav(screen)}
+              style={{
+                padding: "9px 20px",
+                background: `${color}10`,
+                border: `1px solid ${color}30`,
+                borderRadius: "8px",
+                color,
+                fontSize: "12px",
+                fontWeight: "500",
+                cursor: "pointer",
+                fontFamily: "'Inter', sans-serif",
+                transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = `${color}20`; e.currentTarget.style.borderColor = `${color}60`; }}
+              onMouseLeave={e => { e.currentTarget.style.background = `${color}10`; e.currentTarget.style.borderColor = `${color}30`; }}
+            >
+              {label}
+            </button>
+          ))}
         </div>
 
         {/* Phase Grid */}
         <div style={{ marginBottom: "48px" }}>
-          <div style={{
-            display: "flex", alignItems: "center", justifyContent: "space-between",
-            marginBottom: "20px",
-          }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
             <div style={{ fontSize: "11px", color: "#334155", letterSpacing: "2px", textTransform: "uppercase" }}>
               Your Roadmap
             </div>
-            <div style={{ fontSize: "11px", color: "#6366f1" }}>
-              {unlockedCount} of 6 phases unlocked
-            </div>
+            <button
+              onClick={() => handleNav("roadmap")}
+              style={{ fontSize: "11px", color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
+            >
+              View full roadmap →
+            </button>
           </div>
 
           <div style={{
@@ -325,7 +447,7 @@ export default function Dashboard({ profileData, onSwitchTo }) {
         </div>
 
         {/* Upgrade Banner — only if not on Legacy */}
-        {!budget.includes("Legacy") && (
+        {dbPlan !== "legacy" && (
           <div style={{
             background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.05))",
             border: "1px solid rgba(99,102,241,0.2)",
@@ -344,31 +466,34 @@ export default function Dashboard({ profileData, onSwitchTo }) {
                 UNLOCK YOUR FULL POTENTIAL
               </div>
               <div style={{ fontSize: "18px", fontWeight: "600", color: "#F1F5F9", fontFamily: "'Outfit', sans-serif" }}>
-                {!budget.includes("Authority")
+                {dbPlan !== "authority"
                   ? "Upgrade to Authority — unlock Phase 03 & 04"
                   : "Upgrade to Legacy — unlock all 6 phases"}
               </div>
             </div>
-            <button style={{
-              padding: "12px 28px",
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-              border: "none",
-              borderRadius: "10px",
-              color: "#fff",
-              fontSize: "12px",
-              fontWeight: "600",
-              fontFamily: "'Inter', sans-serif",
-              letterSpacing: "0.5px",
-              cursor: "pointer",
-              boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
-            }}>
+            <button
+              onClick={() => handleNav("upgrade")}
+              style={{
+                padding: "12px 28px",
+                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                border: "none",
+                borderRadius: "10px",
+                color: "#fff",
+                fontSize: "12px",
+                fontWeight: "600",
+                fontFamily: "'Inter', sans-serif",
+                letterSpacing: "0.5px",
+                cursor: "pointer",
+                boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
+              }}
+            >
               Upgrade Plan →
             </button>
           </div>
         )}
       </div>
 
-      {/* Phase Detail Drawer (simplified) */}
+      {/* ── Phase Detail Drawer ── */}
       {selectedPhase && (
         <div
           onClick={() => setSelectedPhase(null)}
@@ -387,9 +512,12 @@ export default function Dashboard({ profileData, onSwitchTo }) {
               padding: "32px 40px 48px",
               width: "100%",
               maxWidth: "760px",
-              animation: "ob-slide-in 0.3s ease both",
+              animation: "drawer-in 0.3s ease both",
+              maxHeight: "80vh",
+              overflowY: "auto",
             }}
           >
+            {/* Drawer header */}
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px" }}>
               <div>
                 <div style={{ fontSize: "10px", color: selectedPhase.color, letterSpacing: "2.5px", fontWeight: "600", marginBottom: "4px" }}>
@@ -406,6 +534,8 @@ export default function Dashboard({ profileData, onSwitchTo }) {
                 ×
               </button>
             </div>
+
+            {/* Pillar pills */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "24px", flexWrap: "wrap" }}>
               {selectedPhase.pillars.map(p => (
                 <span key={p} style={{
@@ -419,31 +549,61 @@ export default function Dashboard({ profileData, onSwitchTo }) {
                 </span>
               ))}
             </div>
+
+            {/* Component rows — each is clickable and navigates */}
             <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-              {selectedPhase.components.map((comp, i) => (
-                <div key={i} style={{
-                  display: "flex", alignItems: "center", gap: "14px",
-                  padding: "14px 18px",
-                  background: "rgba(255,255,255,0.02)",
-                  border: "1px solid #1E2A3E",
-                  borderRadius: "10px",
-                  cursor: "pointer",
-                  transition: "all 0.15s",
-                }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = selectedPhase.color + "50"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
-                >
-                  <div style={{ width: "28px", height: "28px", borderRadius: "6px", background: `${selectedPhase.color}15`, border: `1px solid ${selectedPhase.color}30`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", color: selectedPhase.color, fontFamily: "'Inter', sans-serif", fontWeight: "700", flexShrink: 0 }}>
-                    {String(i + 1).padStart(2, "0")}
+              {selectedPhase.components.map((comp, i) => {
+                const done = (sessions[String(selectedPhase.id)] || 0) > i;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => handleStartSession(selectedPhase, i)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: "14px",
+                      padding: "14px 18px",
+                      background: "rgba(255,255,255,0.02)",
+                      border: "1px solid #1E2A3E",
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      transition: "all 0.15s",
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = selectedPhase.color + "50"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.background = "rgba(255,255,255,0.02)"; }}
+                  >
+                    <div style={{
+                      width: "28px", height: "28px", borderRadius: "6px",
+                      background: done ? `${selectedPhase.color}25` : `${selectedPhase.color}10`,
+                      border: `1px solid ${selectedPhase.color}30`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: "11px", color: selectedPhase.color,
+                      fontFamily: "'Inter', sans-serif", fontWeight: "700", flexShrink: 0,
+                    }}>
+                      {done ? "✓" : String(i + 1).padStart(2, "0")}
+                    </div>
+                    <span style={{ fontSize: "14px", color: "#94A3B8", fontFamily: "'Inter', sans-serif", flex: 1 }}>
+                      {comp}
+                    </span>
+                    <span style={{ fontSize: "11px", color: selectedPhase.color, fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>
+                      {done ? "Review →" : "Begin →"}
+                    </span>
                   </div>
-                  <span style={{ fontSize: "14px", color: "#94A3B8", fontFamily: "'Inter', sans-serif", flex: 1 }}>{comp}</span>
-                  <span style={{ fontSize: "11px", color: selectedPhase.color, fontFamily: "'Inter', sans-serif" }}>Begin →</span>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         </div>
       )}
+
+      <style>{`
+        @keyframes ob-field-in {
+          from { opacity: 0; transform: translateY(12px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes drawer-in {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }

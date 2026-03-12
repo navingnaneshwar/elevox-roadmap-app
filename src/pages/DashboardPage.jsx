@@ -1,8 +1,9 @@
 // src/pages/DashboardPage.jsx
-// Thin wrapper — passes real profile from auth context to Dashboard
+// Thin wrapper — passes real profile from auth context to Dashboard component.
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import Dashboard from '../components/Dashboard'
+import { dbToFormData } from './OnboardingPage'
 
 export default function DashboardPage() {
   const { profile, signOut } = useAuth()
@@ -10,23 +11,21 @@ export default function DashboardPage() {
 
   function handleSwitchTo(screen) {
     const routes = {
-      onboarding: '/onboarding',
-      profile:    '/profile',
-      roadmap:    '/roadmap',
-      calendar:   '/calendar',
-      upgrade:    '/upgrade',
+      onboarding:   '/onboarding',
+      profile:      '/profile',
+      roadmap:      '/roadmap',
+      calendar:     '/calendar',
+      upgrade:      '/upgrade',
+      'brand-brief': '/brand-brief',
     }
     if (routes[screen]) navigate(routes[screen])
   }
 
   return (
     <Dashboard
-      profileData={profileToFormData(profile)}
+      profileData={profile ? dbToFormData(profile) : null}
       onSwitchTo={handleSwitchTo}
       onSignOut={signOut}
     />
   )
 }
-
-// ── src/pages/OnboardingPage.jsx ──────────────────────────────────────────
-// Saves each step to Supabase and redirects to dashboard on complete.

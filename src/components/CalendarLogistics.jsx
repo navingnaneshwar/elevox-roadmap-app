@@ -1,4 +1,5 @@
 import { useState } from "react";
+import GhostwriterPanel from './GhostwriterPanel';
 import EventsAnchors from './EventsAnchors';
 import ApprovalWorkflow from './ApprovalWorkflow';
 import ContentFormats from './ContentFormats';
@@ -89,6 +90,8 @@ export default function CalendarLogistics() {
   const [approvalDelegate, setApprovalDelegate] = useState(false);
   const [eaName, setEaName] = useState("");
   const [activeTab, setActiveTab] = useState("schedule");
+  const [ghostwriterOpen, setGhostwriterOpen] = useState(false);
+  const [draftSelected, setDraftSelected] = useState(null);
   const [saved, setSaved] = useState(false);
 
   const currentFreq = POSTING_FREQ.find(f => f.id === postingFreq);
@@ -306,10 +309,10 @@ export default function CalendarLogistics() {
                 </div>
               </div>
 
-              {/* Right: ghostwriting + preview */}
-              <div>
+              {/* Right: Monthly rhythm preview + AI Ghostwriter */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
                 {/* Monthly preview card */}
-                <div style={{ padding: "24px", background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                <div style={{ padding: "24px", background: "rgba(13,18,32,0.6)", border: "1px solid #1E2A3E", borderRadius: "10px" }}>
                   <div style={{ fontSize: "9px", letterSpacing: "4px", color: "#64748B", marginBottom: "18px", fontFamily: "monospace" }}>
                     YOUR MONTHLY RHYTHM — PREVIEW
                   </div>
@@ -320,12 +323,53 @@ export default function CalendarLogistics() {
                     ["Writing involvement", `${currentGhost?.pct}% — ${currentGhost?.label}`],
                     ["Content needed/week", `${currentFreq?.days.length || 3} pieces`],
                   ].map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #141D2C" }}>
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1E2A3E" }}>
                       <span style={{ fontSize: "11px", color: "#64748B", fontFamily: "monospace" }}>{k}</span>
-                      <span style={{ fontSize: "12px", color: "#4ECDC4", fontFamily: "monospace", textAlign: "right" }}>{v}</span>
+                      <span style={{ fontSize: "12px", color: "#A8E6CF", fontFamily: "monospace", textAlign: "right" }}>{v}</span>
                     </div>
                   ))}
                 </div>
+
+                {/* AI Ghostwriter toggle */}
+                {!ghostwriterOpen ? (
+                  <button
+                    onClick={() => setGhostwriterOpen(true)}
+                    style={{
+                      padding: "14px 20px",
+                      background: "linear-gradient(135deg, rgba(99,102,241,0.12), rgba(139,92,246,0.08))",
+                      border: "1px solid rgba(99,102,241,0.25)",
+                      borderRadius: "10px",
+                      color: "#a5b4fc",
+                      fontSize: "13px",
+                      fontWeight: "600",
+                      cursor: "pointer",
+                      fontFamily: "'Inter', sans-serif",
+                      display: "flex", alignItems: "center", gap: "8px",
+                      justifyContent: "center",
+                    }}
+                  >
+                    <span>✦</span> Draft a post with AI
+                  </button>
+                ) : (
+                  <GhostwriterPanel
+                    onSelectDraft={(body) => { setDraftSelected(body); setGhostwriterOpen(false); }}
+                    onClose={() => setGhostwriterOpen(false)}
+                  />
+                )}
+
+                {/* Show selected draft */}
+                {draftSelected && !ghostwriterOpen && (
+                  <div style={{ padding: "16px", background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "10px" }}>
+                    <div style={{ fontSize: "9px", letterSpacing: "3px", color: "#6366f1", marginBottom: "10px", fontFamily: "monospace" }}>SELECTED DRAFT</div>
+                    <div style={{ fontSize: "13px", color: "#94A3B8", lineHeight: "1.6", fontFamily: "'Inter', sans-serif", whiteSpace: "pre-wrap", maxHeight: "200px", overflowY: "auto" }}>
+                      {draftSelected}
+                    </div>
+                    <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
+                      <button onClick={async () => { await navigator.clipboard.writeText(draftSelected); }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid #1E2A3E", borderRadius: "6px", color: "#64748B", fontSize: "11px", cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>Copy</button>
+                      <button onClick={() => { setDraftSelected(null); setGhostwriterOpen(true); }} style={{ padding: "6px 14px", background: "transparent", border: "1px solid rgba(99,102,241,0.3)", borderRadius: "6px", color: "#a5b4fc", fontSize: "11px", cursor: "pointer", fontFamily: "'Inter', sans-serif" }}>New draft</button>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 

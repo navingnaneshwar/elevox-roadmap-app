@@ -140,6 +140,7 @@ export function dbToFormData(profile) {
     dealbreakers:         profile.dealbreakers,
     previousAttempts:     profile.previous_attempts,
     budget:               profile.budget,
+    plan:                 profile.plan,
     additionalContext:    profile.additional_context,
   }
 }

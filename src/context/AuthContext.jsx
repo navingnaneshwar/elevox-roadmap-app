@@ -1,11 +1,5 @@
 // src/context/AuthContext.jsx
-// ─────────────────────────────────────────────────────────────
-// Wraps the entire app. Provides:
-//   useAuth() → { user, profile, loading, signOut }
-//
-// Usage:
-//   const { user, profile, loading } = useAuth()
-// ─────────────────────────────────────────────────────────────
+// Global auth state. Handles missing Supabase config gracefully (demo mode).
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase, getProfile } from '../lib/supabase'
 
@@ -16,7 +10,6 @@ export function AuthProvider({ children }) {
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
 
-  // ── Load session on mount ────────────────────────────────
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -24,7 +17,6 @@ export function AuthProvider({ children }) {
       else setLoading(false)
     })
 
-    // Listen for auth state changes (login, logout, token refresh)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (_event, session) => {
         setUser(session?.user ?? null)
@@ -37,16 +29,22 @@ export function AuthProvider({ children }) {
   }, [])
 
   async function fetchProfile(userId) {
-    const { data } = await getProfile(userId)
-    setProfile(data)
-    setLoading(false)
+    try {
+      const { data } = await getProfile(userId)
+      setProfile(data)
+    } catch {
+      setProfile(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
-  // Call this after onboarding data changes to refresh the profile in context
   async function refreshProfile() {
     if (!user) return
-    const { data } = await getProfile(user.id)
-    setProfile(data)
+    try {
+      const { data } = await getProfile(user.id)
+      setProfile(data)
+    } catch { /* non-fatal */ }
   }
 
   async function signOut() {
