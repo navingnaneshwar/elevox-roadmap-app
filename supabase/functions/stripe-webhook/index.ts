@@ -89,8 +89,64 @@ serve(async (req) => {
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
       await updateProfile(invoice.customer as string, { plan_status: 'past_due' })
-      // TODO: trigger Resend email — "Your payment failed, please update your card"
-      console.log('✓ invoice.payment_failed')
+
+      // Send payment failed email via Resend
+      try {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('stripe_customer_id', invoice.customer as string)
+          .single()
+
+        if (profile?.email) {
+          const firstName = profile.full_name?.split(' ')[0] || 'there'
+          const portalUrl = `https://billing.stripe.com/p/login/` // fallback — real portal URL comes from create-portal-session
+
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: Deno.env.get('EMAIL_FROM'),
+              to: [profile.email],
+              subject: 'Action required — your Elevox payment failed',
+              html: `
+                <!DOCTYPE html>
+                <html>
+                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+                <body style="margin:0;padding:0;background:#070B14;font-family:'Inter',Arial,sans-serif;">
+                  <div style="max-width:580px;margin:0 auto;padding:48px 32px;">
+                    <div style="margin-bottom:40px;">
+                      <span style="font-size:22px;font-weight:700;letter-spacing:-0.5px;color:#F1F5F9;">Elev<span style="color:#C8A96E;">OX</span></span>
+                    </div>
+                    <h1 style="color:#F1F5F9;font-size:24px;font-weight:700;margin:0 0 16px;">Payment failed, ${firstName}</h1>
+                    <p style="color:#94A3B8;font-size:15px;line-height:1.7;margin:0 0 24px;">
+                      We weren't able to process your latest Elevox subscription payment. Your account has been moved to a grace period — please update your payment method to keep your access.
+                    </p>
+                    <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:10px;padding:20px;margin-bottom:32px;">
+                      <div style="color:#fca5a5;font-size:13px;font-weight:600;margin-bottom:4px;">Amount due</div>
+                      <div style="color:#F1F5F9;font-size:24px;font-weight:700;">${((invoice.amount_due || 0) / 100).toFixed(2)} ${(invoice.currency || 'usd').toUpperCase()}</div>
+                    </div>
+                    <a href="${portalUrl}" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#C8A96E,#B8975A);border-radius:8px;color:#fff;font-weight:600;font-size:14px;text-decoration:none;margin-bottom:32px;">
+                      Update payment method →
+                    </a>
+                    <p style="color:#475569;font-size:13px;line-height:1.6;border-top:1px solid #1E2A3E;padding-top:24px;">
+                      If you need help, reply to this email or contact <a href="mailto:support@elevox.com" style="color:#C8A96E;">support@elevox.com</a>
+                    </p>
+                  </div>
+                </body>
+                </html>
+              `,
+            }),
+          })
+        }
+      } catch (emailErr) {
+        console.error('Failed to send payment failed email:', emailErr)
+      }
+
+      console.log('✓ invoice.payment_failed — email sent')
       break
     }
 
@@ -98,8 +154,80 @@ serve(async (req) => {
     case 'invoice.payment_succeeded': {
       const invoice = event.data.object as Stripe.Invoice
       await updateProfile(invoice.customer as string, { plan_status: 'active' })
-      // TODO: trigger Resend receipt email
-      console.log('✓ invoice.payment_succeeded')
+
+      // Send receipt email via Resend (skip $0 invoices — e.g. trial starts)
+      if ((invoice.amount_paid || 0) > 0) {
+        try {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('email, full_name, plan')
+            .eq('stripe_customer_id', invoice.customer as string)
+            .single()
+
+          if (profile?.email) {
+            const firstName  = profile.full_name?.split(' ')[0] || 'there'
+            const planLabel  = { starter: 'Foundation', authority: 'Authority', legacy: 'Legacy' }[profile.plan || 'starter'] || 'Elevox'
+            const periodEnd  = invoice.period_end
+              ? new Date(invoice.period_end * 1000).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+              : 'next month'
+
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Authorization': `Bearer ${Deno.env.get('RESEND_API_KEY')}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                from: Deno.env.get('EMAIL_FROM'),
+                to: [profile.email],
+                subject: `Payment confirmed — Elevox ${planLabel}`,
+                html: `
+                  <!DOCTYPE html>
+                  <html>
+                  <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+                  <body style="margin:0;padding:0;background:#070B14;font-family:'Inter',Arial,sans-serif;">
+                    <div style="max-width:580px;margin:0 auto;padding:48px 32px;">
+                      <div style="margin-bottom:40px;">
+                        <span style="font-size:22px;font-weight:700;letter-spacing:-0.5px;color:#F1F5F9;">Elev<span style="color:#C8A96E;">OX</span></span>
+                      </div>
+                      <h1 style="color:#F1F5F9;font-size:24px;font-weight:700;margin:0 0 8px;">Payment confirmed ✓</h1>
+                      <p style="color:#94A3B8;font-size:15px;line-height:1.7;margin:0 0 32px;">Thanks ${firstName} — your ${planLabel} subscription has been renewed.</p>
+
+                      <div style="background:rgba(13,18,32,0.8);border:1px solid #1E2A3E;border-radius:10px;padding:24px;margin-bottom:32px;">
+                        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1E2A3E;">
+                          <span style="color:#64748B;font-size:13px;">Plan</span>
+                          <span style="color:#C8A96E;font-size:13px;font-weight:600;">Elevox ${planLabel}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid #1E2A3E;">
+                          <span style="color:#64748B;font-size:13px;">Amount</span>
+                          <span style="color:#F1F5F9;font-size:13px;font-weight:600;">${((invoice.amount_paid || 0) / 100).toFixed(2)} ${(invoice.currency || 'usd').toUpperCase()}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;padding:10px 0;">
+                          <span style="color:#64748B;font-size:13px;">Next renewal</span>
+                          <span style="color:#F1F5F9;font-size:13px;">${periodEnd}</span>
+                        </div>
+                      </div>
+
+                      <a href="${Deno.env.get('SUPABASE_URL')?.replace('.supabase.co', '') || 'https://app'}.elevox.com/dashboard" style="display:inline-block;padding:14px 28px;background:linear-gradient(135deg,#C8A96E,#B8975A);border-radius:8px;color:#fff;font-weight:600;font-size:14px;text-decoration:none;margin-bottom:32px;">
+                        Continue your sessions →
+                      </a>
+
+                      <p style="color:#475569;font-size:13px;line-height:1.6;border-top:1px solid #1E2A3E;padding-top:24px;">
+                        Questions? Reply to this email or visit <a href="mailto:support@elevox.com" style="color:#C8A96E;">support@elevox.com</a>
+                      </p>
+                    </div>
+                  </body>
+                  </html>
+                `,
+              }),
+            })
+          }
+        } catch (emailErr) {
+          console.error('Failed to send receipt email:', emailErr)
+        }
+      }
+
+      console.log('✓ invoice.payment_succeeded — receipt sent')
       break
     }
 

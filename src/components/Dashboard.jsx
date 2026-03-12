@@ -8,7 +8,7 @@
 //   - Phase drawer component rows now navigate into coaching session
 //   - Sessions driven from Supabase via getMentorSessions (with mock fallback)
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { getMentorSessions } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
@@ -217,9 +217,11 @@ function NavLink({ label, route, onClick }) {
 /* ─── Main Component ─────────────────────────────────────────── */
 export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuth();
   const [selectedPhase, setSelectedPhase]   = useState(null);
   const [sessions,      setSessions]        = useState({});
+  const [upgradeBanner, setUpgradeBanner]   = useState(() => new URLSearchParams(location.search).get('upgraded') === 'true');
 
   // Derive plan correctly (fixes dbPlan undefined crash)
   const dbPlan       = derivePlan(profileData);
@@ -271,6 +273,23 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
       <div style={{ position: "fixed", bottom: "0", right: "-100px", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
       <div style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none", zIndex: 0 }} />
 
+      {/* ── Upgrade success banner ── */}
+      {upgradeBanner && (
+        <div style={{ position: "relative", zIndex: 60, background: "linear-gradient(135deg, rgba(74,158,122,0.15), rgba(74,158,122,0.08))", borderBottom: "1px solid rgba(74,158,122,0.3)", padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+            <span style={{ fontSize: "18px" }}>🎉</span>
+            <div>
+              <span style={{ fontSize: "14px", fontWeight: "600", color: "#4A9E7A" }}>Plan upgraded successfully! </span>
+              <span style={{ fontSize: "13px", color: "#64748B" }}>Your new phases are now unlocked. Dive in below.</span>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
+            <Link to="/billing" style={{ fontSize: "12px", color: "#4A9E7A", textDecoration: "none", fontWeight: "600" }}>View billing →</Link>
+            <button onClick={() => setUpgradeBanner(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}>×</button>
+          </div>
+        </div>
+      )}
+
       {/* ── Top Nav ── */}
       <nav style={{
         position: "sticky", top: 0, zIndex: 50,
@@ -293,6 +312,7 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           <NavLink label="Roadmap"    onClick={() => handleNav("roadmap")} />
           <NavLink label="Brand Brief" onClick={() => handleNav("brand-brief")} />
           <NavLink label="Calendar"   onClick={() => handleNav("calendar")} />
+          <NavLink label="Billing"    onClick={() => navigate("/billing")} />
           <NavLink label="Upgrade"    onClick={() => handleNav("upgrade")} />
         </div>
 

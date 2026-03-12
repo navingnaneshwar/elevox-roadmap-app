@@ -14,6 +14,7 @@ import OnboardingPage  from './pages/OnboardingPage'
 import ProfilePage     from './pages/ProfilePage'
 import UpgradePage     from './pages/UpgradePage'
 import BrandBriefPage  from './pages/BrandBriefPage'
+import BillingPage     from './pages/BillingPage'
 
 // Feature components used as full pages
 import Roadmap           from './components/Roadmap'
@@ -59,6 +60,10 @@ export default function App() {
 
           <Route path="/brand-brief" element={
             <ProtectedRoute><BrandBriefPage /></ProtectedRoute>
+          } />
+
+          <Route path="/billing" element={
+            <ProtectedRoute><BillingPage /></ProtectedRoute>
           } />
 
           <Route path="/upgrade" element={
