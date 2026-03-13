@@ -196,6 +196,7 @@ export default function CoachingSessionPage() {
   const [thinking,  setThinking]  = useState(false)
   const [error,     setError]     = useState(null)
   const [loaded,    setLoaded]    = useState(false)
+  const [planError, setPlanError] = useState(null) // { type, required_plan }
 
   const bottomRef    = useRef(null)
   const inputRef     = useRef(null)
@@ -261,14 +262,28 @@ export default function CoachingSessionPage() {
           session_prompt: sessionPrompt,
           history: history.slice(-10),
           message: userMessage,
+          phase_id: parseInt(phaseId),
         }),
       }
     )
 
     if (!res.ok) {
-      // Billing error — show a friendly in-chat message
+      // Anthropic billing error — show a friendly in-chat message
       if (res.status === 402) {
         return "⚠️ The AI mentor is temporarily unavailable — the Anthropic API credits need to be topped up. Please visit **console.anthropic.com/settings/billing** to add credits, then try again."
+      }
+      // Plan gate errors — surface upgrade CTA instead of crashing
+      if (res.status === 403) {
+        let body = {}
+        try { body = await res.json() } catch { /* ignore */ }
+        if (body.code === 'payment_required') {
+          setPlanError({ type: 'payment', required_plan: null })
+          return null
+        }
+        if (body.code === 'plan_required') {
+          setPlanError({ type: 'plan', required_plan: body.required_plan })
+          return null
+        }
       }
       const text = await res.text()
       throw new Error(`AI error (${res.status}): ${text}`)
@@ -277,7 +292,7 @@ export default function CoachingSessionPage() {
     const json = await res.json()
     if (json.error) throw new Error(json.error)
     return json.reply || "I'm thinking through your response..."
-  }, [])
+  }, [phaseId])
 
   async function persist(msgs) {
     if (!user) return
@@ -286,7 +301,7 @@ export default function CoachingSessionPage() {
 
   async function handleSend() {
     const text = input.trim()
-    if (!text || thinking) return
+    if (!text || thinking || planError) return
     setInput('')
     setError(null)
 
@@ -297,6 +312,11 @@ export default function CoachingSessionPage() {
 
     try {
       const aiReply = await callMentorAPI(meta.component.prompt, updated, text)
+      if (aiReply === null) {
+        // plan gate was hit — planError state already set, remove optimistic user msg
+        setMessages(messages)
+        return
+      }
       const assistantMsg = { role: 'assistant', content: aiReply, ts: Date.now() }
       const final = [...updated, assistantMsg]
       setMessages(final)
@@ -452,6 +472,63 @@ export default function CoachingSessionPage() {
             </div>
           )}
 
+          {/* ── Plan Gate CTA ── */}
+          {planError && (
+            <div style={{
+              margin: '24px 0',
+              padding: '28px 32px',
+              background: 'linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06))',
+              border: '1px solid rgba(99,102,241,0.25)',
+              borderRadius: '16px',
+              textAlign: 'center',
+              animation: 'msg-in 0.4s ease both',
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔒</div>
+              {planError.type === 'payment' ? (
+                <>
+                  <h3 style={{ color: '#F1F5F9', fontSize: '17px', fontWeight: '700', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
+                    Subscription Required
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: '13px', margin: '0 0 20px', lineHeight: '1.6' }}>
+                    Your subscription is inactive. Reactivate your plan to continue your AI mentor sessions.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <h3 style={{ color: '#F1F5F9', fontSize: '17px', fontWeight: '700', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
+                    Upgrade to Unlock Phase {phaseId}
+                  </h3>
+                  <p style={{ color: '#64748B', fontSize: '13px', margin: '0 0 4px', lineHeight: '1.6' }}>
+                    This session is part of a higher-tier phase.
+                  </p>
+                  {planError.required_plan && (
+                    <p style={{ color: '#8B6DAA', fontSize: '12px', margin: '0 0 20px', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', textTransform: 'uppercase' }}>
+                      Requires: {planError.required_plan} plan
+                    </p>
+                  )}
+                </>
+              )}
+              <Link
+                to="/upgrade"
+                style={{
+                  display: 'inline-block',
+                  padding: '11px 28px',
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  borderRadius: '10px',
+                  color: '#fff',
+                  fontSize: '13px',
+                  fontWeight: '700',
+                  textDecoration: 'none',
+                  boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
+                  letterSpacing: '0.3px',
+                  fontFamily: "'Inter', sans-serif",
+                }}
+              >
+                View Plans →
+              </Link>
+            </div>
+          )}
+
           <div ref={bottomRef} />
         </div>
       </div>
@@ -471,15 +548,16 @@ export default function CoachingSessionPage() {
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
-            placeholder="Reply to your mentor… (Enter to send, Shift+Enter for new line)"
+            placeholder={planError ? 'Upgrade your plan to continue…' : 'Reply to your mentor… (Enter to send, Shift+Enter for new line)'}
+            disabled={!!planError}
             rows={1}
             style={{
               flex: 1,
               padding: '13px 16px',
-              background: '#0D1220',
-              border: '1px solid #1E2A3E',
+              background: planError ? 'rgba(13,18,32,0.4)' : '#0D1220',
+              border: `1px solid ${planError ? 'rgba(99,102,241,0.15)' : '#1E2A3E'}`,
               borderRadius: '10px',
-              color: '#F1F5F9',
+              color: planError ? '#334155' : '#F1F5F9',
               fontSize: '14px',
               fontFamily: "'Inter', sans-serif",
               outline: 'none',
@@ -489,26 +567,27 @@ export default function CoachingSessionPage() {
               minHeight: '48px',
               maxHeight: '160px',
               overflowY: 'auto',
+              cursor: planError ? 'not-allowed' : 'text',
             }}
-            onFocus={e => { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)' }}
-            onBlur={e => { e.target.style.borderColor = '#1E2A3E'; e.target.style.boxShadow = 'none' }}
+            onFocus={e => { if (!planError) { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)' } }}
+            onBlur={e => { e.target.style.borderColor = planError ? 'rgba(99,102,241,0.15)' : '#1E2A3E'; e.target.style.boxShadow = 'none' }}
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || thinking}
+            disabled={!input.trim() || thinking || !!planError}
             style={{
               padding: '13px 24px',
-              background: input.trim() && !thinking
+              background: input.trim() && !thinking && !planError
                 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
                 : 'transparent',
-              border: input.trim() && !thinking ? 'none' : '1px solid #1E2A3E',
+              border: input.trim() && !thinking && !planError ? 'none' : '1px solid #1E2A3E',
               borderRadius: '10px',
-              color: input.trim() && !thinking ? '#fff' : '#334155',
+              color: input.trim() && !thinking && !planError ? '#fff' : '#334155',
               fontSize: '13px',
               fontWeight: '600',
-              cursor: input.trim() && !thinking ? 'pointer' : 'default',
+              cursor: input.trim() && !thinking && !planError ? 'pointer' : 'default',
               fontFamily: "'Inter', sans-serif",
-              boxShadow: input.trim() && !thinking ? '0 4px 20px rgba(99,102,241,0.3)' : 'none',
+              boxShadow: input.trim() && !thinking && !planError ? '0 4px 20px rgba(99,102,241,0.3)' : 'none',
               transition: 'all 0.2s',
               flexShrink: 0,
               display: 'flex', alignItems: 'center', gap: '6px',
@@ -520,7 +599,7 @@ export default function CoachingSessionPage() {
                 <div style={{ width: '12px', height: '12px', border: '2px solid #334155', borderTop: '2px solid #6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                 Thinking
               </>
-            ) : 'Send →'}
+            ) : planError ? 'Locked' : 'Send →'}
           </button>
         </div>
         <div style={{ maxWidth: '760px', margin: '8px auto 0', textAlign: 'center' }}>
