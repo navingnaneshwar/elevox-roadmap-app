@@ -191,11 +191,12 @@ export default function CoachingSessionPage() {
 
   const meta = getPhaseComponent(phaseId, componentId)
 
-  const [messages,  setMessages]  = useState([])
-  const [input,     setInput]     = useState('')
-  const [thinking,  setThinking]  = useState(false)
-  const [error,     setError]     = useState(null)
-  const [loaded,    setLoaded]    = useState(false)
+  const [messages,   setMessages]  = useState([])
+  const [input,      setInput]     = useState('')
+  const [thinking,   setThinking]  = useState(false)
+  const [error,      setError]     = useState(null)
+  const [loaded,     setLoaded]    = useState(false)
+  const [planError,  setPlanError] = useState(null) // { required: 'authority'|'legacy' } | { paymentRequired: true }
 
   const bottomRef    = useRef(null)
   const inputRef     = useRef(null)
@@ -235,6 +236,7 @@ export default function CoachingSessionPage() {
     try {
       // Pass a special opener message so the AI introduces the session
       const aiReply = await callMentorAPI(meta.component.prompt, [], '__start__')
+      if (aiReply === null) return // plan gate triggered — planError state set
       const initial = [{ role: 'assistant', content: aiReply, ts: Date.now() }]
       setMessages(initial)
       await persist(initial)
@@ -261,6 +263,7 @@ export default function CoachingSessionPage() {
           session_prompt: sessionPrompt,
           history: history.slice(-10),
           message: userMessage,
+          phase_id: parseInt(phaseId),
         }),
       }
     )
@@ -269,6 +272,17 @@ export default function CoachingSessionPage() {
       // Billing error — show a friendly in-chat message
       if (res.status === 402) {
         return "⚠️ The AI mentor is temporarily unavailable — the Anthropic API credits need to be topped up. Please visit **console.anthropic.com/settings/billing** to add credits, then try again."
+      }
+      if (res.status === 403) {
+        const body = await res.json()
+        if (body.error === 'plan_required') {
+          setPlanError({ required: body.required_plan })
+          return null
+        }
+        if (body.error === 'payment_required') {
+          setPlanError({ paymentRequired: true })
+          return null
+        }
       }
       const text = await res.text()
       throw new Error(`AI error (${res.status}): ${text}`)
@@ -297,6 +311,7 @@ export default function CoachingSessionPage() {
 
     try {
       const aiReply = await callMentorAPI(meta.component.prompt, updated, text)
+      if (aiReply === null) return // plan gate triggered — planError state set
       const assistantMsg = { role: 'assistant', content: aiReply, ts: Date.now() }
       const final = [...updated, assistantMsg]
       setMessages(final)
@@ -429,18 +444,57 @@ export default function CoachingSessionPage() {
       }}>
         <div style={{ maxWidth: '760px', margin: '0 auto' }}>
 
-          {!loaded && (
+          {planError && (
+            <div style={{
+              textAlign: 'center',
+              padding: '60px 24px',
+              background: 'rgba(13,18,32,0.6)',
+              border: '1px solid #1E2A3E',
+              borderRadius: '16px',
+              marginTop: '40px',
+            }}>
+              <div style={{ fontSize: '32px', marginBottom: '16px' }}>🔒</div>
+              <h2 style={{ fontSize: '18px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 8px' }}>
+                {planError.paymentRequired
+                  ? 'Payment Required'
+                  : `Upgrade to ${planError.required === 'legacy' ? 'Legacy' : 'Authority'} to unlock this phase`}
+              </h2>
+              <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 24px', lineHeight: '1.6' }}>
+                {planError.paymentRequired
+                  ? 'Your subscription is past due. Please update your payment details to continue.'
+                  : `Phase ${phaseId} is available on the ${planError.required === 'legacy' ? 'Legacy ($497/mo)' : 'Authority ($197/mo)'} plan.`}
+              </p>
+              <Link
+                to="/upgrade"
+                style={{
+                  display: 'inline-block',
+                  padding: '12px 28px',
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                  borderRadius: '8px',
+                  color: '#fff',
+                  fontSize: '14px',
+                  fontWeight: '600',
+                  textDecoration: 'none',
+                  fontFamily: "'Outfit', sans-serif",
+                }}
+              >
+                View Plans →
+              </Link>
+            </div>
+          )}
+
+          {!planError && !loaded && (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#334155' }}>
               <div style={{ fontSize: '28px', marginBottom: '12px', animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
               <p style={{ fontSize: '13px' }}>Starting your session…</p>
             </div>
           )}
 
-          {loaded && messages.map((msg, i) => (
+          {!planError && loaded && messages.map((msg, i) => (
             <Message key={i} msg={msg} />
           ))}
 
-          {thinking && <TypingIndicator />}
+          {!planError && thinking && <TypingIndicator />}
 
           {error && (
             <div style={{
@@ -495,7 +549,7 @@ export default function CoachingSessionPage() {
           />
           <button
             onClick={handleSend}
-            disabled={!input.trim() || thinking}
+            disabled={!input.trim() || thinking || !!planError}
             style={{
               padding: '13px 24px',
               background: input.trim() && !thinking
