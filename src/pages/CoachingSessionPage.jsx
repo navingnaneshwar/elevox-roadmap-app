@@ -268,9 +268,9 @@ export default function CoachingSessionPage() {
     )
 
     if (!res.ok) {
-      // Anthropic billing error — show a friendly in-chat message
+      // OpenAI billing error — show a friendly in-chat message
       if (res.status === 402) {
-        return "⚠️ The AI mentor is temporarily unavailable — the Anthropic API credits need to be topped up. Please visit **console.anthropic.com/settings/billing** to add credits, then try again."
+        return "⚠️ The AI mentor is temporarily unavailable — the OpenAI API credits need to be topped up. Please visit **platform.openai.com/settings/billing** to add credits, then try again."
       }
       // Plan gate errors — surface upgrade CTA instead of crashing
       if (res.status === 403) {

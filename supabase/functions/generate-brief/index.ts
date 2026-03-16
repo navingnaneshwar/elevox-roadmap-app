@@ -8,7 +8,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -70,22 +70,21 @@ Return ONLY valid JSON with no other text:
   "recommended_phase": "Which Elevox phase to start with and why (Phase 01-06)"
 }`
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'gpt-4o',
         max_tokens: 1500,
         messages: [{ role: 'user', content: prompt }],
       }),
     })
 
     const data = await res.json()
-    const raw = data.content[0]?.text || ''
+    const raw = data.choices[0]?.message?.content || ''
     const clean = raw.replace(/```json|```/g, '').trim()
     const brief = JSON.parse(clean)
 

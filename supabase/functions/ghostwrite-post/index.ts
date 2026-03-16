@@ -15,7 +15,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -138,29 +138,30 @@ For each variant, use a completely different angle and hook. Return ONLY valid J
   ]
 }`
 
-    // ── 5. Call Anthropic API ──────────────────────────────
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    // ── 5. Call OpenAI API ─────────────────────────────────
+    const anthropicRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model:      'claude-sonnet-4-20250514',
+        model:      'gpt-4o',
         max_tokens: 2000,
-        system:     systemPrompt,
-        messages:   [{ role: 'user', content: userPrompt }],
+        messages:   [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
       }),
     })
 
     if (!anthropicRes.ok) {
       const err = await anthropicRes.text()
-      throw new Error(`Anthropic API error: ${err}`)
+      throw new Error(`OpenAI API error: ${err}`)
     }
 
     const anthropicData = await anthropicRes.json()
-    const rawText = anthropicData.content[0]?.text || ''
+    const rawText = anthropicData.choices[0]?.message?.content || ''
 
     // ── 6. Parse JSON from response ────────────────────────
     let drafts
