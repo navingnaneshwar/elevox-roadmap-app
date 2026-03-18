@@ -12,7 +12,6 @@ import AuthCallbackPage from './pages/AuthCallbackPage'
 import DashboardPage   from './pages/DashboardPage'
 import OnboardingPage  from './pages/OnboardingPage'
 import ProfilePage     from './pages/ProfilePage'
-import UpgradePage     from './pages/UpgradePage'
 import BrandBriefPage       from './pages/BrandBriefPage'
 import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
@@ -65,10 +64,6 @@ export default function App() {
 
           <Route path="/billing" element={
             <ProtectedRoute><BillingPage /></ProtectedRoute>
-          } />
-
-          <Route path="/upgrade" element={
-            <ProtectedRoute><UpgradePage /></ProtectedRoute>
           } />
 
           {/* Root → dashboard (ProtectedRoute redirects to /login if needed) */}

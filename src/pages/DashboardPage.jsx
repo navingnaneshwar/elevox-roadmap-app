@@ -15,7 +15,6 @@ export default function DashboardPage() {
       profile:      '/profile',
       roadmap:      '/roadmap',
       calendar:     '/calendar',
-      upgrade:      '/upgrade',
       'brand-brief': '/brand-brief',
     }
     if (routes[screen]) navigate(routes[screen])

@@ -235,50 +235,18 @@ export default function BillingPage() {
           </div>
         )}
 
-        {/* Upgrade nudge */}
-        {meta?.next && planStatus === 'active' && (
-          <div style={{ padding: '24px', background: 'rgba(13,18,32,0.4)', border: '1px solid #1E2A3E', borderRadius: '12px', marginBottom: '24px' }}>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', marginBottom: '6px' }}>
-              Ready to go further?
-            </div>
-            <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', marginBottom: '16px' }}>
-              Upgrade to <span style={{ color: PLAN_META[meta.next].color, fontWeight: '600' }}>{PLAN_META[meta.next].name}</span> to unlock {meta.next === 'authority' ? 'your Content Engine and Visibility phase' : 'all 6 phases including Book & IP Packaging and your 3-Year Vision'}.
-            </div>
-            <Link
-              to="/upgrade"
-              style={{
-                display: 'inline-block', padding: '12px 24px',
-                background: `linear-gradient(135deg, ${PLAN_META[meta.next].color}, ${PLAN_META[meta.next].color}cc)`,
-                borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600',
-                textDecoration: 'none', boxShadow: `0 4px 20px ${PLAN_META[meta.next].color}40`,
-              }}
-            >
-              Upgrade to {PLAN_META[meta.next].name} — {PLAN_META[meta.next].price}/mo →
-            </Link>
-          </div>
-        )}
+
 
         {/* No plan CTA */}
         {!plan && (
           <div style={{ padding: '40px', background: 'rgba(13,18,32,0.6)', border: '1px solid #1E2A3E', borderRadius: '14px', textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ fontSize: '11px', letterSpacing: '4px', color: '#64748B', fontFamily: 'monospace', marginBottom: '16px' }}>GET STARTED</div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#F1F5F9', margin: '0 0 12px', fontFamily: "'Outfit', sans-serif" }}>
-              Choose your plan to begin
+              Alternative billing method coming soon
             </h2>
             <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 28px', lineHeight: '1.6' }}>
-              Your executive brand is your most valuable asset. Start building it today.
+              We are moving away from Stripe. An alternate billing solution will be available shortly.
             </p>
-            <Link
-              to="/upgrade"
-              style={{
-                display: 'inline-block', padding: '14px 32px',
-                background: 'linear-gradient(135deg, #C8A96E, #B8975A)',
-                borderRadius: '8px', color: '#fff', fontSize: '14px', fontWeight: '600',
-                textDecoration: 'none', boxShadow: '0 4px 20px rgba(200,169,110,0.3)',
-              }}
-            >
-              View plans →
-            </Link>
           </div>
         )}
 

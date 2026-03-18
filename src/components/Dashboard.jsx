@@ -221,7 +221,6 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
   const { user } = useAuth();
   const [selectedPhase, setSelectedPhase]   = useState(null);
   const [sessions,      setSessions]        = useState({});
-  const [upgradeBanner, setUpgradeBanner]   = useState(() => new URLSearchParams(location.search).get('upgraded') === 'true');
 
   // Derive plan correctly (fixes dbPlan undefined crash)
   const dbPlan       = derivePlan(profileData);
@@ -273,22 +272,7 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
       <div style={{ position: "fixed", bottom: "0", right: "-100px", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
       <div style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none", zIndex: 0 }} />
 
-      {/* ── Upgrade success banner ── */}
-      {upgradeBanner && (
-        <div style={{ position: "relative", zIndex: 60, background: "linear-gradient(135deg, rgba(74,158,122,0.15), rgba(74,158,122,0.08))", borderBottom: "1px solid rgba(74,158,122,0.3)", padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "18px" }}>🎉</span>
-            <div>
-              <span style={{ fontSize: "14px", fontWeight: "600", color: "#4A9E7A" }}>Plan upgraded successfully! </span>
-              <span style={{ fontSize: "13px", color: "#64748B" }}>Your new phases are now unlocked. Dive in below.</span>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
-            <Link to="/billing" style={{ fontSize: "12px", color: "#4A9E7A", textDecoration: "none", fontWeight: "600" }}>View billing →</Link>
-            <button onClick={() => setUpgradeBanner(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}>×</button>
-          </div>
-        </div>
-      )}
+
 
       {/* ── Top Nav ── */}
       <nav style={{
@@ -313,7 +297,6 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           <NavLink label="Brand Brief" onClick={() => handleNav("brand-brief")} />
           <NavLink label="Calendar"   onClick={() => handleNav("calendar")} />
           <NavLink label="Billing"    onClick={() => navigate("/billing")} />
-          <NavLink label="Upgrade"    onClick={() => handleNav("upgrade")} />
         </div>
 
         {/* Right: profile + sign out */}
@@ -466,51 +449,6 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           </div>
         </div>
 
-        {/* Upgrade Banner — only if not on Legacy */}
-        {dbPlan !== "legacy" && (
-          <div style={{
-            background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.05))",
-            border: "1px solid rgba(99,102,241,0.2)",
-            borderRadius: "14px",
-            padding: "28px 32px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "20px",
-            animation: "ob-field-in 0.4s 0.4s ease both",
-            opacity: 0,
-          }}>
-            <div>
-              <div style={{ fontSize: "10px", color: "#6366f1", letterSpacing: "2px", fontFamily: "'Inter', sans-serif", fontWeight: "600", marginBottom: "6px" }}>
-                UNLOCK YOUR FULL POTENTIAL
-              </div>
-              <div style={{ fontSize: "18px", fontWeight: "600", color: "#F1F5F9", fontFamily: "'Outfit', sans-serif" }}>
-                {dbPlan !== "authority"
-                  ? "Upgrade to Authority — unlock Phase 03 & 04"
-                  : "Upgrade to Legacy — unlock all 6 phases"}
-              </div>
-            </div>
-            <button
-              onClick={() => handleNav("upgrade")}
-              style={{
-                padding: "12px 28px",
-                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                border: "none",
-                borderRadius: "10px",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.5px",
-                cursor: "pointer",
-                boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
-              }}
-            >
-              Upgrade Plan →
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ── Phase Detail Drawer ── */}

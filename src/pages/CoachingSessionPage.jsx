@@ -509,7 +509,7 @@ export default function CoachingSessionPage() {
                 </>
               )}
               <Link
-                to="/upgrade"
+                to="/billing"
                 style={{
                   display: 'inline-block',
                   padding: '11px 28px',

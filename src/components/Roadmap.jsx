@@ -251,7 +251,7 @@ export default function Roadmap({ profileData }) {
                 Upgrade to {plan === 'starter' ? 'Authority or Legacy' : 'Legacy'} to unlock all {6 - unlockedPhases.length} remaining phases.
               </div>
             </div>
-            <button onClick={() => navigate('/upgrade')} style={{ padding: '9px 20px', background: 'linear-gradient(135deg, #C8A96E, #C8A96Ecc)', border: 'none', borderRadius: '7px', color: '#070B14', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <button onClick={() => navigate('/billing')} style={{ padding: '9px 20px', background: 'linear-gradient(135deg, #C8A96E, #C8A96Ecc)', border: 'none', borderRadius: '7px', color: '#070B14', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               Upgrade plan →
             </button>
           </div>
