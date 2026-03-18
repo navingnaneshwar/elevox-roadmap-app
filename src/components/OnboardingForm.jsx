@@ -241,11 +241,25 @@ function HeroScreen({ onStart }) {
     try {
       const { supabase } = await import('../lib/supabase');
 
-      // Send the raw file to the Edge Function instead of parsing it locally,
-      // because Safari WebKit aggressively crashes on ReadableStream iteration.
-      const apiFormData = new FormData();
-      if (file) apiFormData.append('file', file);
-      if (url) apiFormData.append('url', url);
+      // Extract PDF text on the frontend using pdfjs-dist (lazy-loaded).
+      // We explicitly use v3.11.174 legacy build to prevent Safari WebKit ReadableStream crashes.
+      let extractedText = '';
+      if (file) {
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.js');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/legacy/build/pdf.worker.min.js`;
+          const arrayBuffer = await file.arrayBuffer();
+          const uint8Array = new Uint8Array(arrayBuffer);
+          const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            extractedText += content.items.map(item => item.str).join(' ') + '\n';
+          }
+        } else {
+          extractedText = await file.text();
+        }
+      }
 
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
@@ -254,16 +268,19 @@ function HeroScreen({ onStart }) {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
           },
-          body: apiFormData,
+          body: JSON.stringify({ text: extractedText, url: url || undefined }),
         }
       );
-      const json = await res.json();
-      const fnError = !res.ok ? json.error : null;
-      const data = res.ok ? json : null;
-
-      if (fnError) throw new Error(fnError);
-      if (data?.error) throw new Error(data.error);
+      const jsonText = await res.text();
+      let json = {};
+      try { json = JSON.parse(jsonText); } catch(e) {}
+      
+      if (!res.ok) {
+        throw new Error(json.error || json.message || jsonText || `Server error ${res.status}`);
+      }
+      const data = json;
 
       // Start form with auto-filled data
       onStart(data.data);

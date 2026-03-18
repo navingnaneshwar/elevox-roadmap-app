@@ -1,6 +1,4 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { Buffer } from 'node:buffer'
-import pdf from 'npm:pdf-parse@1.1.1'
 
 // The user rotated to OpenAI due to Anthropic credit limits.
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
@@ -14,30 +12,16 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const formData = await req.formData()
-    const file = formData.get('file') as File | null
-    const url = formData.get('url') as string | null
+    const { text, url } = await req.json()
 
-    let extractedText = ""
+    let content = ''
+    if (text) content += text
+    if (url)  content += `\nLinkedIn Profile URL: ${url}`
 
-    if (file) {
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        const pdfData = await pdf(buffer)
-        extractedText = pdfData.text
-      } else {
-        extractedText = await file.text()
-      }
-    } else if (url) {
-      // For now, we seed the URL for the LLM to process if we only have the URL.
-      extractedText = `The executive's LinkedIn Profile URL is: ${url}. (No resume text was provided).`
-    } else {
-      throw new Error('No file or url provided')
-    }
+    if (!content.trim()) throw new Error('No text or URL provided')
 
     // Protect against massive files crashing the prompt
-    const safeText = extractedText.substring(0, 25000)
+    const safeText = content.substring(0, 25000)
 
     const systemPrompt = `You are an elite executive brand strategist. Your task is to extract information from the following source material (a resume PDF or LinkedIn profile text) and map it IN STRICT JSON FORMAT to an onboarding questionnaire.
 
