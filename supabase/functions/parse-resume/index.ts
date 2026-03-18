@@ -1,7 +1,6 @@
 // supabase/functions/parse-resume/index.ts
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-import { Buffer } from 'node:buffer'
-import pdf from 'npm:pdf-parse@1.1.1'
+import { encode } from 'https://deno.land/std@0.177.0/encoding/base64.ts'
 
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
 
@@ -10,7 +9,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 }
 
-serve(async (req) => {
+serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
@@ -18,35 +17,43 @@ serve(async (req) => {
     const file = formData.get('file') as File | null
     const url = formData.get('url') as string | null
 
-    let extractedText = ""
+    let messagesContent: any[] = []
 
     if (file) {
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         const arrayBuffer = await file.arrayBuffer()
-        const buffer = Buffer.from(arrayBuffer)
-        const pdfData = await pdf(buffer)
-        extractedText = pdfData.text
+        const uint8Array = new Uint8Array(arrayBuffer)
+        const base64Data = encode(uint8Array)
+        
+        messagesContent.push({
+          type: "document",
+          source: {
+            type: "base64",
+            media_type: "application/pdf",
+            data: base64Data
+          }
+        })
       } else {
-        extractedText = await file.text()
+        const text = await file.text()
+        messagesContent.push({
+          type: "text",
+          text: `Source Document Text:\n${text.substring(0, 30000)}`
+        })
       }
-    } else if (url) {
-      // In a production environment with a scraping API (like Proxycurl), 
-      // you would fetch the LinkedIn profile data here. 
-      // For now, we seed the URL for the LLM to process if we only have the URL.
-      extractedText = `The executive's LinkedIn Profile URL is: ${url}. (No resume text was provided).`
-    } else {
+    } 
+    
+    if (url) {
+      messagesContent.push({
+        type: "text",
+        text: `The executive's LinkedIn Profile URL is: ${url}.`
+      })
+    }
+
+    if (messagesContent.length === 0) {
       throw new Error('No file or url provided')
     }
 
-    // Protect against massive files crashing the prompt
-    const safeText = extractedText.substring(0, 20000)
-
-    const prompt = `You are an elite executive brand strategist. Your task is to extract information from the following source material (a resume PDF or LinkedIn profile text) and map it IN STRICT JSON FORMAT to an onboarding questionnaire.
-
-SOURCE MATERIAL:
-"""
-${safeText}
-"""
+    const promptInstructions = `You are an elite executive brand strategist. Your task is to extract information from the provided source material (a resume PDF or LinkedIn profile text) and map it IN STRICT JSON FORMAT to an onboarding questionnaire.
 
 INSTRUCTIONS:
 Extract the following fields. If a field is not present or cannot be reasonably inferred from the text, return an empty string "". DO NOT make up information.
@@ -65,17 +72,23 @@ REQUIRED SCHEMA (JSON only):
   "associations": "Prestigious universities, companies, or organizations they are associated with."
 }`
 
+    messagesContent.push({
+      type: "text",
+      text: promptInstructions
+    })
+
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'pdfs-2024-09-25'
       },
       body: JSON.stringify({
         model: 'claude-3-5-sonnet-20241022',
         max_tokens: 1500,
-        messages: [{ role: 'user', content: prompt }],
+        messages: [{ role: 'user', content: messagesContent }],
       }),
     })
 
@@ -102,7 +115,7 @@ REQUIRED SCHEMA (JSON only):
   } catch (err) {
     console.error("Parse Error:", err);
     return new Response(
-      JSON.stringify({ error: err.message }),
+      JSON.stringify({ error: err instanceof Error ? err.message : String(err) }),
       { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
   }

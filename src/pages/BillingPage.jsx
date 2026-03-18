@@ -1,9 +1,7 @@
 // src/pages/BillingPage.jsx
 // Billing management — current plan, status, portal access, upgrade paths
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
 const PLAN_META = {
@@ -60,40 +58,11 @@ function StatCard({ label, value, sub, color }) {
 
 export default function BillingPage() {
   const { profile } = useAuth()
-  const navigate = useNavigate()
-  const [portalLoading, setPortalLoading] = useState(false)
-  const [portalError, setPortalError] = useState(null)
 
   const plan       = profile?.plan || null
   const planStatus = profile?.plan_status || (plan ? 'active' : 'inactive')
   const meta       = PLAN_META[plan] || null
   const statusCfg  = STATUS_CONFIG[planStatus] || STATUS_CONFIG.inactive
-
-  async function openPortal() {
-    setPortalLoading(true)
-    setPortalError(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { navigate('/login'); return }
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
-      const { url, error: fnError } = await res.json()
-      if (fnError) throw new Error(fnError)
-      window.location.href = url
-    } catch (err) {
-      setPortalError(err.message)
-      setPortalLoading(false)
-    }
-  }
 
   return (
     <div style={{
@@ -158,12 +127,7 @@ export default function BillingPage() {
           )}
         </div>
 
-        {/* Error */}
-        {portalError && (
-          <div style={{ marginBottom: '24px', padding: '14px 20px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px' }}>
-            {portalError} — please try again or <a href="mailto:support@elevox.com" style={{ color: '#f87171' }}>contact support</a>.
-          </div>
-        )}
+        {/* Error - portalError removed */}
 
         {/* Past due warning */}
         {planStatus === 'past_due' && (
@@ -227,11 +191,29 @@ export default function BillingPage() {
           <div style={{ padding: '40px', background: 'rgba(13,18,32,0.6)', border: '1px solid #1E2A3E', borderRadius: '14px', textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ fontSize: '11px', letterSpacing: '4px', color: '#64748B', fontFamily: 'monospace', marginBottom: '16px' }}>GET STARTED</div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#F1F5F9', margin: '0 0 12px', fontFamily: "'Outfit', sans-serif" }}>
-              Alternative billing method coming soon
+              Choose your plan to get started
             </h2>
-            <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 28px', lineHeight: '1.6' }}>
-              We are moving away from Stripe. An alternate billing solution will be available shortly.
+            <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 24px', lineHeight: '1.6', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+              Select the Elevox tier that best fits your brand's growth phase and begin the onboarding process.
             </p>
+            <Link 
+              to="/upgrade" 
+              style={{
+                display: 'inline-block',
+                padding: '14px 32px',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: '600',
+                textDecoration: 'none',
+                transition: 'opacity 0.15s, transform 0.15s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+            >
+              View Plans →
+            </Link>
           </div>
         )}
 
