@@ -241,25 +241,11 @@ function HeroScreen({ onStart }) {
     try {
       const { supabase } = await import('../lib/supabase');
 
-      // Extract PDF text on the frontend using pdfjs-dist (lazy-loaded to avoid
-      // module-level initialisation errors that cause blank pages in production).
-      let extractedText = '';
-      if (file) {
-        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-          const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
-          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/legacy/build/pdf.worker.min.mjs`;
-          const arrayBuffer = await file.arrayBuffer();
-          const uint8Array = new Uint8Array(arrayBuffer);
-          const pdf = await pdfjsLib.getDocument({ data: uint8Array }).promise;
-          for (let i = 1; i <= pdf.numPages; i++) {
-            const page = await pdf.getPage(i);
-            const content = await page.getTextContent();
-            extractedText += content.items.map(item => item.str).join(' ') + '\n';
-          }
-        } else {
-          extractedText = await file.text();
-        }
-      }
+      // Send the raw file to the Edge Function instead of parsing it locally,
+      // because Safari WebKit aggressively crashes on ReadableStream iteration.
+      const apiFormData = new FormData();
+      if (file) apiFormData.append('file', file);
+      if (url) apiFormData.append('url', url);
 
       const { data: { session } } = await supabase.auth.getSession();
       const res = await fetch(
@@ -268,9 +254,8 @@ function HeroScreen({ onStart }) {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ text: extractedText, url: url || undefined }),
+          body: apiFormData,
         }
       );
       const json = await res.json();
