@@ -14,37 +14,27 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // getSession() alone is unreliable here — Supabase may not have finished
-    // exchanging the OAuth hash tokens by the time it's called.
-    // onAuthStateChange fires after the exchange completes, so we use that as
-    // the trigger, with a getSession() fast-path for already-established sessions.
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // onAuthStateChange fires INITIAL_SESSION immediately (session=null while
+    // tokens are still being exchanged), then SIGNED_IN once exchange completes.
+    // We only act when session is present, or on an explicit SIGNED_OUT.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (session) {
         navigate('/dashboard', { replace: true })
-        return
-      }
-
-      // No session yet — wait for the SIGNED_IN event from the token exchange
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        (_event, session) => {
-          if (session) {
-            navigate('/dashboard', { replace: true })
-          } else {
-            navigate('/login?error=auth_failed', { replace: true })
-          }
-        }
-      )
-
-      // Safety fallback: if nothing fires within 8s, send to login
-      const timeout = setTimeout(() => {
+      } else if (event === 'SIGNED_OUT') {
         navigate('/login?error=auth_failed', { replace: true })
-      }, 8000)
-
-      return () => {
-        subscription.unsubscribe()
-        clearTimeout(timeout)
       }
+      // INITIAL_SESSION with no session = exchange still in progress, wait
     })
+
+    // Safety fallback: if SIGNED_IN never fires within 10s something went wrong
+    const timeout = setTimeout(() => {
+      navigate('/login?error=auth_failed', { replace: true })
+    }, 10000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [navigate])
 
   return (
