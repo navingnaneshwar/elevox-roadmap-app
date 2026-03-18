@@ -1,9 +1,10 @@
 // supabase/functions/parse-resume/index.ts
 // Extracts profile fields from a PDF resume or LinkedIn URL using OpenAI GPT-4o.
-// Uses `unpdf` for edge-compatible PDF text extraction (pdf-parse breaks in Deno).
+// pdf-parse/lib/pdf-parse.js imported directly — avoids the index.js wrapper
+// that calls fs.readFileSync on test files at import time (crashes in Deno).
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-// @ts-ignore — Deno URL import, not resolvable by local TS server
-import { extractText, getDocumentProxy } from 'https://esm.sh/unpdf@0.11.0'
+// @ts-ignore — npm specifier, not resolvable by local TS server
+import pdfParse from 'npm:pdf-parse/lib/pdf-parse.js'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 
@@ -39,9 +40,8 @@ serve(async (req: Request) => {
     if (file) {
       if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
         const arrayBuffer = await file.arrayBuffer()
-        const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer))
-        const { text } = await extractText(pdf, { mergePages: true })
-        extractedText = text
+        const result = await pdfParse(new Uint8Array(arrayBuffer))
+        extractedText = result.text
       } else {
         extractedText = await file.text()
       }
