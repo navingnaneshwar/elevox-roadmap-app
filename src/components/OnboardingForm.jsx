@@ -220,118 +220,158 @@ function FieldInput({ field, value, onChange }) {
 
 /* ─── Hero Screen ───────────────────────────────────────────── */
 function HeroScreen({ onStart }) {
+  const [file, setFile] = useState(null);
+  const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
   useEffect(() => {
-    const handler = e => { if (e.key === "Enter") onStart(); };
+    const handler = e => { if (e.key === "Enter" && !loading) handleAutoFill(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onStart]);
+  }, [loading, file, url]);
+
+  const handleAutoFill = async () => {
+    if (!file && !url) {
+      onStart(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { supabase } = await import('../lib/supabase');
+      const uploadData = new FormData();
+      if (file) uploadData.append('file', file);
+      if (url) uploadData.append('url', url);
+
+      const { data, error: fnError } = await supabase.functions.invoke('parse-resume', {
+        body: uploadData,
+      });
+
+      if (fnError) throw fnError;
+      if (data?.error) throw new Error(data.error);
+
+      // Start form with auto-filled data
+      onStart(data.data);
+    } catch (err) {
+      console.error(err);
+      setError(err.message || 'Failed to extract profile.');
+      setLoading(false);
+    }
+  };
 
   return (
     <div style={{
-      minHeight: "100vh",
-      background: "var(--ob-bg)",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      padding: "40px 24px",
-      position: "relative",
-      overflow: "hidden",
+      minHeight: "100vh", background: "var(--ob-bg)", display: "flex", alignItems: "center",
+      justifyContent: "center", padding: "40px 24px", position: "relative", overflow: "hidden",
     }}>
-      {/* Ambient glow blobs */}
       <div style={{ position: "absolute", top: "15%", left: "10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "10%", right: "10%", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
-      {/* Grid overlay */}
       <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none" }} />
 
       <div style={{ maxWidth: "640px", textAlign: "center", position: "relative", zIndex: 1 }}>
-        {/* Eyebrow */}
         <div style={{
-          display: "inline-flex", alignItems: "center", gap: "8px",
-          padding: "6px 14px",
-          background: "rgba(99,102,241,0.10)",
-          border: "1px solid rgba(99,102,241,0.25)",
-          borderRadius: "100px",
-          marginBottom: "32px",
-          animation: "ob-hero-line 0.5s ease both",
+          display: "inline-flex", alignItems: "center", gap: "8px", padding: "6px 14px",
+          background: "rgba(99,102,241,0.10)", border: "1px solid rgba(99,102,241,0.25)",
+          borderRadius: "100px", marginBottom: "32px", animation: "ob-hero-line 0.5s ease both",
         }}>
           <span style={{ width: "6px", height: "6px", borderRadius: "50%", background: "#6366f1", display: "inline-block" }} />
           <Logo size="sm" theme="dark" />
           <span style={{ fontSize: "11px", color: "#a5b4fc", letterSpacing: "2px", fontWeight: "500", fontFamily: "'Inter', sans-serif" }}>CLIENT INTELLIGENCE BRIEF</span>
         </div>
 
-        {/* Headline */}
         <h1 style={{
-          fontSize: "clamp(32px, 5vw, 52px)",
-          fontWeight: "700",
-          fontFamily: "'Outfit', sans-serif",
-          lineHeight: "1.15",
-          letterSpacing: "-1px",
-          margin: "0 0 20px",
-          animation: "ob-hero-line 0.5s 0.1s ease both",
-          opacity: 0,
-          background: "linear-gradient(135deg, #F1F5F9 40%, #a5b4fc)",
-          WebkitBackgroundClip: "text",
-          WebkitTextFillColor: "transparent",
+          fontSize: "clamp(32px, 5vw, 52px)", fontWeight: "700", fontFamily: "'Outfit', sans-serif",
+          lineHeight: "1.15", letterSpacing: "-1px", margin: "0 0 20px", animation: "ob-hero-line 0.5s 0.1s ease both",
+          opacity: 0, background: "linear-gradient(135deg, #F1F5F9 40%, #a5b4fc)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
         }}>
           Let's build your<br />brand intelligence brief.
         </h1>
 
-        {/* Subtext */}
         <p style={{
-          fontSize: "16px",
-          color: "#64748B",
-          lineHeight: "1.7",
-          margin: "0 auto 48px",
-          maxWidth: "480px",
-          fontFamily: "'Inter', sans-serif",
-          animation: "ob-hero-line 0.5s 0.2s ease both",
-          opacity: 0,
+          fontSize: "16px", color: "#64748B", lineHeight: "1.7", margin: "0 auto 40px",
+          maxWidth: "480px", fontFamily: "'Inter', sans-serif", animation: "ob-hero-line 0.5s 0.2s ease both", opacity: 0,
         }}>
-          8 sections. ~20 minutes. The most important document your brand team will ever work from.
+          8 sections. ~20 minutes. Optionally let Elevox AI auto-fill your brief by uploading your Resume or LinkedIn PDF.
         </p>
 
-        {/* Stats row */}
+        {/* AI Auto-Fill Section */}
         <div style={{
-          display: "flex", justifyContent: "center", gap: "40px", marginBottom: "48px",
-          animation: "ob-hero-line 0.5s 0.3s ease both",
-          opacity: 0,
+          background: "rgba(13, 18, 32, 0.6)", border: "1px solid rgba(99, 102, 241, 0.2)",
+          borderRadius: "16px", padding: "24px", marginBottom: "40px", backdropFilter: "blur(12px)",
+          animation: "ob-hero-line 0.5s 0.3s ease both", opacity: 0, textAlign: "left"
         }}>
-          {[["8", "Sections"], ["53", "Data Points"], ["72 hrs", "First Delivery"]].map(([val, label]) => (
-            <div key={label} style={{ textAlign: "center" }}>
-              <div style={{ fontSize: "24px", fontWeight: "700", fontFamily: "'Outfit', sans-serif", color: "#a5b4fc" }}>{val}</div>
-              <div style={{ fontSize: "11px", color: "#334155", letterSpacing: "1.5px", fontFamily: "'Inter', sans-serif", marginTop: "2px" }}>{label}</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "16px" }}>
+            <span style={{ fontSize: "18px" }}>✨</span>
+            <div style={{ fontSize: "13px", fontWeight: "600", color: "#a5b4fc", letterSpacing: "0.5px", textTransform: "uppercase" }}>Elevox AI Auto-Fill</div>
+          </div>
+          
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div>
+              <label style={{ fontSize: "11px", color: "#94A3B8", marginBottom: "6px", display: "block" }}>LINKEDIN PROFILE URL</label>
+              <input 
+                type="url" 
+                value={url} 
+                onChange={e => setUrl(e.target.value)} 
+                placeholder="https://linkedin.com/in/yourname" 
+                style={{
+                  width: "100%", padding: "12px 16px", background: "#0D1220", border: "1px solid #1E2A3E",
+                  borderRadius: "8px", color: "#F1F5F9", fontSize: "13px", outline: "none", transition: "border-color 0.2s"
+                }}
+                onFocus={e => e.target.style.borderColor = "#6366f1"}
+                onBlur={e => e.target.style.borderColor = "#1E2A3E"}
+              />
             </div>
-          ))}
+
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{ flex: 1, height: "1px", background: "#1E2A3E" }} />
+              <div style={{ fontSize: "10px", color: "#475569", letterSpacing: "1px" }}>AND / OR</div>
+              <div style={{ flex: 1, height: "1px", background: "#1E2A3E" }} />
+            </div>
+
+            <div>
+              <label style={{ fontSize: "11px", color: "#94A3B8", marginBottom: "6px", display: "block" }}>UPLOAD RESUME / CV (PDF)</label>
+              <input 
+                type="file" 
+                accept=".pdf,.txt"
+                onChange={e => setFile(e.target.files[0])} 
+                style={{
+                  width: "100%", padding: "10px", background: "rgba(99, 102, 241, 0.05)", border: "1px dashed rgba(99, 102, 241, 0.3)",
+                  borderRadius: "8px", color: "#a5b4fc", fontSize: "13px", cursor: "pointer"
+                }}
+              />
+            </div>
+          </div>
+          
+          {error && <div style={{ marginTop: "16px", padding: "10px", background: "rgba(239,68,68,0.1)", color: "#fca5a5", fontSize: "12px", borderRadius: "6px" }}>{error}</div>}
         </div>
 
         {/* CTA */}
         <div style={{ animation: "ob-hero-line 0.5s 0.4s ease both", opacity: 0 }}>
           <button
-            onClick={onStart}
+            onClick={handleAutoFill}
+            disabled={loading}
             style={{
-              padding: "16px 40px",
-              background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-              border: "none",
-              borderRadius: "10px",
-              color: "#fff",
-              fontSize: "14px",
-              fontWeight: "600",
-              fontFamily: "'Inter', sans-serif",
-              letterSpacing: "0.5px",
-              cursor: "pointer",
-              boxShadow: "0 8px 32px rgba(99,102,241,0.35)",
-              transition: "transform 0.15s, box-shadow 0.15s",
+              padding: "16px 40px", background: loading ? "rgba(30, 42, 62, 0.8)" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+              border: loading ? "1px solid #1E2A3E" : "none", borderRadius: "10px", color: loading ? "#94A3B8" : "#fff",
+              fontSize: "14px", fontWeight: "600", fontFamily: "'Inter', sans-serif", letterSpacing: "0.5px",
+              cursor: loading ? "progress" : "pointer", boxShadow: loading ? "none" : "0 8px 32px rgba(99,102,241,0.35)",
+              transition: "transform 0.15s, box-shadow 0.15s", display: "inline-flex", alignItems: "center", gap: "10px"
             }}
-            onMouseEnter={e => { e.target.style.transform = "translateY(-2px)"; e.target.style.boxShadow = "0 12px 40px rgba(99,102,241,0.5)"; }}
-            onMouseLeave={e => { e.target.style.transform = "none"; e.target.style.boxShadow = "0 8px 32px rgba(99,102,241,0.35)"; }}
+            onMouseEnter={e => { if(!loading) { e.target.style.transform = "translateY(-2px)"; e.target.style.boxShadow = "0 12px 40px rgba(99,102,241,0.5)"; } }}
+            onMouseLeave={e => { if(!loading) { e.target.style.transform = "none"; e.target.style.boxShadow = "0 8px 32px rgba(99,102,241,0.35)"; } }}
           >
-            Start the Brief →
+            {loading ? (
+               <><div style={{ width: "16px", height: "16px", border: "2px solid rgba(255,255,255,0.2)", borderTop: "2px solid white", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} /> Auto-Filling Brief...</>
+            ) : (file || url) ? "Analyze & Start Brief →" : "Start Empty Brief →"}
           </button>
-          <div style={{ marginTop: "14px", fontSize: "11px", color: "#334155", fontFamily: "'Inter', sans-serif", letterSpacing: "0.5px" }}>
+          
+          {!loading && <div style={{ marginTop: "14px", fontSize: "11px", color: "#334155", fontFamily: "'Inter', sans-serif", letterSpacing: "0.5px" }}>
             Press <kbd style={{ background: "#1E2A3E", color: "#a5b4fc", border: "1px solid #2D3D5A", borderRadius: "4px", padding: "1px 6px", fontSize: "10px" }}>Enter</kbd> to start
-          </div>
+          </div>}
         </div>
       </div>
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
@@ -417,28 +457,57 @@ function SuccessScreen({ formData }) {
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
-export default function OnboardingForm({ onComplete }) {
+export default function OnboardingForm({ onComplete, initialData, onSaveProgress, onSaveAndExit }) {
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
   const [isSaving, setIsSaving] = useState(false);
   
-  const initialStep = (() => {
-    if (!hasData) return 0;
-    for (let i = 0; i < STEPS.length; i++) {
-      const step = STEPS[i];
-      const missing = step.fields.filter(f => f.required).some(f => {
-        const v = initialData[f.id];
-        if (Array.isArray(v)) return v.length === 0;
-        return !v || String(v).trim() === "";
-      });
-      if (missing) return i;
-    }
-    return STEPS.length - 1;
-  })();
-
-  const [currentStep, setCurrentStep] = useState(initialStep);
-  const [formData, setFormData] = useState(initialData);
+  // Guard the object keys and ensure we track our initial data cleanly
+  const startData = initialData || {};
+  const hasData = Object.keys(startData).length > 0;
+  
+  const [formData, setFormData] = useState(startData);
+  const [currentStep, setCurrentStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
   const containerRef = useRef(null);
+
+  const handleHeroStart = (prefilledData) => {
+    if (prefilledData && Object.keys(prefilledData).length > 0) {
+      // Merge prefilled data with any existing start data
+      const mergedContent = { ...startData, ...prefilledData };
+      setFormData(mergedContent);
+      
+      // Calculate leap-forward step
+      let jumpTo = 0;
+      for (let i = 0; i < STEPS.length; i++) {
+        const missing = STEPS[i].fields.filter(f => f.required).some(f => {
+          const v = mergedContent[f.id];
+          if (Array.isArray(v)) return v.length === 0;
+          return !v || String(v).trim() === "";
+        });
+        if (missing) {
+          jumpTo = i;
+          break;
+        }
+      }
+      // Only jump to end if literally everything is filled perfectly, else stop at first missing
+      setCurrentStep(jumpTo === 0 && !Object.keys(mergedContent).length ? 0 : jumpTo);
+    } else {
+       // If no data, calculate from whatever initialData provided via props
+       let jumpTo = 0;
+       if (hasData) {
+         for (let i = 0; i < STEPS.length; i++) {
+          const missing = STEPS[i].fields.filter(f => f.required).some(f => {
+            const v = startData[f.id];
+            if (Array.isArray(v)) return v.length === 0;
+            return !v || String(v).trim() === "";
+          });
+          if (missing) { jumpTo = i; break; }
+         }
+       }
+       setCurrentStep(jumpTo);
+    }
+    setPhase("form");
+  };
 
   const step = STEPS[currentStep];
   const progress = Math.round(((currentStep + 1) / STEPS.length) * 100);
@@ -490,7 +559,7 @@ export default function OnboardingForm({ onComplete }) {
     return () => window.removeEventListener("keydown", handler);
   }, [phase, currentStep, navigate, requiredFilled, handleSubmit]);
 
-  if (phase === "hero") return <HeroScreen onStart={() => setPhase("form")} />;
+  if (phase === "hero") return <HeroScreen onStart={handleHeroStart} />;
   if (phase === "done") return <SuccessScreen formData={formData} />;
 
   return (
@@ -692,51 +761,80 @@ export default function OnboardingForm({ onComplete }) {
           </div>
 
           {/* Next / Submit */}
-          {currentStep < STEPS.length - 1 ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             <button
-              onClick={() => navigate(1)}
-              disabled={!requiredFilled}
+              onClick={async () => {
+                if (onSaveAndExit) {
+                  setIsSaving(true);
+                  await onSaveAndExit(formData);
+                }
+              }}
+              disabled={isSaving}
               style={{
-                padding: "12px 28px",
-                background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
-                border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                padding: "12px 20px",
+                background: "transparent",
+                border: "1px solid #1E2A3E",
                 borderRadius: "8px",
-                color: requiredFilled ? "#fff" : "#334155",
+                color: "#64748B",
                 fontSize: "12px",
-                fontWeight: "600",
+                fontWeight: "500",
                 fontFamily: "'Inter', sans-serif",
                 letterSpacing: "0.5px",
-                cursor: requiredFilled ? "pointer" : "default",
-                boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
+                cursor: isSaving ? "progress" : "pointer",
                 transition: "all 0.15s",
               }}
-              onMouseEnter={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 6px 28px rgba(99,102,241,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
-              onMouseLeave={e => { if (requiredFilled) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.3)"; e.currentTarget.style.transform = "none"; }}}
+              onMouseEnter={e => { if(!isSaving) { e.currentTarget.style.borderColor = "#6366f1"; e.currentTarget.style.color = "#a5b4fc"; } }}
+              onMouseLeave={e => { if(!isSaving) { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.color = "#64748B"; } }}
             >
-              Continue →
+              {isSaving ? "Saving..." : "Save for later"}
             </button>
-          ) : (
-            <button
-              onClick={handleSubmit}
-              disabled={!requiredFilled}
-              style={{
-                padding: "12px 32px",
-                background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
-                border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
-                borderRadius: "8px",
-                color: requiredFilled ? "#fff" : "#334155",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.8px",
-                cursor: requiredFilled ? "pointer" : "default",
-                boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
-                transition: "all 0.15s",
-              }}
-            >
-              Submit Brief ✓
-            </button>
-          )}
+            
+            {currentStep < STEPS.length - 1 ? (
+              <button
+                onClick={() => navigate(1)}
+                disabled={!requiredFilled || isSaving}
+                style={{
+                  padding: "12px 28px",
+                  background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
+                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  borderRadius: "8px",
+                  color: requiredFilled ? "#fff" : "#334155",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.5px",
+                  cursor: requiredFilled ? "pointer" : "default",
+                  boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
+                  transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { if (requiredFilled && !isSaving) { e.currentTarget.style.boxShadow = "0 6px 28px rgba(99,102,241,0.5)"; e.currentTarget.style.transform = "translateY(-1px)"; }}}
+                onMouseLeave={e => { if (requiredFilled && !isSaving) { e.currentTarget.style.boxShadow = "0 4px 20px rgba(99,102,241,0.3)"; e.currentTarget.style.transform = "none"; }}}
+              >
+                Continue →
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={!requiredFilled || isSaving}
+                style={{
+                  padding: "12px 32px",
+                  background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
+                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  borderRadius: "8px",
+                  color: requiredFilled ? "#fff" : "#334155",
+                  fontSize: "12px",
+                  fontWeight: "600",
+                  fontFamily: "'Inter', sans-serif",
+                  letterSpacing: "0.8px",
+                  cursor: requiredFilled ? "pointer" : "default",
+                  boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
+                  transition: "all 0.15s",
+                }}
+              >
+                Submit Brief ✓
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

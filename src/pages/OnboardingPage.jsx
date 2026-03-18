@@ -14,7 +14,7 @@ import OnboardingForm from '../components/OnboardingForm'
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { finishOnboarding } = useProfile()
+  const { finishOnboarding, saveStep } = useProfile()
 
   async function handleComplete(formData) {
     const { error } = await finishOnboarding(formData)
@@ -53,6 +53,11 @@ export default function OnboardingPage() {
     <OnboardingForm
       onComplete={handleComplete}
       initialData={initialData}
+      onSaveProgress={saveStep}
+      onSaveAndExit={async (formData) => {
+        await saveStep(formData)
+        navigate('/dashboard', { replace: true })
+      }}
     />
   )
 }
