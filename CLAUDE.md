@@ -26,7 +26,7 @@ EA → Executive → Publish pipeline.
 | Database | Supabase PostgreSQL (10 tables) |
 | Server logic | Supabase Edge Functions (Deno/TypeScript) |
 | AI | Anthropic Claude Sonnet via Edge Functions ONLY |
-| Payments | Stripe (Checkout + Webhooks) |
+| Payments | Razorpay (final sprint — India-compatible). Stripe Edge Functions preserved but inactive. |
 | Email | Resend (not yet wired — Sprint 2) |
 | Hosting | Vercel (frontend) + Supabase (backend) |
 
@@ -67,7 +67,7 @@ src/
 │   ├── LoginPage.jsx          ← Email + LinkedIn OAuth + forgot password.
 │   ├── SignupPage.jsx         ← Email signup with confirmation.
 │   ├── AuthCallbackPage.jsx   ← OAuth redirect handler. Do not modify.
-│   ├── UpgradePage.jsx        ← Plan selection. Stripe buttons need wiring (Sprint 2).
+│   ├── UpgradePage.jsx        ← Plan selection. Interest-capture placeholder (Sprint 3). Razorpay final sprint.
 │   ├── DashboardPage.jsx      ← Passes real profile from auth to Dashboard.
 │   ├── OnboardingPage.jsx     ← Saves OnboardingForm data to Supabase on submit.
 │   └── ProfilePage.jsx        ← Reads profile from Supabase, passes to ProfileView.
@@ -79,8 +79,8 @@ supabase/
 └── functions/
     ├── ghostwrite-post/       ← AI ghostwriter. Returns 3 draft variants per topic.
     ├── generate-brief/        ← Brand Brief AI generation from full profile.
-    ├── create-checkout/       ← Creates Stripe Checkout session. Returns {url}.
-    └── stripe-webhook/        ← Handles subscription lifecycle. Do not call from frontend.
+    ├── create-checkout/       ← PRESERVED but inactive. Was Stripe Checkout. Razorpay replaces final sprint.
+    └── stripe-webhook/        ← PRESERVED but inactive. Stripe subscription lifecycle. Do not call from frontend.
 ```
 
 ---
@@ -183,6 +183,43 @@ await saveStep({ fullName: 'Alexandra', currentTitle: 'CEO' })
 await supabase.from('profiles').update({ full_name: 'Alexandra' }).eq('id', user.id)
 ```
 
+### Rule 7 — ALWAYS log bugs and errors to the Issue Log
+Every bug, production error, or unexpected failure MUST be recorded in
+`docs/ISSUE_LOG.md` within 24 hours of discovery — before or alongside the fix.
+This is non-negotiable. It builds institutional memory for production operations.
+
+**Required fields per entry:**
+- **ID** — sequential `ISS-NNN`
+- **Date** — date discovered (not fixed)
+- **Severity** — P0 (outage) / P1 (broken feature) / P2 (degraded) / P3 (cosmetic) / P4 (debt)
+- **Sprint** — which sprint it was found in
+- **Component** — file or system area affected
+- **Error Description** — what the user/developer sees
+- **RCA** — root cause analysis: WHY did this happen? (not just what)
+- **Fix** — specific file, approach, commit hash when available
+- **Status** — `Open`, `In Progress`, `Open — Sprint X SX-YY`, or `Resolved`
+
+✅ CORRECT:
+```markdown
+| ISS-009 | 2026-03-12 | P1 | S2 | mentor-chat/index.ts | No server-side plan check |
+  User can access Phase 5 content on starter plan | Plan guard never added to Edge Function |
+  Add PLAN_PHASE_ACCESS map + guard; return 403 if phase exceeds plan | Open — Sprint 3 S3-02 |
+```
+
+❌ WRONG:
+```markdown
+| ISS-009 | - | - | - | mentor-chat | broken | - | fixed | done |
+```
+
+**Severity guide:**
+- P0: Production outage / data loss — log immediately
+- P1: Feature completely broken — log within 4 hours
+- P2: Feature degraded — log within 24 hours
+- P3/P4: Cosmetic / tech debt — log within the sprint
+
+**Never delete rows** — resolved issues stay in the Resolved table permanently.
+**See:** `docs/ISSUE_LOG.md` for the live tracker.
+
 ### Rule 6 — ALWAYS follow the existing design system
 All colour values, font families, and spacing patterns come from
 `src/index.css`. Do not introduce new hex values or Google Font imports.
@@ -276,27 +313,26 @@ async function load() {
 }
 ```
 
-### Stripe checkout call (Sprint 2 — UpgradePage)
-```js
-async function handleUpgrade(planId) {
-  const { data: { session } } = await supabase.auth.getSession()
+### Payment interest capture (Sprint 3 — UpgradePage placeholder)
+Stripe removed (India restrictions). Razorpay wired in final sprint.
+Sprint 3 uses an inline confirm flow — no payment collected.
 
-  const res = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session.access_token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ plan: planId }), // 'starter' | 'authority' | 'legacy'
-    }
-  )
-  const { url, error } = await res.json()
-  if (error) { setError(error); return }
-  window.location.href = url  // Redirect to Stripe Checkout
+```js
+// Sprint 3 placeholder: capture interest, no payment
+function handleSelectPlan(planId) {
+  setSelectedPlan(planId) // shows confirm step
+}
+
+function handleConfirm(planId) {
+  setSubmitted(planId) // shows success banner
+  // TODO (final sprint): replace with Razorpay create-order call
+  // See docs/PAYMENT_GATEWAY.md for Razorpay integration plan
 }
 ```
+
+**Final sprint (Razorpay):** Wire `create-razorpay-order` Edge Function,
+load Razorpay script, call `rzp.open()`, handle `payment.success` webhook.
+See `docs/PAYMENT_GATEWAY.md` for full integration plan.
 
 ### Adding a new route
 ```jsx
@@ -374,8 +410,9 @@ The policy is: `auth.uid() = user_id` on every table.
 | `authority` | Authority | $197/mo | 1–4 |
 | `legacy` | Legacy | $497/mo | 1–6 |
 
-Stripe Price IDs live in Supabase secrets:
-`STRIPE_PRICE_STARTER`, `STRIPE_PRICE_AUTHORITY`, `STRIPE_PRICE_LEGACY`
+Payment is deferred to the final sprint using Razorpay.
+Stripe secrets are preserved in Supabase but the Edge Functions are inactive.
+See `docs/PAYMENT_GATEWAY.md` for the Razorpay integration plan.
 
 ---
 
@@ -385,8 +422,8 @@ Stripe Price IDs live in Supabase secrets:
 |---|---|---|---|
 | `ghostwrite-post` | POST | Yes (JWT) | Generates 3 AI draft variants. Body: `{ topic, content_type, anchor_event_id? }`. Returns `{ drafts: [{ angle, body, word_count }] }` |
 | `generate-brief` | POST | Yes (JWT) | Reads full profile, generates Brand Brief, saves to `brand_briefs` table. No body needed. Returns `{ brief }` |
-| `create-checkout` | POST | Yes (JWT) | Creates Stripe Checkout session. Body: `{ plan }`. Returns `{ url }` — redirect user to this URL. |
-| `stripe-webhook` | POST | Stripe signature | Called by Stripe only. Handles `checkout.session.completed`, `subscription.updated`, `subscription.deleted`, `invoice.payment_failed`, `invoice.payment_succeeded`. **Never call this from the frontend.** |
+| `create-checkout` | POST | Yes (JWT) | **INACTIVE — preserved for reference.** Was Stripe Checkout. Razorpay replaces in final sprint. |
+| `stripe-webhook` | POST | Stripe signature | **INACTIVE — preserved for reference.** Was Stripe subscription lifecycle handler. **Never call from frontend.** |
 
 ---
 
@@ -396,18 +433,19 @@ Stripe Price IDs live in Supabase secrets:
 ```
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...   # PRESERVED — inactive. Razorpay key added final sprint.
 ```
 
 **Edge Functions (Supabase secrets — never in frontend):**
 ```
 ANTHROPIC_API_KEY
-STRIPE_SECRET_KEY
-STRIPE_WEBHOOK_SECRET
-STRIPE_PRICE_STARTER
-STRIPE_PRICE_AUTHORITY
-STRIPE_PRICE_LEGACY
+STRIPE_SECRET_KEY          # PRESERVED — inactive. Stripe removed (India restrictions).
+STRIPE_WEBHOOK_SECRET      # PRESERVED — inactive.
+STRIPE_PRICE_STARTER       # PRESERVED — inactive.
+STRIPE_PRICE_AUTHORITY     # PRESERVED — inactive.
+STRIPE_PRICE_LEGACY        # PRESERVED — inactive.
 RESEND_API_KEY
+# Final sprint adds: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET, RAZORPAY_WEBHOOK_SECRET
 ```
 
 ---
@@ -416,12 +454,11 @@ RESEND_API_KEY
 
 Work these in order. Each builds on the previous.
 
-### Task 1 — Wire Stripe checkout in UpgradePage ⬅ START HERE
+### Task 1 — Interest-capture placeholder in UpgradePage ✅ COMPLETE (Sprint 3 S3-01)
 **File:** `src/pages/UpgradePage.jsx`
-**What:** Replace the `alert()` call on each plan button with a real call
-to the `create-checkout` Edge Function and redirect to the returned URL.
-**Pattern:** See "Stripe checkout call" in Standard Patterns above.
-**Test:** Stripe test card `4242 4242 4242 4242`, any future expiry, any CVC.
+**What:** Replaced `mailto:` CTA with inline interest-capture confirm flow.
+No payment collected. Razorpay wired in final sprint.
+**See:** `docs/PAYMENT_GATEWAY.md` for the full Razorpay integration plan.
 
 ### Task 2 — Brand Brief display page
 **New file:** `src/pages/BrandBriefPage.jsx`
@@ -460,21 +497,32 @@ Template: welcome email with their name, plan, and link back to dashboard.
 
 ## Known Issues (do not re-introduce)
 
-1. **App.css** contains default Vite boilerplate (logo spin animation etc).
-   It does nothing useful. Delete it and remove the import in App.jsx.
+See `docs/ISSUE_LOG.md` for the full issue tracker with RCA and fix details.
+Active issues as of Sprint 3 start:
 
-2. **Roadmap.jsx** is currently an agency ops tool, not a CxO coaching roadmap.
-   See Sprint 2 Task 4.
+1. **ISS-015 — Stripe not viable in India** (P1) — Stripe removed. Razorpay deferred to
+   final sprint. Interest-capture placeholder live. See `docs/PAYMENT_GATEWAY.md`.
 
-3. **UpgradePage plan buttons** call `alert()`. See Sprint 2 Task 1.
+2. **ISS-009 — No server-side plan enforcement** (P1) — `mentor-chat` Edge Function
+   does not check `profiles.plan` before serving AI responses. Sprint 3 S3-02.
 
-4. **Session continuity** — returning to a mentor chat starts fresh instead of
-   resuming. `upsertMentorSession()` in supabase.js is built and waiting.
-   The chat component just needs to call it on each message.
+3. **ISS-010 — GhostwriterPanel draft not saved to DB** (P2) — selecting a draft
+   only updates local state; no write to `content_drafts` or `content_calendar`.
+   Sprint 3 S3-03.
 
-5. **Phase lock is only enforced client-side** in Dashboard.jsx via the
-   `unlockedPhases` array. The chat route has no server-side plan check.
-   Add plan verification in ProtectedRoute or the phase chat component.
+4. **ISS-011 — Roadmap has no click navigation** (P2) — component cards have no
+   handler to navigate to `/coach/:phaseId/:componentId`. Sprint 3 S3-04.
+
+5. **ISS-012 — ApprovalWorkflow lint error** (P2) — `setSimStep` in useEffect causing
+   cascading re-renders. Sprint 3 S3-05.
+
+6. **ISS-013 — CalendarLogistics light background** (P3) — one section uses `#F8FAFC`
+   instead of dark theme. Sprint 3 S3-06.
+
+7. **ISS-014 — App.css not deleted** (P3) — Vite boilerplate remains. Sprint 3 S3-06.
+
+8. **ISS-009 — No server-side plan enforcement** (P1) — `mentor-chat` Edge Function
+   does not check `profiles.plan`. Sprint 3 S3-02 (server-side guard to be added).
 
 ---
 
@@ -515,5 +563,5 @@ Run it in Supabase SQL Editor. Never edit 001 directly.
 
 ---
 
-*Last updated: March 2026 — Sprint 1 complete, Sprint 2 in progress*
+*Last updated: March 2026 — Sprint 2 complete, Sprint 3 in progress. Payment deferred to final sprint (Razorpay).*
 *Questions: escalate to product before changing RLS policies or the PHASES array*

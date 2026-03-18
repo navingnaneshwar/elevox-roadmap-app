@@ -5,10 +5,16 @@
 // Body: {
 //   session_prompt: string,   // the component-specific system prompt
 //   history: [{role, content}], // prior conversation (last ~10 msgs)
-//   message: string           // the user's latest message
+//   message: string,          // the user's latest message
+//   phase_id: number          // required for plan enforcement
 // }
 //
 // Returns: { reply: string }
+//
+// Plan enforcement:
+//   starter   → phases 1–2
+//   authority → phases 1–4
+//   legacy    → phases 1–6
 // ─────────────────────────────────────────────────────────────
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
@@ -16,6 +22,12 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+
+const PLAN_PHASE_ACCESS: Record<string, number[]> = {
+  starter:   [1, 2],
+  authority: [1, 2, 3, 4],
+  legacy:    [1, 2, 3, 4, 5, 6],
+}
 
 const corsHeaders = {
   'Access-Control-Allow-Origin':  '*',
@@ -34,14 +46,49 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser(jwt)
     if (authError || !user) throw new Error('Unauthorized')
 
-    // ── 2. Load profile for personalisation ───────────────
-    const { data: profile } = await supabase
-      .from('profiles').select('*').eq('id', user.id).single()
-
-    // ── 3. Parse request ───────────────────────────────────
-    const { session_prompt, history = [], message } = await req.json()
+    // ── 2. Parse request early to get phase_id ─────────────
+    const body = await req.json()
+    const { session_prompt, history = [], message, phase_id } = body
     if (!session_prompt) throw new Error('session_prompt is required')
     if (!message) throw new Error('message is required')
+
+    // ── 3. Plan enforcement guard ──────────────────────────
+    const { data: profile, error: profileError } = await supabase
+      .from('profiles')
+      .select('plan, plan_status, full_name, current_title, company, industry, primary_goal, location, three_words, topics_owned')
+      .eq('id', user.id)
+      .single()
+
+    if (profileError || !profile) {
+      return new Response(
+        JSON.stringify({ error: 'profile_not_found' }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    const allowedStatuses = ['active', 'trialing']
+    if (profile.plan_status && !allowedStatuses.includes(profile.plan_status)) {
+      return new Response(
+        JSON.stringify({ error: 'payment_required', current_status: profile.plan_status }),
+        { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
+
+    if (phase_id !== undefined && phase_id !== null) {
+      const phaseNum = parseInt(phase_id, 10)
+      const allowed = PLAN_PHASE_ACCESS[profile.plan ?? 'starter'] ?? [1, 2]
+      if (!allowed.includes(phaseNum)) {
+        const required_plan = phaseNum <= 4 ? 'authority' : 'legacy'
+        return new Response(
+          JSON.stringify({
+            error: 'plan_required',
+            current_plan: profile.plan,
+            required_plan,
+          }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        )
+      }
+    }
 
     // ── 4. Build system prompt ─────────────────────────────
     const profileContext = profile ? `

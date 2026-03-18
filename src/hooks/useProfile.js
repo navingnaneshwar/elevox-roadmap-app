@@ -99,7 +99,11 @@ export function useProfile() {
     const dbRow = mapFormToDb(formData)
     const { error } = await upsertProfile(user.id, dbRow)
 
-    if (!error) await refreshProfile()
+    if (error) {
+      console.error('Failed to save step to Supabase:', error)
+    } else {
+      await refreshProfile()
+    }
     return { error }
   }
 
