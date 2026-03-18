@@ -1,10 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import Logo from "./Logo";
-import * as pdfjsLib from "pdfjs-dist";
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
-  "pdfjs-dist/pdf.worker.min.mjs",
-  import.meta.url
-).href;
 
 /* ─── Data ──────────────────────────────────────────────────── */
 const STEPS = [
@@ -246,11 +241,13 @@ function HeroScreen({ onStart }) {
     try {
       const { supabase } = await import('../lib/supabase');
 
-      // Extract PDF text on the frontend using pdfjs-dist (browser-native).
-      // Worker is configured via static import at module top — avoids Vite resolution issues.
+      // Extract PDF text on the frontend using pdfjs-dist (lazy-loaded to avoid
+      // module-level initialisation errors that cause blank pages in production).
       let extractedText = '';
       if (file) {
         if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          const pdfjsLib = await import('pdfjs-dist');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
           const arrayBuffer = await file.arrayBuffer();
           const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
           for (let i = 1; i <= pdf.numPages; i++) {

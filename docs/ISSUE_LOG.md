@@ -24,6 +24,9 @@
 
 | ID | Date Found | Date Fixed | Severity | Sprint | Component | Error Description | RCA | Fix Applied |
 |---|---|---|---|---|---|---|---|---|
+| ISS-018 | 2026-03-18 | 2026-03-18 | P1 | S3 | `parse-resume` Edge Function | Edge function throwing 500 / 400 silently | Anthropic API account out of credits. Previously, `pdf-parse` also crashed Deno due to missing Node globals. | Replaced `pdf-parse` with Anthropic Native PDF parsing. Instructed user to top up Anthropic billing. |
+| ISS-017 | 2026-03-18 | 2026-03-18 | P1 | S3 | `OnboardingForm.jsx` | Local development server crashed rendering a blank screen | Git pull introduced unresolved conflict markers (`<<<<<<< HEAD`) directly into the React source, causing Vite parser to crash. | Resolved git conflicts favoring HEAD (`OnboardingForm` AI rewrite) and committed the clean file. |
+| ISS-016 | 2026-03-18 | 2026-03-18 | P2 | S3 | Supabase Auth | OAuth redirecting localhost logins to Vercel production | Supabase requires exact URL match; when `localhost:5173` wasn't exact, it fell back to Vercel Site URL. | Updated Supabase Additional Redirect URIs and changed Site URL to localhost during dev. |
 | ISS-001 | 2026-03-10 | 2026-03-10 | P1 | S1 | `App.jsx` | Blank page on submit — fast-refresh module circularity caused React component tree to unmount unexpectedly on form submission | Named export + default export conflict between `OnboardingForm` and `App.jsx` caused Vite HMR to trigger a full reload mid-submit, resetting state and showing a blank page | Resolved circular import by restructuring component exports. Commit: `fix: resolve blank page on submit due to fast-refresh module circularities` (`70c8bda`) |
 | ISS-002 | 2026-03-10 | 2026-03-10 | P1 | S1 | `OnboardingPage.jsx` | Onboarding redirect not firing — after `finishOnboarding()` success, user remained on `/onboarding` | `navigate('/dashboard')` called before async Supabase write completed. `await` was missing. | Added `await` before `finishOnboarding()` and placed `navigate` in the `.then()` chain. Commit: `fix: resolve lint errors and onboarding redirect` (`1dc2bae`) |
 | ISS-003 | 2026-03-10 | 2026-03-10 | P2 | S1 | `OnboardingForm.jsx` | Syntax error — missing closing `</div>` tag in OnboardingForm caused entire component tree to fail to parse | Manual JSX editing introduced unclosed tag; no JSX linting caught it at save time | Restored missing div closer. Commit: `fix: restore missing div closer in OnboardingForm, fix syntax error in Roadmap.jsx` (`3b4ef32`) |
@@ -58,5 +61,5 @@
 
 ---
 
-*Last updated: 2026-03-12*
-*Issue count: 14 total (7 active, 7 resolved)*
+*Last updated: 2026-03-18*
+*Issue count: 17 total (7 active, 10 resolved)*
