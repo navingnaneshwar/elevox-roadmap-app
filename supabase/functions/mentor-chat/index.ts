@@ -19,7 +19,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
+const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 
@@ -116,7 +116,7 @@ IMPORTANT COACHING RULES:
 - After they've answered, provide a brief insight/validation, then ask the next question.
 - You are a senior executive brand strategist, not a generic chatbot. Sound authoritative.`
 
-    // ── 5. Build messages array for Anthropic ─────────────
+    // ── 5. Build messages array for OpenAI ────────────────
     // '__start__' is a special internal signal — no real user message yet,
     // just ask the AI to open the session with its first question.
     const isOpener = message === '__start__'
@@ -136,36 +136,34 @@ IMPORTANT COACHING RULES:
       { role: 'user', content: userContent },
     ]
 
-    // ── 6. Call Anthropic ──────────────────────────────────
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    // ── 6. Call OpenAI ─────────────────────────────────────
+    const anthropicRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type':      'application/json',
-        'x-api-key':         ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model:      'claude-opus-4-5',
+        model:      'gpt-4o',
         max_tokens: 600,
-        system:     systemPrompt,
-        messages,
+        messages:   [{ role: 'system', content: systemPrompt }, ...messages],
       }),
     })
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text()
       // Surface billing errors as a user-friendly message
-      if (anthropicRes.status === 403 || errText.includes('credit balance')) {
+      if (anthropicRes.status === 429 || errText.includes('quota')) {
         return new Response(
           JSON.stringify({ error: 'billing', reply: null }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-      throw new Error(`Anthropic error: ${errText}`)
+      throw new Error(`OpenAI error: ${errText}`)
     }
 
     const anthropicData = await anthropicRes.json()
-    const reply = anthropicData.content[0]?.text?.trim() || 'I am thinking through your response...'
+    const reply = anthropicData.choices[0]?.message?.content?.trim() || 'I am thinking through your response...'
 
     return new Response(
       JSON.stringify({ reply }),
