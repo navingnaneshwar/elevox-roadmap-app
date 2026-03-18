@@ -240,15 +240,46 @@ function HeroScreen({ onStart }) {
     setError(null);
     try {
       const { supabase } = await import('../lib/supabase');
-      const uploadData = new FormData();
-      if (file) uploadData.append('file', file);
-      if (url) uploadData.append('url', url);
 
-      const { data, error: fnError } = await supabase.functions.invoke('parse-resume', {
-        body: uploadData,
-      });
+      // Extract PDF text on the frontend — Deno PDF libraries are unreliable.
+      // pdfjs-dist runs in the browser natively; we send plain text to the edge fn.
+      let extractedText = '';
+      if (file) {
+        if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
+          const pdfjsLib = await import('pdfjs-dist');
+          pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+            'pdfjs-dist/build/pdf.worker.min.mjs',
+            import.meta.url
+          ).toString();
+          const arrayBuffer = await file.arrayBuffer();
+          const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            extractedText += content.items.map(item => item.str).join(' ') + '\n';
+          }
+        } else {
+          extractedText = await file.text();
+        }
+      }
 
-      if (fnError) throw fnError;
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/parse-resume`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ text: extractedText, url: url || undefined }),
+        }
+      );
+      const json = await res.json();
+      const fnError = !res.ok ? json.error : null;
+      const data = res.ok ? json : null;
+
+      if (fnError) throw new Error(fnError);
       if (data?.error) throw new Error(data.error);
 
       // Start form with auto-filled data

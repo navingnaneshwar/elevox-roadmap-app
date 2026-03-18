@@ -1,10 +1,7 @@
 // supabase/functions/parse-resume/index.ts
-// Extracts profile fields from a PDF resume or LinkedIn URL using OpenAI GPT-4o.
-// pdf-parse/lib/pdf-parse.js imported directly — avoids the index.js wrapper
-// that calls fs.readFileSync on test files at import time (crashes in Deno).
+// Receives pre-extracted text from the frontend (via pdfjs-dist in the browser).
+// No PDF library needed here — just OpenAI extraction.
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
-// @ts-ignore — npm specifier, not resolvable by local TS server
-import pdfParse from 'npm:pdf-parse/lib/pdf-parse.js'
 
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 
@@ -31,29 +28,13 @@ serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
-    const formData = await req.formData()
-    const file = formData.get('file') as File | null
-    const url  = formData.get('url')  as string | null
+    const { text, url } = await req.json()
 
-    let extractedText = ''
+    let content = ''
+    if (text) content += text
+    if (url)  content += `\nLinkedIn Profile URL: ${url}`
 
-    if (file) {
-      if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) {
-        const arrayBuffer = await file.arrayBuffer()
-        const result = await pdfParse(new Uint8Array(arrayBuffer))
-        extractedText = result.text
-      } else {
-        extractedText = await file.text()
-      }
-    }
-
-    if (url) {
-      extractedText += `\nLinkedIn Profile URL: ${url}`
-    }
-
-    if (!extractedText.trim()) {
-      throw new Error('No file or URL provided')
-    }
+    if (!content.trim()) throw new Error('No text or URL provided')
 
     const res = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -66,7 +47,7 @@ serve(async (req: Request) => {
         response_format: { type: 'json_object' },
         messages: [
           { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user',   content: extractedText.substring(0, 25000) },
+          { role: 'user',   content: content.substring(0, 25000) },
         ],
       }),
     })
@@ -78,7 +59,6 @@ serve(async (req: Request) => {
 
     const data = await res.json()
     const parsedData = JSON.parse(data.choices[0]?.message?.content || '{}')
-
     if (url) parsedData.linkedinUrl = url
 
     return new Response(
