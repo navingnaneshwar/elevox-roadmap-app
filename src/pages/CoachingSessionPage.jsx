@@ -249,6 +249,7 @@ export default function CoachingSessionPage() {
   const [planError, setPlanError] = useState(null) // { type, required_plan }
   const [isListening, setIsListening] = useState(false)
   const [isPlaying,   setIsPlaying]   = useState(false)
+  const [isMuted,     setIsMuted]     = useState(false)
 
   const bottomRef      = useRef(null)
   const inputRef       = useRef(null)
@@ -317,6 +318,7 @@ export default function CoachingSessionPage() {
   }, [messages, thinking])
 
   async function playAudioForText(text) {
+    if (isMuted) return;
     try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) return
@@ -428,6 +430,13 @@ export default function CoachingSessionPage() {
   async function handleSend() {
     const text = input.trim()
     if (!text || thinking || planError) return
+    
+    // Interrupt Audio immediately if user posts
+    if (audioRef.current) {
+        audioRef.current.pause()
+        setIsPlaying(false)
+    }
+
     setInput('')
     setError(null)
 
@@ -721,6 +730,34 @@ export default function CoachingSessionPage() {
               <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
               <line x1="12" y1="19" x2="12" y2="22"></line>
             </svg>
+          </button>
+
+          {/* ── Mute / Unmute Toggle ── */}
+          <button
+            onClick={() => {
+                if (audioRef.current && !isMuted) {
+                    audioRef.current.pause()
+                    setIsPlaying(false)
+                }
+                setIsMuted(!isMuted)
+            }}
+            title={isMuted ? "Unmute Vox" : "Mute Vox"}
+            disabled={!!planError}
+            style={{
+              width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0,
+              background: isMuted ? 'rgba(255,255,255,0.02)' : 'rgba(99,102,241,0.1)',
+              border: isMuted ? '1px solid #1E2A3E' : '1px solid rgba(99,102,241,0.3)',
+              color: isMuted ? '#64748B' : '#a5b4fc',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: planError ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+            }}
+          >
+            {isMuted ? (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" x2="17" y1="9" y2="15"></line><line x1="17" x2="23" y1="9" y2="15"></line></svg>
+            ) : (
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+            )}
           </button>
 
           <button
