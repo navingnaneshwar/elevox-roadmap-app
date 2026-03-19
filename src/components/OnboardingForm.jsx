@@ -139,13 +139,13 @@ function MultiSelect({ field, value, onChange }) {
 }
 
 /* ─── Field Input ───────────────────────────────────────────── */
-function FieldInput({ field, value, onChange }) {
+function FieldInput({ field, value, onChange, error }) {
   const baseInput = {
     width: "100%",
     padding: "13px 16px",
-    background: "#0D1220",
-    border: "1px solid #1E2A3E",
-    borderBottom: `2px solid ${value ? "#6366f1" : "#1E2A3E"}`,
+    background: error ? "rgba(239, 68, 68, 0.05)" : "#0D1220",
+    border: `1px solid ${error ? "#ef4444" : "#1E2A3E"}`,
+    borderBottom: `2px solid ${error ? "#ef4444" : (value ? "#6366f1" : "#1E2A3E")}`,
     borderRadius: "8px 8px 4px 4px",
     fontSize: "14px",
     color: "#F1F5F9",
@@ -157,13 +157,13 @@ function FieldInput({ field, value, onChange }) {
   };
 
   const onFocus = e => {
-    e.target.style.borderColor = "#6366f1";
-    e.target.style.borderBottomColor = "#6366f1";
-    e.target.style.boxShadow = "0 0 0 3px rgba(99,102,241,0.12)";
+    e.target.style.borderColor = error ? "#ef4444" : "#6366f1";
+    e.target.style.borderBottomColor = error ? "#ef4444" : "#6366f1";
+    e.target.style.boxShadow = error ? "0 0 0 3px rgba(239,68,68,0.12)" : "0 0 0 3px rgba(99,102,241,0.12)";
   };
   const onBlur = e => {
-    e.target.style.borderColor = "#1E2A3E";
-    e.target.style.borderBottomColor = value ? "#6366f1" : "#1E2A3E";
+    e.target.style.borderColor = error ? "#ef4444" : "#1E2A3E";
+    e.target.style.borderBottomColor = error ? "#ef4444" : (value ? "#6366f1" : "#1E2A3E");
     e.target.style.boxShadow = "none";
   };
 
@@ -204,7 +204,11 @@ function FieldInput({ field, value, onChange }) {
     );
   }
   if (field.type === "multiselect") {
-    return <MultiSelect field={field} value={value} onChange={v => onChange(field.id, v)} />;
+    return (
+      <div style={error ? { border: "1px solid #ef4444", padding: "8px", borderRadius: "8px", background: "rgba(239, 68, 68, 0.05)" } : {}}>
+        <MultiSelect field={field} value={value} onChange={v => onChange(field.id, v)} />
+      </div>
+    );
   }
   return (
     <input
@@ -268,6 +272,7 @@ function HeroScreen({ onStart }) {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${session.access_token}`,
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({ text: extractedText, url: url || undefined }),
@@ -499,6 +504,7 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
   const [formData, setFormData] = useState(startData);
   const [currentStep, setCurrentStep] = useState(0);
   const [animKey, setAnimKey] = useState(0);
+  const [showErrors, setShowErrors] = useState(false);
   const containerRef = useRef(null);
 
   const handleHeroStart = (prefilledData) => {
@@ -554,20 +560,27 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
   const updateField = (id, val) => setFormData(prev => ({ ...prev, [id]: val }));
 
   const navigate = useCallback((dir) => {
-    if (dir === 1 && !requiredFilled) return;
+    if (dir === 1 && !requiredFilled) {
+      setShowErrors(true);
+      return;
+    }
     
     // Auto-save on continuing to next step
     if (dir === 1 && onSaveProgress) {
       onSaveProgress(formData).catch(err => console.error("Auto save failed:", err));
     }
 
+    setShowErrors(false);
     setAnimKey(k => k + 1);
     setCurrentStep(prev => prev + dir);
     containerRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-  }, [requiredFilled]);
+  }, [requiredFilled, onSaveProgress, formData]);
 
   const handleSubmit = useCallback(() => {
-    if (!requiredFilled) return;
+    if (!requiredFilled) {
+      setShowErrors(true);
+      return;
+    }
     console.log("📋 Brand Brief Submitted:", formData);
     if (onComplete) {
       onComplete(formData);
@@ -582,8 +595,11 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
     const handler = e => {
       if (e.key === "Enter" && !e.shiftKey && e.target.tagName !== "TEXTAREA" && e.target.tagName !== "SELECT") {
         e.preventDefault();
-        if (currentStep < STEPS.length - 1) navigate(1);
-        else handleSubmit();
+        if (currentStep < STEPS.length - 1) {
+          navigate(1);
+        } else {
+          handleSubmit();
+        }
       }
     };
     window.addEventListener("keydown", handler);
@@ -728,8 +744,16 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
                   {!field.required && (
                     <span style={{ fontSize: "10px", color: "#334155", marginLeft: "8px", letterSpacing: "0.5px", flexShrink: 0 }}>OPTIONAL</span>
                   )}
+                  {showErrors && field.required && (!formData[field.id] || String(formData[field.id]).trim() === "" || (Array.isArray(formData[field.id]) && formData[field.id].length === 0)) && (
+                    <span style={{ fontSize: "11px", color: "#ef4444", marginLeft: "12px", letterSpacing: "0.5px", flexShrink: 0 }}>Required</span>
+                  )}
                 </div>
-                <FieldInput field={field} value={formData[field.id]} onChange={updateField} />
+                <FieldInput 
+                  field={field} 
+                  value={formData[field.id]} 
+                  onChange={updateField} 
+                  error={showErrors && field.required && (!formData[field.id] || String(formData[field.id]).trim() === "" || (Array.isArray(formData[field.id]) && formData[field.id].length === 0))}
+                />
               </div>
             ))}
           </div>
@@ -823,18 +847,18 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
             {currentStep < STEPS.length - 1 ? (
               <button
                 onClick={() => navigate(1)}
-                disabled={!requiredFilled || isSaving}
+                disabled={isSaving}
                 style={{
                   padding: "12px 28px",
                   background: requiredFilled ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "#0D1220",
-                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  border: `1px solid ${requiredFilled ? "transparent" : (showErrors ? "#ef4444" : "#1E2A3E")}`,
                   borderRadius: "8px",
-                  color: requiredFilled ? "#fff" : "#334155",
+                  color: requiredFilled ? "#fff" : "#F1F5F9",
                   fontSize: "12px",
                   fontWeight: "600",
                   fontFamily: "'Inter', sans-serif",
                   letterSpacing: "0.5px",
-                  cursor: requiredFilled ? "pointer" : "default",
+                  cursor: isSaving ? "progress" : "pointer",
                   boxShadow: requiredFilled ? "0 4px 20px rgba(99,102,241,0.3)" : "none",
                   transition: "all 0.15s",
                 }}
@@ -846,18 +870,18 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!requiredFilled || isSaving}
+                disabled={isSaving}
                 style={{
                   padding: "12px 32px",
                   background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
-                  border: `1px solid ${requiredFilled ? "transparent" : "#1E2A3E"}`,
+                  border: `1px solid ${requiredFilled ? "transparent" : (showErrors ? "#ef4444" : "#1E2A3E")}`,
                   borderRadius: "8px",
-                  color: requiredFilled ? "#fff" : "#334155",
+                  color: requiredFilled ? "#fff" : "#F1F5F9",
                   fontSize: "12px",
                   fontWeight: "600",
                   fontFamily: "'Inter', sans-serif",
                   letterSpacing: "0.8px",
-                  cursor: requiredFilled ? "pointer" : "default",
+                  cursor: isSaving ? "progress" : "pointer",
                   boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
                   transition: "all 0.15s",
                 }}
