@@ -268,25 +268,27 @@ export default function CoachingSessionPage() {
     )
 
     if (!res.ok) {
-      // OpenAI billing error — show a friendly in-chat message
-      if (res.status === 402) {
+      // Read the body ONCE — can't call both .json() and .text() on the same response
+      const rawText = await res.text()
+      let body = {}
+      try { body = JSON.parse(rawText) } catch { /* not JSON */ }
+
+      // OpenAI billing / quota error
+      if (res.status === 402 || body.error === 'billing') {
         return "⚠️ The AI mentor is temporarily unavailable — the OpenAI API credits need to be topped up. Please visit **platform.openai.com/settings/billing** to add credits, then try again."
       }
       // Plan gate errors — surface upgrade CTA instead of crashing
       if (res.status === 403) {
-        let body = {}
-        try { body = await res.json() } catch { /* ignore */ }
-        if (body.code === 'payment_required') {
+        if (body.error === 'payment_required') {
           setPlanError({ type: 'payment', required_plan: null })
           return null
         }
-        if (body.code === 'plan_required') {
+        if (body.error === 'plan_required') {
           setPlanError({ type: 'plan', required_plan: body.required_plan })
           return null
         }
       }
-      const text = await res.text()
-      throw new Error(`AI error (${res.status}): ${text}`)
+      throw new Error(`AI error (${res.status}): ${rawText}`)
     }
 
     const json = await res.json()
