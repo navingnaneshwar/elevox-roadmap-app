@@ -118,37 +118,46 @@ function getPhaseComponent(phaseId, componentId) {
 function Message({ msg }) {
   const isUser = msg.role === 'user'
   return (
-    <div style={{
-      display: 'flex',
-      justifyContent: isUser ? 'flex-end' : 'flex-start',
-      marginBottom: '16px',
-      animation: 'msg-in 0.3s ease both',
-    }}>
-      {!isUser && (
-        <div style={{
-          width: '32px', height: '32px', borderRadius: '50%',
-          background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '14px', flexShrink: 0, marginRight: '10px', marginTop: '2px',
-        }}>
-          ✦
-        </div>
-      )}
+    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexDirection: isUser ? 'row-reverse' : 'row' }}>
+      {/* Avatar */}
       <div style={{
-        maxWidth: '72%',
-        padding: '14px 18px',
-        background: isUser
-          ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.10))'
-          : 'rgba(13,18,32,0.8)',
-        border: `1px solid ${isUser ? 'rgba(99,102,241,0.3)' : '#1E2A3E'}`,
-        borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-        fontSize: '14px',
-        color: '#F1F5F9',
-        lineHeight: '1.7',
-        fontFamily: "'Inter', sans-serif",
-        whiteSpace: 'pre-wrap',
+        width: '36px', height: '36px', borderRadius: '50%',
+        background: isUser ? '#1E293B' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+        border: '1px solid rgba(255,255,255,0.1)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: '14px', flexShrink: 0,
+        boxShadow: isUser ? 'none' : '0 0 15px rgba(99,102,241,0.4)',
+        color: '#fff', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
       }}>
-        {msg.content}
+        {isUser ? 'ME' : 'V'}
+      </div>
+
+      <div style={{ maxWidth: '85%' }}>
+        {/* Name Label */}
+        <div style={{
+          fontSize: '11px', fontWeight: '600', color: isUser ? '#64748B' : '#8B6DAA',
+          marginBottom: '6px', textAlign: isUser ? 'right' : 'left',
+          letterSpacing: '0.5px'
+        }}>
+          {isUser ? 'YOU' : 'VOX (BRAND GURU)'}
+        </div>
+
+        {/* Bubble */}
+        <div style={{
+          padding: '14px 18px',
+          background: isUser
+            ? 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.10))'
+            : 'rgba(13,18,32,0.8)',
+          border: `1px solid ${isUser ? 'rgba(99,102,241,0.3)' : '#1E2A3E'}`,
+          borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
+          fontSize: '14px',
+          color: '#F1F5F9',
+          lineHeight: '1.7',
+          fontFamily: "'Inter', sans-serif",
+          whiteSpace: 'pre-wrap',
+        }}>
+          {msg.content}
+        </div>
       </div>
     </div>
   )
@@ -157,13 +166,16 @@ function Message({ msg }) {
 /* ─── Typing indicator ───────────────────────────────────────── */
 function TypingIndicator() {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '16px', gap: '10px' }}>
+    <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '24px', gap: '16px' }}>
       <div style={{
-        width: '32px', height: '32px', borderRadius: '50%',
+        width: '36px', height: '36px', borderRadius: '50%',
         background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+        border: '1px solid rgba(255,255,255,0.1)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: '14px', flexShrink: 0,
-      }}>✦</div>
+        boxShadow: '0 0 15px rgba(99,102,241,0.4)',
+        color: '#fff', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
+      }}>V</div>
       <div style={{
         padding: '14px 18px',
         background: 'rgba(13,18,32,0.8)',
@@ -197,10 +209,44 @@ export default function CoachingSessionPage() {
   const [error,     setError]     = useState(null)
   const [loaded,    setLoaded]    = useState(false)
   const [planError, setPlanError] = useState(null) // { type, required_plan }
+  const [isListening, setIsListening] = useState(false)
 
-  const bottomRef    = useRef(null)
-  const inputRef     = useRef(null)
-  const textareaRef  = useRef(null)
+  const bottomRef      = useRef(null)
+  const inputRef       = useRef(null)
+  const textareaRef    = useRef(null)
+  const recognitionRef = useRef(null)
+
+  // Initialize Speech Recognition
+  useEffect(() => {
+    const SpeechR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (SpeechR) {
+      recognitionRef.current = new SpeechR()
+      recognitionRef.current.continuous = true
+      recognitionRef.current.interimResults = false
+      recognitionRef.current.onresult = (e) => {
+        const last = e.results.length - 1
+        const text = e.results[last][0].transcript
+        setInput(prev => prev ? prev + ' ' + text : text)
+      }
+      recognitionRef.current.onend = () => setIsListening(false)
+      recognitionRef.current.onerror = () => setIsListening(false)
+    }
+  }, [])
+
+  const toggleListening = () => {
+    if (!recognitionRef.current) return alert('Your browser does not support Voice Dictation. Try Chrome or Safari.')
+    if (isListening) {
+      recognitionRef.current.stop()
+      setIsListening(false)
+    } else {
+      try {
+        recognitionRef.current.start()
+        setIsListening(true)
+      } catch (e) {
+        setIsListening(false)
+      }
+    }
+  }
 
   // Load existing session messages on mount
   useEffect(() => {
@@ -438,7 +484,7 @@ export default function CoachingSessionPage() {
             {component.title}
           </h1>
           <p style={{ fontSize: '12px', color: '#334155', margin: '4px 0 0', fontStyle: 'italic' }}>
-            AI mentor session · responses are saved automatically
+            Session with Vox · Dictation enabled · Responses auto-saved
           </p>
         </div>
       </div>
@@ -574,11 +620,36 @@ export default function CoachingSessionPage() {
             onFocus={e => { if (!planError) { e.target.style.borderColor = '#6366f1'; e.target.style.boxShadow = '0 0 0 3px rgba(99,102,241,0.1)' } }}
             onBlur={e => { e.target.style.borderColor = planError ? 'rgba(99,102,241,0.15)' : '#1E2A3E'; e.target.style.boxShadow = 'none' }}
           />
+          {/* ── Microphone / Dictation Toggle ── */}
+          <button
+            onClick={toggleListening}
+            title={isListening ? "Stop Dictation" : "Start Dictation"}
+            disabled={!!planError}
+            style={{
+              width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0,
+              background: isListening ? 'rgba(239, 68, 68, 0.15)' : 'transparent',
+              border: isListening ? '1px solid rgba(239, 68, 68, 0.4)' : '1px solid #1E2A3E',
+              color: isListening ? '#ef4444' : '#64748B',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              cursor: planError ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              animation: isListening ? 'pulse-mic 1.5s infinite' : 'none',
+              boxShadow: isListening ? '0 0 15px rgba(239, 68, 68, 0.2)' : 'none'
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+              <line x1="12" y1="19" x2="12" y2="22"></line>
+            </svg>
+          </button>
+
           <button
             onClick={handleSend}
             disabled={!input.trim() || thinking || !!planError}
             style={{
               padding: '13px 24px',
+              height: '48px',
               background: input.trim() && !thinking && !planError
                 ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
                 : 'transparent',
@@ -604,9 +675,9 @@ export default function CoachingSessionPage() {
             ) : planError ? 'Locked' : 'Send →'}
           </button>
         </div>
-        <div style={{ maxWidth: '760px', margin: '8px auto 0', textAlign: 'center' }}>
+        <div style={{ maxWidth: '760px', margin: '12px auto 0', textAlign: 'center' }}>
           <span style={{ fontSize: '10px', color: '#1E2A3E', fontFamily: "'JetBrains Mono', monospace" }}>
-            Elevox AI Mentor · Powered by Claude · Session saved automatically
+            Vox · Elevox Brand Guru Agent · Powered by Claude
           </span>
         </div>
       </div>
@@ -622,6 +693,7 @@ export default function CoachingSessionPage() {
         }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+        @keyframes pulse-mic { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
       `}</style>
     </div>
   )
