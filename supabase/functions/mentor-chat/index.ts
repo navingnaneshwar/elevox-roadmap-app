@@ -55,7 +55,7 @@ serve(async (req) => {
     // ── 3. Plan enforcement guard ──────────────────────────
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('plan, plan_status, full_name, current_title, company, industry, primary_goal, location, three_words, topics_owned')
+      .select('*')
       .eq('id', user.id)
       .single()
 
@@ -92,15 +92,58 @@ serve(async (req) => {
 
     // ── 4. Build system prompt ─────────────────────────────
     const profileContext = profile ? `
-EXECUTIVE PROFILE (use for personalisation):
+EXECUTIVE BACKGROUND DOSSIER (Internal use only):
+---
+# Identity & Role
 - Name: ${profile.full_name || 'Executive'}
 - Title: ${profile.current_title || 'CxO'}
-- Company: ${profile.company || ''}
+- Company/Size: ${profile.company || ''} (${profile.company_size || ''})
 - Industry: ${profile.industry || ''}
-- Primary goal: ${(profile.primary_goal || []).join(', ') || ''}
 - Location: ${profile.location || ''}
-- Three words: ${profile.three_words || ''}
-- Topics owned: ${profile.topics_owned || ''}
+- LinkedIn: ${profile.linkedin_url || ''}
+
+# Career & Background
+- Career Summary: ${profile.career_summary || ''}
+- Biggest Win/Achievement: ${profile.biggest_win || ''}
+- Pivot Moment: ${profile.pivot_moment || ''}
+- Unusual Background: ${profile.unusual_background || ''}
+- Current Focus: ${profile.current_focus || ''}
+
+# Goals & Audience
+- Primary Goal: ${(profile.primary_goal || []).join(', ') || ''}
+- Dream Outcome: ${profile.dream_outcome || ''}
+- Target Audience: ${profile.target_audience || ''}
+- Key People to Influence: ${profile.key_people || ''}
+- Geographic Scope: ${profile.geographic_scope || ''}
+- Timeline: ${profile.timeline || ''}
+
+# Voice & Communication
+- Three Words: ${profile.three_words || ''}
+- Communication Style: ${profile.communication_style || ''}
+- Never Sound Like: ${profile.never_sound_like || ''}
+- Humor Level: ${profile.humor_level || ''}
+- Opinion Strength: ${profile.opinion_strength || ''}
+
+# Content & Expertise
+- Topics Owned: ${profile.topics_owned || ''}
+- Topics Aspire to Own: ${profile.topics_aspire || ''}
+- Strong Opinions/Contrarian Views: ${profile.strong_opinions || ''}
+- Industry Trends: ${profile.industry_trends || ''}
+- Secret Weapon/Unfair Advantage: ${profile.secret_weapon || ''}
+- Content Taboos: ${profile.content_taboos || ''}
+
+# Positioning
+- Peer CxOs (Comparisons): ${profile.peer_cxos || ''}
+- Differentiator: ${profile.differentiator || ''}
+- Current Reputation: ${profile.reputation_now || ''}
+- Brand Gaps: ${profile.brand_gaps || ''}
+
+# Constraints & Logistics
+- Success in 30 Days looks like: ${profile.success_in_30 || ''}
+- Success in 90 Days looks like: ${profile.success_in_90 || ''}
+- Dealbreakers: ${profile.dealbreakers || ''}
+- Available Weekly Time: ${profile.weekly_time || ''}
+---
 ` : ''
 
     const systemPrompt = `${session_prompt}
@@ -108,13 +151,14 @@ EXECUTIVE PROFILE (use for personalisation):
 ${profileContext}
 
 IMPORTANT COACHING RULES:
-- Ask only ONE question at a time. Never ask multiple questions in one message.
-- Keep responses concise and punchy — max 3-4 short paragraphs.
-- Give specific, actionable feedback on what they share.
-- Use the executive's name and profile details to personalise your coaching.
-- Build on what they've said in previous messages. Reference their specific answers.
-- After they've answered, provide a brief insight/validation, then ask the next question.
-- You are a senior executive brand strategist, not a generic chatbot. Sound authoritative.`
+1. ZERO REDUNDANCY: You MUST read the Executive Background Dossier above. NEVER ask the user to provide information that is already answered in their dossier. 
+2. Ask only ONE question at a time. Never ask multiple questions in one message.
+3. Keep responses concise and punchy — max 3-4 short paragraphs.
+4. Give specific, actionable feedback on what they share.
+5. Use the executive's name and specific dossier details to personalise your coaching instantly. Show them you already know their background.
+6. Build on what they've said in previous messages. Reference their specific answers.
+7. After they've answered, provide a brief insight/validation, then ask the next question.
+8. You are a senior executive brand strategist, not a generic chatbot. Sound authoritative.`
 
     // ── 5. Build messages array for OpenAI ────────────────
     // '__start__' is a special internal signal — no real user message yet,
