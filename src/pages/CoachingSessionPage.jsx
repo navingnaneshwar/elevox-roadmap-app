@@ -126,7 +126,7 @@ function VoxAvatar({ state }) {
       flexShrink: 0, transition: 'all 0.3s ease'
     }}>
       <div style={{
-        position: 'absolute', inset: 0, borderRadius: '50%',
+        position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: '50%',
         background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
         animation: state === 'speaking' ? 'pulse-fast 0.6s ease-in-out infinite alternate' 
                  : state === 'thinking' ? 'spin 1s linear infinite'
@@ -135,15 +135,10 @@ function VoxAvatar({ state }) {
         opacity: state === 'idle' ? 0.3 : state === 'listening' ? 0.8 : 1,
       }} />
       <div style={{
-        position: 'absolute', inset: 2, borderRadius: '50%',
+        position: 'absolute', top: 2, bottom: 2, left: 2, right: 2, borderRadius: '50%',
         background: '#070B14', zIndex: 1
       }} />
       <div style={{ position: 'relative', zIndex: 2, color: '#fff', fontSize: '13px', fontWeight: '700', fontFamily: "'Outfit', sans-serif" }}>V</div>
-      <style>{`
-        @keyframes pulse-fast { 0% { transform: scale(0.85); opacity: 0.7; } 100% { transform: scale(1.1); opacity: 1; } }
-        @keyframes pulse-slow { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 100% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } }
-        @keyframes breathe { 0% { transform: scale(0.95); opacity: 0.3; } 50% { transform: scale(1.02); opacity: 0.5; } 100% { transform: scale(0.95); opacity: 0.3; } }
-      `}</style>
     </div>
   )
 }
@@ -767,6 +762,9 @@ export default function CoachingSessionPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         @keyframes pulse-mic { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
+        @keyframes pulse-fast { 0% { transform: scale(0.85); opacity: 0.7; } 100% { transform: scale(1.1); opacity: 1; } }
+        @keyframes pulse-slow { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 100% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } }
+        @keyframes breathe { 0% { transform: scale(0.95); opacity: 0.3; } 50% { transform: scale(1.02); opacity: 0.5; } 100% { transform: scale(0.95); opacity: 0.3; } }
       `}</style>
     </div>
   )
