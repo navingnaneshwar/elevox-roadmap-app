@@ -59,7 +59,12 @@ export async function completeOnboarding(userId, budget) {
   const plan = (budget || '').toLowerCase().includes('legacy')    ? 'legacy'
              : (budget || '').toLowerCase().includes('authority') ? 'authority'
              : 'starter'
-  return supabase.from('profiles').update({ onboarding_complete: true, plan, updated_at: new Date().toISOString() }).eq('id', userId)
+  return supabase.from('profiles').update({
+    onboarding_complete: true,
+    plan,
+    plan_status: 'trialing',   // grant AI mentor access on signup
+    updated_at: new Date().toISOString()
+  }).eq('id', userId)
 }
 
 export async function getCalendarSettings(userId) {

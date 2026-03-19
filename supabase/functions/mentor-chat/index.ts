@@ -66,8 +66,8 @@ serve(async (req) => {
       )
     }
 
-    const allowedStatuses = ['active', 'trialing']
-    if (profile.plan_status && !allowedStatuses.includes(profile.plan_status)) {
+    const blockedStatuses = ['canceled', 'past_due', 'unpaid', 'paused']
+    if (profile.plan_status && blockedStatuses.includes(profile.plan_status)) {
       return new Response(
         JSON.stringify({ error: 'payment_required', current_status: profile.plan_status }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
