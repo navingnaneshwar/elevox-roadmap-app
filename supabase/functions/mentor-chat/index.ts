@@ -144,16 +144,24 @@ IMPORTANT COACHING RULES:
         'Authorization': `Bearer ${OPENAI_API_KEY}`,
       },
       body: JSON.stringify({
-        model:      'gpt-4o',
-        max_tokens: 600,
+        model:      'gpt-4o-mini',
+        max_tokens: 800,
         messages:   [{ role: 'system', content: systemPrompt }, ...messages],
       }),
     })
 
     if (!anthropicRes.ok) {
       const errText = await anthropicRes.text()
-      // Surface billing errors as a user-friendly message
-      if (anthropicRes.status === 429 || errText.includes('quota')) {
+      // Surface billing/quota errors as a friendly 402
+      const isBillingError =
+        anthropicRes.status === 429 ||
+        anthropicRes.status === 402 ||
+        errText.includes('quota') ||
+        errText.includes('insufficient_quota') ||
+        errText.includes('exceeded') ||
+        errText.includes('billing') ||
+        errText.includes('rate_limit')
+      if (isBillingError) {
         return new Response(
           JSON.stringify({ error: 'billing', reply: null }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
