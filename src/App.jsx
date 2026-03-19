@@ -16,9 +16,8 @@ import BrandBriefPage       from './pages/BrandBriefPage'
 import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
 
-// Feature components used as full pages
 import Roadmap           from './components/Roadmap'
-import CalendarLogistics from './components/CalendarLogistics'
+import ContentCalendar     from './components/ContentCalendar'
 
 export default function App() {
   return (
@@ -50,7 +49,7 @@ export default function App() {
           } />
 
           <Route path="/calendar" element={
-            <ProtectedRoute><CalendarLogistics /></ProtectedRoute>
+            <ProtectedRoute><ContentCalendar /></ProtectedRoute>
           } />
 
           {/* Coaching session — phase + component driven */}
