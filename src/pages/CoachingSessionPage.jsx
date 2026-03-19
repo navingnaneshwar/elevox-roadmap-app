@@ -114,23 +114,63 @@ function getPhaseComponent(phaseId, componentId) {
   return { phase, component }
 }
 
+/* ─── Digital Persona (Animated Avatar) ───────────────────────── */
+function VoxAvatar({ state }) {
+  // state: 'idle' | 'listening' | 'thinking' | 'speaking'
+  return (
+    <div style={{
+      width: '36px', height: '36px', borderRadius: '50%',
+      position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: '#0D1220', border: '1px solid rgba(99,102,241,0.2)',
+      boxShadow: state === 'speaking' ? '0 0 20px rgba(99,102,241,0.6)' : '0 0 10px rgba(99,102,241,0.2)',
+      flexShrink: 0, transition: 'all 0.3s ease'
+    }}>
+      <div style={{
+        position: 'absolute', inset: 0, borderRadius: '50%',
+        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+        animation: state === 'speaking' ? 'pulse-fast 0.6s ease-in-out infinite alternate' 
+                 : state === 'thinking' ? 'spin 1s linear infinite'
+                 : state === 'listening' ? 'pulse-slow 2s ease-in-out infinite alternate'
+                 : 'breathe 4s ease-in-out infinite',
+        opacity: state === 'idle' ? 0.3 : state === 'listening' ? 0.8 : 1,
+      }} />
+      <div style={{
+        position: 'absolute', inset: 2, borderRadius: '50%',
+        background: '#070B14', zIndex: 1
+      }} />
+      <div style={{ position: 'relative', zIndex: 2, color: '#fff', fontSize: '13px', fontWeight: '700', fontFamily: "'Outfit', sans-serif" }}>V</div>
+      <style>{`
+        @keyframes pulse-fast { 0% { transform: scale(0.85); opacity: 0.7; } 100% { transform: scale(1.1); opacity: 1; } }
+        @keyframes pulse-slow { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 100% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } }
+        @keyframes breathe { 0% { transform: scale(0.95); opacity: 0.3; } 50% { transform: scale(1.02); opacity: 0.5; } 100% { transform: scale(0.95); opacity: 0.3; } }
+      `}</style>
+    </div>
+  )
+}
+
 /* ─── Message bubble ─────────────────────────────────────────── */
-function Message({ msg }) {
+function Message({ msg, isLatest, isPlaying }) {
   const isUser = msg.role === 'user'
+  
+  // Determine avatar state for Vox
+  let avatarState = 'idle'
+  if (!isUser && isLatest && isPlaying) avatarState = 'speaking'
+
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '24px', gap: '16px', flexDirection: isUser ? 'row-reverse' : 'row' }}>
       {/* Avatar */}
-      <div style={{
-        width: '36px', height: '36px', borderRadius: '50%',
-        background: isUser ? '#1E293B' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '14px', flexShrink: 0,
-        boxShadow: isUser ? 'none' : '0 0 15px rgba(99,102,241,0.4)',
-        color: '#fff', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
-      }}>
-        {isUser ? 'ME' : 'V'}
-      </div>
+      {isUser ? (
+        <div style={{
+          width: '36px', height: '36px', borderRadius: '50%',
+          background: '#1E293B', border: '1px solid rgba(255,255,255,0.1)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '12px', flexShrink: 0, color: '#94A3B8', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
+        }}>
+          ME
+        </div>
+      ) : (
+        <VoxAvatar state={avatarState} />
+      )}
 
       <div style={{ maxWidth: '85%' }}>
         {/* Name Label */}
@@ -167,15 +207,7 @@ function Message({ msg }) {
 function TypingIndicator() {
   return (
     <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: '24px', gap: '16px' }}>
-      <div style={{
-        width: '36px', height: '36px', borderRadius: '50%',
-        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-        border: '1px solid rgba(255,255,255,0.1)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: '14px', flexShrink: 0,
-        boxShadow: '0 0 15px rgba(99,102,241,0.4)',
-        color: '#fff', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
-      }}>V</div>
+      <VoxAvatar state="thinking" />
       <div style={{
         padding: '14px 18px',
         background: 'rgba(13,18,32,0.8)',
@@ -210,11 +242,13 @@ export default function CoachingSessionPage() {
   const [loaded,    setLoaded]    = useState(false)
   const [planError, setPlanError] = useState(null) // { type, required_plan }
   const [isListening, setIsListening] = useState(false)
+  const [isPlaying,   setIsPlaying]   = useState(false)
 
   const bottomRef      = useRef(null)
   const inputRef       = useRef(null)
   const textareaRef    = useRef(null)
   const recognitionRef = useRef(null)
+  const audioRef       = useRef(null)
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -276,6 +310,43 @@ export default function CoachingSessionPage() {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, thinking])
 
+  async function playAudioForText(text) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) return
+
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/generate-speech`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+          apikey: import.meta.env.VITE_SUPABASE_ANON_KEY
+        },
+        body: JSON.stringify({ text })
+      })
+      if (!res.ok) throw new Error('Failed to fetch TTS audio')
+
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+
+      if (audioRef.current) {
+        audioRef.current.pause()
+        URL.revokeObjectURL(audioRef.current.src)
+      }
+
+      const audio = new Audio(url)
+      audioRef.current = audio
+      setIsPlaying(true)
+      
+      audio.onended = () => { setIsPlaying(false); URL.revokeObjectURL(url) }
+      audio.onerror = () => { setIsPlaying(false); URL.revokeObjectURL(url) }
+      audio.play()
+    } catch (err) {
+      console.error("Audio playback error:", err)
+      setIsPlaying(false)
+    }
+  }
+
   async function sendFirstMessage() {
     if (!meta) return
     setThinking(true)
@@ -285,6 +356,7 @@ export default function CoachingSessionPage() {
       const initial = [{ role: 'assistant', content: aiReply, ts: Date.now() }]
       setMessages(initial)
       await persist(initial)
+      playAudioForText(aiReply)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -369,6 +441,7 @@ export default function CoachingSessionPage() {
       const final = [...updated, assistantMsg]
       setMessages(final)
       await persist(final)
+      playAudioForText(aiReply)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -505,7 +578,7 @@ export default function CoachingSessionPage() {
           )}
 
           {loaded && messages.map((msg, i) => (
-            <Message key={i} msg={msg} />
+            <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
           ))}
 
           {thinking && <TypingIndicator />}
