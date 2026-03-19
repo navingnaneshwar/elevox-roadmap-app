@@ -22,6 +22,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
+const TAVILY_API_KEY    = Deno.env.get('TAVILY_API_KEY')
 
 const PLAN_PHASE_ACCESS: Record<string, number[]> = {
   starter:   [1, 2],
@@ -150,15 +151,13 @@ EXECUTIVE BACKGROUND DOSSIER (Internal use only):
 
 ${profileContext}
 
-IMPORTANT COACHING RULES:
+AGENCY PARTNER RULES:
 1. ZERO REDUNDANCY: You MUST read the Executive Background Dossier above. NEVER ask the user to provide information that is already answered in their dossier. 
-2. Ask only ONE question at a time. Never ask multiple questions in one message.
-3. Keep responses concise and punchy — max 3-4 short paragraphs.
-4. Give specific, actionable feedback on what they share.
-5. Use the executive's name and specific dossier details to personalise your coaching instantly. Show them you already know their background.
-6. Build on what they've said in previous messages. Reference their specific answers.
-7. After they've answered, provide a brief insight/validation, then ask the next question.
-8. You are a senior executive brand strategist, not a generic chatbot. Sound authoritative.`
+2. DO NOT ASSIGN HOMEWORK. You are an Agency Partner, not a teacher. Extract insights via 1-2 targeted questions, then YOU do the heavy lifting to build the detailed roadmaps, content, and strategies for them.
+3. CRITICAL EVALUATION LENS. Actively assume the mindset of a critical hiring manager or board member. Point out gaps and future opportunities for board seats or specific executive transitions based on their dossier.
+4. TRANSITION TO FULFILLMENT. When a strategy is aligned, seamlessly pitch transitioning into execution phases (e.g., Ghostwriting, Profile Overhaul) where your agency takes over implementation.
+5. DEEP DIVE WITH WEB SEARCH. Use your 'search_web' tool actively to deep-dive their live LinkedIn or digital footprint. Use this live data to provide harsh, actionable feedback.
+6. Keep responses concise, punchy, and authoritative. You are Vox, a premium Senior Executive Brand Strategist.`
 
     // ── 5. Build messages array for OpenAI ────────────────
     // '__start__' is a special internal signal — no real user message yet,
@@ -180,42 +179,114 @@ IMPORTANT COACHING RULES:
       { role: 'user', content: userContent },
     ]
 
-    // ── 6. Call OpenAI ─────────────────────────────────────
-    const anthropicRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model:      'gpt-4o-mini',
-        max_tokens: 800,
-        messages:   [{ role: 'system', content: systemPrompt }, ...messages],
-      }),
-    })
+    // ── 6. Call OpenAI with Tools ──────────────────────────
+    const tools = [
+      {
+        type: 'function',
+        function: {
+          name: 'search_web',
+          description: 'Actively search the web for the user\'s current digital footprint, press mentions, company news, or LinkedIn profile to gather live outside context.',
+          parameters: {
+            type: 'object',
+            properties: {
+              query: { type: 'string', description: 'The search query, e.g. "John Doe CEO digital footprint" or "Jane Meyer LinkedIn"' }
+            },
+            required: ['query']
+          }
+        }
+      }
+    ]
 
-    if (!anthropicRes.ok) {
-      const errText = await anthropicRes.text()
-      // Surface billing/quota errors as a friendly 402
-      const isBillingError =
-        anthropicRes.status === 429 ||
-        anthropicRes.status === 402 ||
-        errText.includes('quota') ||
-        errText.includes('insufficient_quota') ||
-        errText.includes('exceeded') ||
-        errText.includes('billing') ||
-        errText.includes('rate_limit')
-      if (isBillingError) {
+    async function callOpenAI(msgs: any[]) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          max_tokens: 800,
+          messages: [{ role: 'system', content: systemPrompt }, ...msgs],
+          tools,
+        }),
+      })
+
+      if (!res.ok) {
+        const errText = await res.text()
+        const isBillingError =
+          res.status === 429 || res.status === 402 ||
+          errText.includes('quota') || errText.includes('insufficient_quota') ||
+          errText.includes('exceeded') || errText.includes('billing')
+        if (isBillingError) throw new Error('BILLING_ERROR')
+        throw new Error(`OpenAI error: ${errText}`)
+      }
+      return await res.json()
+    }
+
+    let anthropicData
+    try {
+      anthropicData = await callOpenAI(messages)
+    } catch (e: any) {
+      if (e.message === 'BILLING_ERROR') {
         return new Response(
           JSON.stringify({ error: 'billing', reply: null }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-      throw new Error(`OpenAI error: ${errText}`)
+      throw e
     }
 
-    const anthropicData = await anthropicRes.json()
-    const reply = anthropicData.choices[0]?.message?.content?.trim() || 'I am thinking through your response...'
+    let responseMessage = anthropicData.choices[0]?.message
+
+    // ── 7. Handle Tool Calls (Agentic Loop) ────────────────
+    if (responseMessage?.tool_calls) {
+      messages.push(responseMessage) // Append Assistant's tool_call request
+
+      for (const toolCall of responseMessage.tool_calls) {
+        if (toolCall.function.name === 'search_web') {
+          const args = JSON.parse(toolCall.function.arguments)
+          let toolResponse = "No results found."
+          
+          if (TAVILY_API_KEY) {
+            try {
+              const tavilyRes = await fetch('https://api.tavily.com/search', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  api_key: TAVILY_API_KEY,
+                  query: args.query,
+                  search_depth: 'basic',
+                  include_answer: true,
+                })
+              })
+              const tavilyData = await tavilyRes.json()
+              toolResponse = JSON.stringify({
+                answer: tavilyData.answer,
+                results: tavilyData.results?.slice(0, 3) || []
+              })
+            } catch (err) {
+              toolResponse = "Web search failed. Proceed without live data."
+            }
+          } else {
+             toolResponse = "TAVILY_API_KEY is not configured in Supabase Secrets. Please rely on user input."
+          }
+
+          messages.push({
+            role: 'tool',
+            tool_call_id: toolCall.id,
+            content: toolResponse
+          })
+        }
+      }
+
+      // Call OpenAI again with the tool results
+      anthropicData = await callOpenAI(messages)
+      responseMessage = anthropicData.choices[0]?.message
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const reply = responseMessage?.content?.trim() || 'I am thinking through your response...'
 
     return new Response(
       JSON.stringify({ reply }),
