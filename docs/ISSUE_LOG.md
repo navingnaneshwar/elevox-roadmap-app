@@ -24,6 +24,7 @@
 
 | ID | Date Found | Date Fixed | Severity | Sprint | Component | Error Description | RCA | Fix Applied |
 |---|---|---|---|---|---|---|---|---|
+| ISS-025 | 2026-03-20 | 2026-03-20 | P1 | S3 | `mentor-chat` Edge Function (Supabase Secrets) | `"Incorrect API key provided: undefined"` — OpenAI rejecting all mentor-chat calls | Secret was stored in Supabase as `OpenAI` (capitalised, no underscore) but the edge function reads `Deno.env.get('OPENAI_API_KEY')`. The name mismatch caused the variable to resolve as `undefined`. | Ran `npx supabase secrets unset OpenAI` then `npx supabase secrets set OPENAI_API_KEY=<key>` via CLI. Secrets applied instantly; no redeploy required. |
 | ISS-024 | 2026-03-20 | 2026-03-20 | P1 | S3 | `src/lib/supabase.js` + `mentor-chat` Edge Function | AI mentor shows "Subscription is required" immediately after completing onboarding | `completeOnboarding()` set `plan` but never wrote `plan_status`. The mentor-chat guard required `plan_status` to be `'active'` or `'trialing'`, so every new onboarded user had a null/absent status and was blocked. | (1) Added `plan_status: 'trialing'` to the `completeOnboarding` DB update. (2) Changed edge function guard from allowlist to blocklist — only explicit failure states (`canceled`, `past_due`, `unpaid`, `paused`) are blocked; `null`/absent statuses pass through. |
 | ISS-023 | 2026-03-20 | 2026-03-20 | P1 | S3 | `CoachingSessionPage.jsx` | `⚠ Failed to execute 'text' on 'Response': body stream already read` shown in chat on any non-200 API response | Error handler called `res.json()` inside the 403 block (consuming the body stream), then fell through to `res.text()` for the fallback error message — a second read of the same consumed stream. Additionally, the 403 payload key was checked as `body.code` when the edge function actually returns `body.error`. | Read the body once into `rawText`, then `JSON.parse(rawText)` for structure. Fixed `body.code` → `body.error` throughout the 403 handler. |
 | ISS-022 | 2026-03-20 | 2026-03-20 | P1 | S3 | `mentor-chat` Edge Function | `429 Too Many Requests` from OpenAI despite account having $9.94 credit balance | Model was set to `gpt-4o` which requires OpenAI usage Tier 1 (≥$5 prior spend). New accounts with pre-loaded credits but no usage history are on Free Tier and cannot call `gpt-4o`. The 429 response body also contained error strings not matched by the existing `quota` check. | Switched model from `gpt-4o` → `gpt-4o-mini` (universally available). Broadened billing error detection to also match `insufficient_quota`, `exceeded`, `billing`, `rate_limit`. |
@@ -68,4 +69,4 @@
 ---
 
 *Last updated: 2026-03-20*
-*Issue count: 23 total (7 active, 16 resolved)*
+*Issue count: 24 total (7 active, 17 resolved)*
