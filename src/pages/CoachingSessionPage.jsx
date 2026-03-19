@@ -117,28 +117,58 @@ function getPhaseComponent(phaseId, componentId) {
 /* ─── Digital Persona (Animated Avatar) ───────────────────────── */
 function VoxAvatar({ state }) {
   // state: 'idle' | 'listening' | 'thinking' | 'speaking'
+  const isSpeaking = state === 'speaking'
+  const isListening = state === 'listening'
+  const isThinking = state === 'thinking'
+
   return (
     <div style={{
-      width: '36px', height: '36px', borderRadius: '50%',
+      width: '44px', height: '44px', borderRadius: '50%',
       position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: '#0D1220', border: '1px solid rgba(99,102,241,0.2)',
-      boxShadow: state === 'speaking' ? '0 0 20px rgba(99,102,241,0.6)' : '0 0 10px rgba(99,102,241,0.2)',
-      flexShrink: 0, transition: 'all 0.3s ease'
+      background: '#0D1220', border: '1px solid rgba(139, 92, 246, 0.3)',
+      boxShadow: isSpeaking ? '0 0 25px rgba(139, 92, 246, 0.8), inset 0 0 15px rgba(99, 102, 241, 0.5)'
+               : isListening ? '0 0 15px rgba(239, 68, 68, 0.6), inset 0 0 10px rgba(239, 68, 68, 0.3)'
+               : isThinking ? '0 0 15px rgba(99, 102, 241, 0.5)'
+               : '0 0 10px rgba(139, 92, 246, 0.2)',
+      flexShrink: 0, transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+      overflow: 'hidden'
     }}>
+      {/* Base glow layer */}
       <div style={{
         position: 'absolute', top: 0, bottom: 0, left: 0, right: 0, borderRadius: '50%',
-        background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-        animation: state === 'speaking' ? 'pulse-fast 0.6s ease-in-out infinite alternate' 
-                 : state === 'thinking' ? 'spin 1s linear infinite'
-                 : state === 'listening' ? 'pulse-slow 2s ease-in-out infinite alternate'
+        background: isListening ? 'radial-gradient(circle, rgba(239,68,68,0.8) 0%, rgba(0,0,0,0) 70%)'
+                  : 'radial-gradient(circle, rgba(139,92,246,0.8) 0%, rgba(99,102,241,0.4) 50%, rgba(0,0,0,0) 80%)',
+        animation: isSpeaking ? 'pulse-fast 0.4s ease-in-out infinite alternate' 
+                 : isThinking ? 'spin 1.5s linear infinite'
+                 : isListening ? 'pulse-slow 1.5s ease-in-out infinite alternate'
                  : 'breathe 4s ease-in-out infinite',
-        opacity: state === 'idle' ? 0.3 : state === 'listening' ? 0.8 : 1,
+        opacity: state === 'idle' ? 0.4 : 1,
+        filter: 'blur(4px)',
+        transform: 'scale(1.2)'
       }} />
+
+      {/* Inner core */}
       <div style={{
-        position: 'absolute', top: 2, bottom: 2, left: 2, right: 2, borderRadius: '50%',
-        background: '#070B14', zIndex: 1
+        position: 'absolute', top: 8, bottom: 8, left: 8, right: 8, borderRadius: '50%',
+        background: isListening ? '#fca5a5' : '#e0e7ff',
+        boxShadow: isListening ? '0 0 10px #ef4444' : '0 0 10px #818cf8',
+        animation: isSpeaking ? 'pulse-fast 0.2s ease-in-out infinite alternate-reverse' 
+                 : isListening ? 'pulse-slow 1s ease-in-out infinite alternate'
+                 : 'breathe 3s ease-in-out infinite alternate-reverse',
+        opacity: state === 'idle' ? 0.7 : 1,
       }} />
-      <div style={{ position: 'relative', zIndex: 2, color: '#fff', fontSize: '13px', fontWeight: '700', fontFamily: "'Outfit', sans-serif" }}>V</div>
+
+      {/* Visualizer bars for speaking state */}
+      {isSpeaking && (
+        <div style={{ display: 'flex', gap: '3px', alignItems: 'center', zIndex: 2, height: '16px' }}>
+          {[1, 2, 3].map(i => (
+            <div key={i} style={{
+              width: '3px', background: '#fff', borderRadius: '2px',
+              animation: `waveform 0.${3 + i}s ease-in-out infinite alternate`
+            }} />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -156,7 +186,7 @@ function Message({ msg, isLatest, isPlaying }) {
       {/* Avatar */}
       {isUser ? (
         <div style={{
-          width: '36px', height: '36px', borderRadius: '50%',
+          width: '44px', height: '44px', borderRadius: '50%',
           background: '#1E293B', border: '1px solid rgba(255,255,255,0.1)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: '12px', flexShrink: 0, color: '#94A3B8', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
@@ -762,9 +792,10 @@ export default function CoachingSessionPage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
         @keyframes pulse-mic { 0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); } }
-        @keyframes pulse-fast { 0% { transform: scale(0.85); opacity: 0.7; } 100% { transform: scale(1.1); opacity: 1; } }
-        @keyframes pulse-slow { 0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); } 100% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); } }
-        @keyframes breathe { 0% { transform: scale(0.95); opacity: 0.3; } 50% { transform: scale(1.02); opacity: 0.5; } 100% { transform: scale(0.95); opacity: 0.3; } }
+        @keyframes pulse-fast { 0% { transform: scale(0.85); opacity: 0.8; } 100% { transform: scale(1.15); opacity: 1; } }
+        @keyframes pulse-slow { 0% { transform: scale(0.95); opacity: 0.6; } 100% { transform: scale(1.05); opacity: 1; } }
+        @keyframes breathe { 0% { transform: scale(0.95); opacity: 0.4; } 50% { transform: scale(1.05); opacity: 0.7; } 100% { transform: scale(0.95); opacity: 0.4; } }
+        @keyframes waveform { 0% { height: 4px; } 100% { height: 16px; } }
       `}</style>
     </div>
   )
