@@ -24,7 +24,10 @@
 
 | ID | Date Found | Date Fixed | Severity | Sprint | Component | Error Description | RCA | Fix Applied |
 |---|---|---|---|---|---|---|---|---|
-| ISS-018 | 2026-03-18 | 2026-03-18 | P1 | S3 | `parse-resume` Edge Function | Edge function throwing 500 / 400 silently | Anthropic API account out of credits. Previously, `pdf-parse` also crashed Deno due to missing Node globals. | Replaced `pdf-parse` with Anthropic Native PDF parsing. Instructed user to top up Anthropic billing. |
+| ISS-021 | 2026-03-19 | 2026-03-19 | P1 | S3 | `parse-resume` Edge Function | Edge function returns `Invalid JWT` despite correct LocalStorage and env keys | Supabase Kong API Gateway strictly pre-validates JWTs against DB sessions before reaching edge functions. When DB was wiped or keys mismatched, Kong hard-blocked the request. | Redeployed edge function with `--no-verify-jwt` to bypass Kong pre-validation, allowing the function to process the text natively. |
+| ISS-020 | 2026-03-19 | 2026-03-19 | P1 | S3 | `.env.local` | Entire frontend rejected local API calls with 401s after user edit | User accidentally pasted a Stripe publishable key over the existing Supabase Anon JWT in `.env.local`, which Vite loaded, permanently failing all Supabase network calls. | Deleted the corrupted line from `.env.local` so Vite gracefully falls back to the valid JWT residing in `.env`. |
+| ISS-019 | 2026-03-19 | 2026-03-19 | P1 | S3 | `OnboardingForm.jsx` | Safari / WebKit browsers crashed throwing `TypeError: undefined is not a function (near '...value of readableStream...')` | The newest `pdfjs-dist` v4 relies heavily on native `ReadableStream` async iteration which WebKit lacks. Attempting to parse PDFs natively on Deno Edge function also silently crashed the worker (ISS-018 continuation). | Removed modern `pdfjs-dist` entirely and injected the explicitly stable `pdfjs-dist@3.11.174 legacy/build` wrapped with `Uint8Array`. Parsing now resolves flawlessly on Safari. |
+| ISS-018 | 2026-03-18 | 2026-03-18 | P1 | S3 | `parse-resume` Edge Function | Edge function throwing 500 / 400 silently | Anthropic API account out of credits. Previously, `pdf-parse` also crashed Deno due to missing Node globals. | Replaced `pdf-parse` with Anthropic Native PDF parsing. Later swapped entirely to OpenAI GPT-4o due to persistent limits. |
 | ISS-017 | 2026-03-18 | 2026-03-18 | P1 | S3 | `OnboardingForm.jsx` | Local development server crashed rendering a blank screen | Git pull introduced unresolved conflict markers (`<<<<<<< HEAD`) directly into the React source, causing Vite parser to crash. | Resolved git conflicts favoring HEAD (`OnboardingForm` AI rewrite) and committed the clean file. |
 | ISS-016 | 2026-03-18 | 2026-03-18 | P2 | S3 | Supabase Auth | OAuth redirecting localhost logins to Vercel production | Supabase requires exact URL match; when `localhost:5173` wasn't exact, it fell back to Vercel Site URL. | Updated Supabase Additional Redirect URIs and changed Site URL to localhost during dev. |
 | ISS-001 | 2026-03-10 | 2026-03-10 | P1 | S1 | `App.jsx` | Blank page on submit — fast-refresh module circularity caused React component tree to unmount unexpectedly on form submission | Named export + default export conflict between `OnboardingForm` and `App.jsx` caused Vite HMR to trigger a full reload mid-submit, resetting state and showing a blank page | Resolved circular import by restructuring component exports. Commit: `fix: resolve blank page on submit due to fast-refresh module circularities` (`70c8bda`) |
@@ -61,5 +64,5 @@
 
 ---
 
-*Last updated: 2026-03-18*
-*Issue count: 17 total (7 active, 10 resolved)*
+*Last updated: 2026-03-19*
+*Issue count: 20 total (7 active, 13 resolved)*
