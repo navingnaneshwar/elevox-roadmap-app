@@ -18,6 +18,7 @@ import BillingPage     from './pages/BillingPage'
 
 import Roadmap           from './components/Roadmap'
 import ContentCalendar     from './components/ContentCalendar'
+import LandingPage         from './pages/LandingPage'
 
 export default function App() {
   return (
@@ -63,6 +64,10 @@ export default function App() {
 
           <Route path="/billing" element={
             <ProtectedRoute><BillingPage /></ProtectedRoute>
+          } />
+
+          <Route path="/website" element={
+            <ProtectedRoute><LandingPage /></ProtectedRoute>
           } />
 
           {/* Root → dashboard (ProtectedRoute redirects to /login if needed) */}
