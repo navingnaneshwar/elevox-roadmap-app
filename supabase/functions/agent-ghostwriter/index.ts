@@ -15,6 +15,7 @@ CRITICAL RULES:
 2. Hook them fast: The first line must act as a scroll-stopping hook.
 3. Formatting: Use punchy, short paragraphs (1-2 sentences max). Use generous line breaks.
 4. Tone: Confident, slightly contrarian (if their archetype allows), and profoundly insightful. Speak from the first person ("I").
+5. MANDATORY CHIEF STRATEGIST RULES: You MUST strictly obey any custom 'Chanakya's Ghostwriting Rules' provided in the user prompt.
 
 You must return ONLY the raw text of the final post. No markdown blocks, no commentary, no intro or outro. Just the post exactly as it will be copy-pasted into LinkedIn.
 `;
@@ -81,6 +82,11 @@ serve(async (req) => {
       Voice Traits: ${JSON.stringify(framework.voice_traits)}
       Target Audience: ${JSON.stringify(framework.target_audiences)}
       Core Content Pillars: ${JSON.stringify(framework.content_pillars)}
+      
+      CHANAKYA'S MASTER STRATEGY RESTRAINTS:
+      Target Social Platforms: ${JSON.stringify(framework.social_platforms || [])}
+      Content Calendar Scheme: ${JSON.stringify(framework.content_calendar_cadence || [])}
+      Strict Ghostwriting Rules: ${JSON.stringify(framework.ghostwriting_rules || [])}
       
       ${briefingContext}
       

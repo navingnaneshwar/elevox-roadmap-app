@@ -21,9 +21,23 @@ You MUST respond strictly in valid JSON matching exactly this structure:
     { "title": "Pillar 2", "description": "..." },
     { "title": "Pillar 3", "description": "..." }
   ],
-  "target_audiences": ["Audience 1", "Audience 2"]
+  "target_audiences": ["Audience 1", "Audience 2"],
+  "social_platforms": [
+    { "platform": "LinkedIn", "purpose": "Primary lead generation", "frequency": "Daily" },
+    { "platform": "X (Twitter)", "purpose": "Industry networking", "frequency": "3x a week" }
+  ],
+  "content_calendar_cadence": [
+    { "day": "Monday", "format": "Long-form Story", "theme": "Leadership" },
+    { "day": "Wednesday", "format": "Contrarian Take", "theme": "Industry Future" },
+    { "day": "Friday", "format": "Listicle/Framework", "theme": "Actionable Advice" }
+  ],
+  "ghostwriting_rules": [
+    "Rule 1 e.g. Never use hashtags inline, only at the end",
+    "Rule 2 e.g. Sentences must be punchy and short. No emojis.",
+    "Rule 3 e.g. Always end with an open-ended question"
+  ]
 }
-Do not include any markdown styling like \`\`\`json around your response. Just the raw JSON object.
+Do not include any markdown styling like \`\`\`json around your response. Just the raw JSON object. You must deduce the best social platforms and calendar cadence based on their industry and goals.
 `;
 
 serve(async (req) => {
@@ -109,6 +123,9 @@ serve(async (req) => {
         voice_traits: parsedFramework.voice_traits,
         content_pillars: parsedFramework.content_pillars,
         target_audiences: parsedFramework.target_audiences,
+        social_platforms: parsedFramework.social_platforms,
+        content_calendar_cadence: parsedFramework.content_calendar_cadence,
+        ghostwriting_rules: parsedFramework.ghostwriting_rules,
         status: 'active'
       })
       .select()
