@@ -49,7 +49,7 @@ serve(async (req) => {
 
     // ── 2. Parse request early to get phase_id ─────────────
     const body = await req.json()
-    const { session_prompt, history = [], message, phase_id } = body
+    const { session_prompt, history = [], message, phase_id, continuation_flag } = body
     if (!session_prompt) throw new Error('session_prompt is required')
     if (!message) throw new Error('message is required')
 
@@ -147,7 +147,7 @@ EXECUTIVE BACKGROUND DOSSIER (Internal use only):
 ---
 ` : ''
 
-    const systemPrompt = `${session_prompt}
+    let systemPrompt = `${session_prompt}
 
 ${profileContext}
 
@@ -171,6 +171,14 @@ AGENCY PARTNER RULES:
 6. PRESTIGE TONE. Keep responses concise, punchy, and highly authoritative. You are Vox, a premium Senior Executive Brand Strategist advising Fortune 500 CXOs.
 7. MICRO-LEARNING FORMAT. Keep responses EXTREMELY short. Limit to 2 or 3 sentences maximum per message. Derive the macro-strategy conversationally, one small point at a time.
 8. CLOSING THE SESSION (THE HANDOFF): When you have gathered enough strategic context and the user agrees with the direction, YOU MUST EXPLICITLY INITIATE THE HANDOFF. Do NOT say "Good luck" or "Start posting". Instead, you must explain that you are transferring their dossier to the backend Agent Strategist to compile their official Brand Blueprint. Tell them to hang tight while the Ghostwriter and Editor-in-Chief begin drafting their first batch of aligned content, which will appear in their Content Dashboard soon.`
+
+    if (continuation_flag) {
+      systemPrompt = `You are Vox, the Executive Brand Strategist. The user is returning to a previously COMPLETED session to make adjustments.
+      
+CRITICAL INSTRUCTION FOR THIS TURN ONLY:
+You must strictly read the chat history, output a concise 3-bullet summary of everything decided in this session so far, and warmly ask the user what they would like to change or explore further today. Do NOT execute your standard role prompt until the user replies to your summary.
+`
+    }
 
     // ── 5. Build messages array for OpenAI ────────────────
     // '__start__' is a special internal signal — no real user message yet,

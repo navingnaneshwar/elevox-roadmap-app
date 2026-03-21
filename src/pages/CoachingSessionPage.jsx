@@ -250,6 +250,8 @@ export default function CoachingSessionPage() {
   const [isListening, setIsListening] = useState(false)
   const [isPlaying,   setIsPlaying]   = useState(false)
   const [isMuted,     setIsMuted]     = useState(false)
+  const [sessionStatus,setSessionStatus] = useState('active')
+  const [sessionId,   setSessionId]   = useState(null)
 
   const bottomRef      = useRef(null)
   const inputRef       = useRef(null)
@@ -296,10 +298,15 @@ export default function CoachingSessionPage() {
       try {
         const { data } = await getMentorSessions(user.id, parseInt(phaseId))
         const existing = data?.find(s => s.component_id === parseInt(componentId))
-        if (existing?.messages?.length) {
-          setMessages(existing.messages)
+        if (existing) {
+          setSessionId(existing.id)
+          setSessionStatus(existing.status || 'active')
+          if (existing.messages?.length) {
+            setMessages(existing.messages)
+          } else {
+            await sendFirstMessage()
+          }
         } else {
-          // No prior session — send the system prompt to get the first AI message
           await sendFirstMessage()
         }
       } catch {
@@ -372,7 +379,46 @@ export default function CoachingSessionPage() {
     }
   }
 
-  const callMentorAPI = useCallback(async (sessionPrompt, history, userMessage) => {
+  async function handleMarkComplete() {
+    if (!sessionId || !user) return
+    setThinking(true)
+    try {
+      const { error } = await supabase.from('mentor_sessions').update({ status: 'completed' }).eq('id', sessionId)
+      if (error) throw new Error(error.message)
+      setSessionStatus('completed')
+    } catch (err) {
+      setError("Failed to mark session as complete.")
+    } finally {
+      setThinking(false)
+    }
+  }
+
+  async function handleRequestFollowUp() {
+    if (!sessionId || !user) return
+    setThinking(true)
+    setError(null)
+    try {
+      // Temporarily mark active locally so UI unlocks when typing finishes
+      setSessionStatus('active')
+      const aiReply = await callMentorAPI(meta.component.prompt, messages, "Please summarize our past decisions in 3 distinct bullet points and ask me what new angles I want to explore.", true)
+      
+      const assistantMsg = { role: 'assistant', content: aiReply, ts: Date.now() }
+      const final = [...messages, assistantMsg]
+      setMessages(final)
+      await persist(final)
+      // Update DB to active
+      await supabase.from('mentor_sessions').update({ status: 'active' }).eq('id', sessionId)
+      playAudioForText(aiReply)
+    } catch (err) {
+      setError(err.message)
+      setSessionStatus('completed') // revert if failed
+    } finally {
+      setThinking(false)
+      inputRef.current?.focus()
+    }
+  }
+
+  const callMentorAPI = useCallback(async (sessionPrompt, history, userMessage, continuation_flag = false) => {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('Session expired — please log in again.')
 
@@ -389,6 +435,7 @@ export default function CoachingSessionPage() {
           history: history.slice(-10),
           message: userMessage,
           phase_id: parseInt(phaseId),
+          continuation_flag: continuation_flag
         }),
       }
     )
@@ -424,7 +471,10 @@ export default function CoachingSessionPage() {
 
   async function persist(msgs) {
     if (!user) return
-    await upsertMentorSession(user.id, parseInt(phaseId), parseInt(componentId), msgs)
+    const { data, error } = await upsertMentorSession(user.id, parseInt(phaseId), parseInt(componentId), msgs, sessionStatus)
+    if (!error && data?.length > 0 && !sessionId) {
+      setSessionId(data[0].id)
+    }
   }
 
   async function handleSend() {
@@ -531,21 +581,37 @@ export default function CoachingSessionPage() {
           <span style={{ fontSize: '12px', color: '#94A3B8' }}>{component.title}</span>
         </div>
 
-        {/* Component navigator */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => prevComp !== null && navigate(`/coach/${phaseId}/${prevComp}`)}
-            disabled={prevComp === null}
-            style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: prevComp !== null ? '#64748B' : '#1E2A3E', fontSize: '11px', cursor: prevComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
-          >← Prev</button>
-          <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
-            {compIdx + 1}/{totalComponents}
-          </span>
-          <button
-            onClick={() => nextComp !== null && navigate(`/coach/${phaseId}/${nextComp}`)}
-            disabled={nextComp === null}
-            style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: nextComp !== null ? '#64748B' : '#1E2A3E', fontSize: '11px', cursor: nextComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
-          >Next →</button>
+        {/* Global Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          {sessionStatus === 'active' && loaded && messages.length > 2 && (
+            <button
+              onClick={handleMarkComplete}
+              disabled={thinking}
+              style={{
+                padding: '6px 14px', background: 'rgba(74, 158, 122, 0.15)', border: '1px solid rgba(74, 158, 122, 0.4)',
+                borderRadius: '6px', color: '#4A9E7A', fontSize: '11px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Inter', sans-serif"
+              }}
+            >
+              ✓ Mark as Complete
+            </button>
+          )}
+
+          {/* Component navigator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <button
+              onClick={() => prevComp !== null && navigate(`/coach/${phaseId}/${prevComp}`)}
+              disabled={prevComp === null}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: prevComp !== null ? '#64748B' : '#1E2A3E', fontSize: '11px', cursor: prevComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
+            >← Prev</button>
+            <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
+              {compIdx + 1}/{totalComponents}
+            </span>
+            <button
+              onClick={() => nextComp !== null && navigate(`/coach/${phaseId}/${nextComp}`)}
+              disabled={nextComp === null}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: nextComp !== null ? '#64748B' : '#1E2A3E', fontSize: '11px', cursor: nextComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
+            >Next →</button>
+          </div>
         </div>
       </div>
 
@@ -678,9 +744,37 @@ export default function CoachingSessionPage() {
         flexShrink: 0,
         position: 'relative', zIndex: 2,
       }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
-          <textarea
-            ref={el => { inputRef.current = el; textareaRef.current = el; }}
+        {sessionStatus === 'completed' ? (
+          <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center', padding: '16px 0' }}>
+            <div style={{ fontSize: '16px', fontWeight: '600', color: '#94A3B8', marginBottom: '8px', fontFamily: "'Outfit', sans-serif" }}>
+              🔒 This session is locked marked as complete.
+            </div>
+            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '20px' }}>
+              The strategic plan for this topic has been finalized. You can request a follow-up session to adjust your decisions.
+            </p>
+            <button
+              onClick={handleRequestFollowUp}
+              disabled={thinking}
+              style={{
+                padding: '10px 24px',
+                background: 'linear-gradient(135deg, #1E2A3E, #0f1524)',
+                border: '1px solid #334155',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '12px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                fontFamily: "'Inter', sans-serif",
+                transition: 'all 0.2s',
+              }}
+            >
+              {thinking ? 'Analyzing past decisions...' : 'Request Follow-up Session →'}
+            </button>
+          </div>
+        ) : (
+          <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+            <textarea
+              ref={el => { inputRef.current = el; textareaRef.current = el; }}
             value={input}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
@@ -791,6 +885,7 @@ export default function CoachingSessionPage() {
             ) : planError ? 'Locked' : 'Send →'}
           </button>
         </div>
+        )}
         <div style={{ maxWidth: '760px', margin: '12px auto 0', textAlign: 'center' }}>
           <span style={{ fontSize: '10px', color: '#1E2A3E', fontFamily: "'JetBrains Mono', monospace" }}>
             Vox · Elevox Brand Guru Agent · Powered by Claude
