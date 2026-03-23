@@ -119,3 +119,15 @@ export async function getDeliverables(userId) {
 export async function getCalendarEvents(userId) {
   return supabase.from('content_calendar').select('*').eq('user_id', userId).order('created_at', { ascending: false })
 }
+
+export async function saveContentDraft(userId, draftData) {
+  return supabase.from('content_drafts').insert({
+    user_id: userId,
+    status: 'approved',
+    hook_text: draftData.angle || 'AI Draft',
+    body_text: draftData.body,
+    platform: draftData.platform || 'LinkedIn',
+    framework_id: draftData.framework_id || 'ghostwriter',
+    briefing_id: draftData.anchor_event_id || null
+  }).select().single()
+}

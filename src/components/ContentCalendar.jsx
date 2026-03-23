@@ -236,7 +236,8 @@ export default function ContentCalendar() {
 
              <h2 style={{ fontSize: '24px', fontWeight: '700', fontFamily: "'Outfit', sans-serif", margin: '0 0 32px 0', color: '#F1F5F9' }}>Post Preview</h2>
 
-             <div style={{ background: '#F8FAFC', borderRadius: '12px', padding: '32px', color: '#0F172A', fontSize: '15px', lineHeight: '1.6', whiteSpace: 'pre-wrap', marginBottom: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            {/* Blank slate */}
+            <div style={{ background: 'rgba(13, 18, 32, 0.8)', borderRadius: '12px', padding: '32px', color: '#F1F5F9', fontSize: '15px', lineHeight: '1.6', whiteSpace: 'pre-wrap', marginBottom: '32px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
                 {selectedDraft.body_text}
              </div>
 
