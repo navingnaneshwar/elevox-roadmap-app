@@ -83,6 +83,16 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Internal service-to-service call — authenticated via service role key
+  // No JWT user validation needed for agent-to-agent calls
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ error: 'Missing authorization header' }),
+      { status: 401, headers: corsHeaders }
+    );
+  }
+
   try {
     const { job_id, user_id, linkedin, resume, industry, live_signals } = await req.json();
 
@@ -92,7 +102,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openAiKey = Deno.env.get('OPENAI_API_KEY')!;
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log(`[Strategist] Starting job ${job_id} for user ${user_id}`);
@@ -139,60 +149,63 @@ serve(async (req) => {
       { role: 'user', content: userPrompt }
     ];
 
-    let openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    let anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
-        'Content-Type': 'application/json',
+        'x-api-key':         anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // using 4o for superior reasoning vs mini
-        messages: messages,
-        response_format: { type: 'json_object' },
-        temperature: 0.7,
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 4000,
+        system:     systemPrompt,
+        messages:   [{ role: 'user', content: userPrompt }],
       }),
     });
 
-    if (!openAiResponse.ok) {
-        throw new Error(`OpenAI Error: ${await openAiResponse.text()}`);
+    if (!anthropicResponse.ok) {
+        throw new Error(`Anthropic Error: ${await anthropicResponse.text()}`);
     }
 
-    let openAiData = await openAiResponse.json();
-    let rawOutput = openAiData.choices[0].message.content;
-    let parsedFramework = JSON.parse(rawOutput);
+    let anthropicData = await anthropicResponse.json();
+    let rawOutput = anthropicData.content[0].text;
+    let rawCleaned = rawOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+    let parsedFramework = JSON.parse(rawCleaned);
 
     // Validate uncomfortable_truth
     const hasUncomfortableTruth = parsedFramework.mentor_insights?.some((i: any) => i.category === 'uncomfortable_truth');
     
     if (!hasUncomfortableTruth) {
-        console.log(`[Strategist] Missing uncomfortable_truth. Re-invoking OpenAI...`);
-        messages.push({ role: 'assistant', content: rawOutput });
-        messages.push({
-            role: 'user',
-            content: `Your mentor_insights array is missing an 'uncomfortable_truth' entry. This is required. Add one specific, honest observation about what is currently holding ${profile.full_name} back. Do not soften it.`
-        });
-        
-        openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+        console.log(`[Strategist] Missing uncomfortable_truth. Re-invoking Anthropic...`);
+        // Anthropic multi-turn: add assistant response then user follow-up
+        anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${openAiKey}`,
-            'Content-Type': 'application/json',
+            'x-api-key':         anthropicKey,
+            'anthropic-version': '2023-06-01',
+            'content-type':      'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-4o',
-            messages: messages,
-            response_format: { type: 'json_object' },
-            temperature: 0.7,
+            model:      'claude-sonnet-4-20250514',
+            max_tokens: 4000,
+            system:     systemPrompt,
+            messages:   [
+              { role: 'user',      content: userPrompt },
+              { role: 'assistant', content: rawOutput },
+              { role: 'user',      content: `Your mentor_insights array is missing an 'uncomfortable_truth' entry. This is required. Add one specific, honest observation about what is currently holding ${profile.full_name} back. Do not soften it.` },
+            ],
           }),
         });
-        
-        if (!openAiResponse.ok) {
-            throw new Error(`OpenAI Retry Error: ${await openAiResponse.text()}`);
+
+        if (!anthropicResponse.ok) {
+            throw new Error(`Anthropic Retry Error: ${await anthropicResponse.text()}`);
         }
-        
-        openAiData = await openAiResponse.json();
-        rawOutput = openAiData.choices[0].message.content;
-        parsedFramework = JSON.parse(rawOutput);
+
+        anthropicData = await anthropicResponse.json();
+        rawOutput     = anthropicData.content[0].text;
+        rawCleaned    = rawOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+        parsedFramework = JSON.parse(rawCleaned);
     }
 
     // 3. Save to brand_frameworks

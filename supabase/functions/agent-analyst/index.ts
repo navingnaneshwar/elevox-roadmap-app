@@ -22,7 +22,7 @@ async function applyUserEdits(supabase: any, framework: any): Promise<any> {
   }
 
   patched.user_edits_summary = edits
-    .map((e: any) => `• ${e.field_path} changed to: ${JSON.stringify(e.edited_value)}${e.edit_note ? ` (reason: ${e.edit_note})` : ''}`)
+    .map((e: any) => ` ${e.field_path} changed to: ${JSON.stringify(e.edited_value)}${e.edit_note ? ` (reason: ${e.edit_note})` : ''}`)
     .join('\n');
 
   return patched;
@@ -43,12 +43,22 @@ You MUST respond strictly in valid JSON matching exactly this structure:
     "Hot Take 2: Unconventional opinion the CXO should state about Trend B."
   ]
 }
-Do not include any markdown styling like \`\`\`json around your response. Just the raw JSON object.
+Do not include any markdown styling like triple-backtickjson around your response. Just the raw JSON object.
 `;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
+  }
+
+  // Internal service-to-service call — authenticated via service role key
+  // No JWT user validation needed for agent-to-agent calls
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ error: 'Missing authorization header' }),
+      { status: 401, headers: corsHeaders }
+    );
   }
 
   try {
@@ -264,14 +274,14 @@ For each news angle you identify:
         response_output: rawOutput
     });
 
-    // 6. Queue up the next step (generate_drafts)
+    // 6. Queue reserve_slot — Machiavelli locks a calendar slot BEFORE Shakespeare writes
     await supabase.from('agent_jobs').insert({
         user_id: fwUserId,
-        job_type: 'generate_drafts',
+        job_type: 'reserve_slot',
         payload: { framework_id: framework_id, briefing_id: briefingRow.id }
     });
 
-    console.log(`[Analyst] Successfully built briefing ${briefingRow.id} and handed off to Ghostwriter`);
+    console.log(`[Analyst] Successfully built briefing ${briefingRow.id} and queued Machiavelli to reserve slot`);
 
     return new Response(JSON.stringify({ success: true, briefing: briefingRow }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },

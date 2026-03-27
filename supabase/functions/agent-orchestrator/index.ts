@@ -18,9 +18,10 @@ const JOB_PLAN_REQUIREMENTS: Record<string, string> = {
   run_discovery_sweep: 'starter',
   build_framework: 'starter',    // Strategist → Phase 1 (Brand Audit)
   run_news_sweep:  'authority',  // Analyst    → Phase 3 (Content Engine)
-  generate_drafts: 'authority',  // Ghostwriter → Phase 3 (Content Engine)
-  review_draft:    'authority',  // Editor     → Phase 3 (Content Engine)
-  schedule_post:   'authority',  // Social Mgr → Phase 4 (Visibility)
+  reserve_slot:    'authority',  // Machiavelli → Phase 3 (pre-slot)
+  generate_drafts: 'authority',  // Shakespeare → Phase 3 (Content Engine)
+  review_draft:    'authority',  // Aristotle   → Phase 3 (Content Engine)
+  schedule_post:   'authority',  // Machiavelli → Phase 4 (Visibility)
 }
 
 const PLAN_RANK: Record<string, number> = {
@@ -104,17 +105,31 @@ serve(async (req) => {
         error: { value: (x: any, y: any) => y ?? x, default: () => null }
     };
 
-    // Generic Edge Function Invoker
+    // Generic Edge Function Invoker (raw fetch — avoids SDK wrapper)
     const invokeNode = async (functionName: string, state: any) => {
         console.log(`[LangGraph] Node: executing ${functionName}`);
-        const { data, error } = await supabase.functions.invoke(functionName, {
-            body: { job_id: state.job_id, job_type: state.job_type, user_id: state.user_id, ...state.payload },
-        });
+        const payload = { job_id: state.job_id, job_type: state.job_type, user_id: state.user_id, ...state.payload };
 
-        if (error) {
-            console.error(`[LangGraph] Node Error (${functionName}):`, error.message);
-            return { error: error.message };
+        const response = await fetch(
+            `${supabaseUrl}/functions/v1/${functionName}`,
+            {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`,
+                    'apikey': supabaseKey,
+                },
+                body: JSON.stringify(payload),
+            }
+        );
+
+        if (!response.ok) {
+            const errText = await response.text();
+            console.error(`[LangGraph] Node Error (${functionName}): ${response.status} ${errText}`);
+            return { error: `${functionName} returned ${response.status}: ${errText}` };
         }
+
+        const data = await response.json();
         return { results: [{ node: functionName, data }] };
     };
 
@@ -136,10 +151,10 @@ serve(async (req) => {
         return await invokeNode('agent-aristotle', state);
     };
 
-    const socialManagerNode = async (state: any) => {
-        // payload should already have draft_id if it passed the editorNode in sequential loop
+    const machiavelliNode = async (state: any) => {
+        // payload should already have draft_id if it passed aristotleNode in sequential loop
         // If triggered independently, the job payload natively contains draft_id
-        return await invokeNode('agent-social-manager', state);
+        return await invokeNode('agent-machiavelli', state);
     };
 
     // 4. Define Routing Logic
@@ -148,18 +163,21 @@ serve(async (req) => {
             'run_discovery_sweep': 'analyst',
             'build_framework': 'strategist',
             'run_news_sweep': 'analyst',
+            'reserve_slot':   'machiavelli',
             'generate_drafts': 'shakespeare',
             'review_draft': 'aristotle',
-            'schedule_post': 'social_manager'
+            'schedule_post': 'machiavelli'
         };
-        return typeMap[state.job_type] || END;
+        const route = typeMap[state.job_type] || END;
+        console.log(`[Orchestrator] job_type: ${state.job_type} → routing to: ${route}`);
+        return route;
     };
 
-    const aristotleToSocialManager = (state: any) => {
-        // Only route to the social media manager if aristotle strictly approved the content
+    const aristotleToMachiavelli = (state: any) => {
+        // Only route to Machiavelli if Aristotle strictly approved the content
         const aristotleResult = state.results.find((r: any) => r.node === 'agent-aristotle');
         if (aristotleResult && aristotleResult.data?.verdict === 'approved') {
-            return "social_manager";
+            return "machiavelli";
         }
         return END;
     };
@@ -170,7 +188,7 @@ serve(async (req) => {
         .addNode("analyst", analystNode)
         .addNode("shakespeare", shakespeareNode)
         .addNode("aristotle", aristotleNode)
-        .addNode("social_manager", socialManagerNode)
+        .addNode("machiavelli", machiavelliNode)
         
         // Conditional initial routing
         .addConditionalEdges(START, routeInitialJob)
@@ -182,12 +200,12 @@ serve(async (req) => {
         // Shakespeare automatically pipes to Aristotle!
         .addEdge("shakespeare", "aristotle") 
         
-        // Aristotle evaluates. If passed, pipes to Social Manager! Else dies.
-        .addConditionalEdges("aristotle", aristotleToSocialManager, {
-            "social_manager": "social_manager",
+        // Aristotle evaluates. If passed, pipes to Machiavelli! Else dies.
+        .addConditionalEdges("aristotle", aristotleToMachiavelli, {
+            "machiavelli": "machiavelli",
             [END]: END
         })
-        .addEdge("social_manager", END);
+        .addEdge("machiavelli", END);
 
     const checkpointer = new MemorySaver();
     const app = workflow.compile({ checkpointer });

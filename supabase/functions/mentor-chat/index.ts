@@ -19,7 +19,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
 const SUPABASE_URL      = Deno.env.get('SUPABASE_URL')!
 const SUPABASE_SERVICE  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
 const TAVILY_API_KEY    = Deno.env.get('TAVILY_API_KEY')
@@ -184,7 +184,7 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
 `
     }
 
-    // ── 5. Build messages array for OpenAI ────────────────
+    // ── 5. Build messages array for Anthropic ─────────────
     // '__start__' is a special internal signal — no real user message yet,
     // just ask the AI to open the session with its first question.
     const isOpener = message === '__start__'
@@ -204,36 +204,35 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       { role: 'user', content: userContent },
     ]
 
-    // ── 6. Call OpenAI with Tools ──────────────────────────
+    // ── 6. Call Anthropic with Tools ───────────────────────
     const tools = [
       {
-        type: 'function',
-        function: {
-          name: 'search_web',
-          description: 'Actively search the web for the user\'s current digital footprint, press mentions, company news, or LinkedIn profile to gather live outside context.',
-          parameters: {
-            type: 'object',
-            properties: {
-              query: { type: 'string', description: 'The search query, e.g. "John Doe CEO digital footprint" or "Jane Meyer LinkedIn"' }
-            },
-            required: ['query']
-          }
+        name: 'search_web',
+        description: "Actively search the web for the user's current digital footprint, press mentions, company news, or LinkedIn profile to gather live outside context.",
+        input_schema: {
+          type: 'object',
+          properties: {
+            query: { type: 'string', description: 'The search query, e.g. "John Doe CEO digital footprint" or "Jane Meyer LinkedIn"' }
+          },
+          required: ['query']
         }
       }
     ]
 
-    async function callOpenAI(msgs: any[]) {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    async function callAnthropic(msgs: any[]) {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`,
+          'x-api-key':         ANTHROPIC_API_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-type':      'application/json',
         },
         body: JSON.stringify({
-          model: 'gpt-4o-mini',
+          model:      'claude-sonnet-4-20250514',
           max_tokens: 800,
-          messages: [{ role: 'system', content: systemPrompt }, ...msgs],
+          system:     systemPrompt,
           tools,
+          messages:   msgs,
         }),
       })
 
@@ -241,17 +240,17 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
         const errText = await res.text()
         const isBillingError =
           res.status === 429 || res.status === 402 ||
-          errText.includes('quota') || errText.includes('insufficient_quota') ||
+          errText.includes('quota') || errText.includes('credit') ||
           errText.includes('exceeded') || errText.includes('billing')
         if (isBillingError) throw new Error('BILLING_ERROR')
-        throw new Error(`OpenAI error: ${errText}`)
+        throw new Error(`Anthropic error: ${errText}`)
       }
       return await res.json()
     }
 
     let anthropicData
     try {
-      anthropicData = await callOpenAI(messages)
+      anthropicData = await callAnthropic(messages)
     } catch (e: any) {
       if (e.message === 'BILLING_ERROR') {
         return new Response(
@@ -262,56 +261,57 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       throw e
     }
 
-    let responseMessage = anthropicData.choices[0]?.message
+    // ── 7. Handle Tool Use (Agentic Loop) ─────────────────
+    // Anthropic returns tool_use blocks in content array
+    let toolUseBlock = anthropicData.content?.find((b: any) => b.type === 'tool_use')
 
-    // ── 7. Handle Tool Calls (Agentic Loop) ────────────────
-    if (responseMessage?.tool_calls) {
-      messages.push(responseMessage) // Append Assistant's tool_call request
+    if (toolUseBlock) {
+      // Add assistant turn with tool_use block
+      messages.push({ role: 'assistant', content: anthropicData.content })
 
-      for (const toolCall of responseMessage.tool_calls) {
-        if (toolCall.function.name === 'search_web') {
-          const args = JSON.parse(toolCall.function.arguments)
-          let toolResponse = "No results found."
-          
-          if (TAVILY_API_KEY) {
-            try {
-              const tavilyRes = await fetch('https://api.tavily.com/search', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  api_key: TAVILY_API_KEY,
-                  query: args.query,
-                  search_depth: 'basic',
-                  include_answer: true,
-                })
+      let toolResponse = 'No results found.'
+      if (toolUseBlock.name === 'search_web') {
+        if (TAVILY_API_KEY) {
+          try {
+            const tavilyRes = await fetch('https://api.tavily.com/search', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                api_key: TAVILY_API_KEY,
+                query: toolUseBlock.input.query,
+                search_depth: 'basic',
+                include_answer: true,
               })
-              const tavilyData = await tavilyRes.json()
-              toolResponse = JSON.stringify({
-                answer: tavilyData.answer,
-                results: tavilyData.results?.slice(0, 3) || []
-              })
-            } catch (err) {
-              toolResponse = "Web search failed. Proceed without live data."
-            }
-          } else {
-             toolResponse = "TAVILY_API_KEY is not configured in Supabase Secrets. Please rely on user input."
+            })
+            const tavilyData = await tavilyRes.json()
+            toolResponse = JSON.stringify({
+              answer: tavilyData.answer,
+              results: tavilyData.results?.slice(0, 3) || []
+            })
+          } catch (err) {
+            toolResponse = 'Web search failed. Proceed without live data.'
           }
-
-          messages.push({
-            role: 'tool',
-            tool_call_id: toolCall.id,
-            content: toolResponse
-          })
+        } else {
+          toolResponse = 'TAVILY_API_KEY is not configured. Please rely on user input.'
         }
       }
 
-      // Call OpenAI again with the tool results
-      anthropicData = await callOpenAI(messages)
-      responseMessage = anthropicData.choices[0]?.message
+      // Add tool result in Anthropic format
+      messages.push({
+        role: 'user',
+        content: [{
+          type:        'tool_result',
+          tool_use_id: toolUseBlock.id,
+          content:     toolResponse,
+        }]
+      })
+
+      // Call Anthropic again with the tool result
+      anthropicData = await callAnthropic(messages)
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let replyText = responseMessage?.content?.trim() || 'I am thinking through your response...'
+    const textBlock = anthropicData.content?.find((b: any) => b.type === 'text')
+    let replyText = textBlock?.text?.trim() || 'I am thinking through your response...'
     let auto_complete = false
     
     // Check for the hidden auto-advancement token

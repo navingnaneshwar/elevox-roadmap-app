@@ -113,8 +113,18 @@ serve(async (req) => {
     return new Response('ok', { headers: corsHeaders });
   }
 
+  // Internal service-to-service call — authenticated via service role key
+  // No JWT user validation needed for agent-to-agent calls
+  const authHeader = req.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return new Response(
+      JSON.stringify({ error: 'Missing authorization header' }),
+      { status: 401, headers: corsHeaders }
+    );
+  }
+
   try {
-    const { job_id, framework_id, briefing_id } = await req.json();
+    const { job_id, framework_id, briefing_id, calendar_event_id } = await req.json();
 
     if (!job_id || !framework_id) {
       throw new Error('Missing job_id or framework_id in payload');
@@ -128,7 +138,7 @@ serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(\`[Shakespeare] Starting job \${job_id} for framework \${framework_id}\`);
+    console.log(`[Shakespeare] Starting job ${job_id} for framework ${framework_id}`);
 
 
     // ── STEP 1: Fetch framework and apply all user edits ──────
@@ -139,7 +149,7 @@ serve(async (req) => {
       .single();
 
     if (fwError || !rawFramework) {
-      throw new Error(\`Framework fetch failed: \${fwError?.message}\`);
+      throw new Error(`Framework fetch failed: ${fwError?.message}`);
     }
 
     const framework = await applyUserEdits(supabase, rawFramework);
@@ -148,12 +158,12 @@ serve(async (req) => {
 
 
     // ── STEP 2: Fetch briefing context (if available) ─────────
-    let briefingContext = \`
+    let briefingContext = `
 No specific news briefing provided. 
 Write a timeless, evergreen thought-leadership post rooted entirely in the 
 executive's Content Pillars, career experience, and 90-day brand goal.
 Prioritise a credibility anchor from their career history.
-    \`.trim();
+    `.trim();
 
     if (briefing_id) {
       const { data: briefing, error: brError } = await supabase
@@ -163,17 +173,17 @@ Prioritise a credibility anchor from their career history.
         .single();
 
       if (!brError && briefing) {
-        briefingContext = \`
+        briefingContext = `
 TODAY'S LIVE INDUSTRY BRIEFING (from the Analyst):
-News Links Identified: \${JSON.stringify(briefing.news_links)}
-Analyst's Suggested Angles: \${JSON.stringify(briefing.suggested_angles)}
+News Links Identified: ${JSON.stringify(briefing.news_links)}
+Analyst's Suggested Angles: ${JSON.stringify(briefing.suggested_angles)}
 
 Instructions:
 - Pick the single most compelling angle above
 - Do NOT summarise the news — give the executive's sharp, experienced opinion on it
 - The news is the hook. The executive's unique perspective is the value.
 - Tie the angle back to one of their Content Pillars explicitly
-        \`.trim();
+        `.trim();
       }
     }
 
@@ -191,18 +201,18 @@ Instructions:
       .limit(5);
 
     const voiceMemory = pastPosts && pastPosts.length > 0
-      ? \`
+      ? `
 VOICE MEMORY — APPROVED POSTS (study these for voice consistency):
-\${pastPosts.map((p: any, i: number) => \`
-Post \${i + 1}:
-\${p.body_text}
-\${p.performance_score ? \`Performance score: \${p.performance_score}\` : ''}
-\${p.editor_feedback ? \`Editor feedback: \${p.editor_feedback}\` : ''}
-\`).join('---\\n')}
+${pastPosts.map((p: any, i: number) => `
+Post ${i + 1}:
+${p.body_text}
+${p.performance_score ? `Performance score: ${p.performance_score}` : ''}
+${p.editor_feedback ? `Editor feedback: ${p.editor_feedback}` : ''}
+`).join('---\\n')}
 Adapt your writing to match the vocabulary, rhythm, and structural patterns 
 of these approved posts. The executive has already signed off on this voice.
-      \`.trim()
-      : \`No approved posts yet. Derive voice entirely from the archetype and ghostwriting_rules.\`;
+      `.trim()
+      : `No approved posts yet. Derive voice entirely from the archetype and ghostwriting_rules.`;
 
 
     // ── STEP 4: Fetch the executive's 90-day goal ─────────────
@@ -213,43 +223,43 @@ of these approved posts. The executive has already signed off on this voice.
 
 
     // ── STEP 5: Build the full prompt ─────────────────────────
-    const userPrompt = \`
+    const userPrompt = `
 EXECUTIVE DOSSIER:
-Name: \${profile.full_name}
-Current Role: \${profile.current_title} at \${profile.company}
-Industry: \${profile.industry}
-90-Day Brand Goal: \${ninetyDayGoal}
+Name: ${profile.full_name}
+Current Role: ${profile.current_title} at ${profile.company}
+Industry: ${profile.industry}
+90-Day Brand Goal: ${ninetyDayGoal}
 
 BRAND ARCHITECTURE (from Chanakya):
-Archetype: \${framework.archetype}
-Voice Traits: \${JSON.stringify(framework.voice_traits)}
-Target Audience: \${JSON.stringify(framework.target_audiences)}
-Content Pillars: \${JSON.stringify(framework.content_pillars)}
-Active Platforms: \${JSON.stringify(framework.social_platforms ?? [])}
-Content Calendar Cadence: \${JSON.stringify(framework.content_calendar_cadence ?? [])}
-Strict Ghostwriting Rules: \${JSON.stringify(framework.ghostwriting_rules ?? [])}
+Archetype: ${framework.archetype}
+Voice Traits: ${JSON.stringify(framework.voice_traits)}
+Target Audience: ${JSON.stringify(framework.target_audiences)}
+Content Pillars: ${JSON.stringify(framework.content_pillars)}
+Active Platforms: ${JSON.stringify(framework.social_platforms ?? [])}
+Content Calendar Cadence: ${JSON.stringify(framework.content_calendar_cadence ?? [])}
+Strict Ghostwriting Rules: ${JSON.stringify(framework.ghostwriting_rules ?? [])}
 
 CAREER CREDIBILITY ANCHORS (draw from these for the post):
-\${profile.career_highlights ?? profile.differentiator ?? 'Use career history from the profile to identify specific, owned experiences.'}
+${profile.career_highlights ?? profile.differentiator ?? 'Use career history from the profile to identify specific, owned experiences.'}
 
 MENTOR INSIGHTS (strategic context from Chanakya):
-\${JSON.stringify(framework.mentor_insights ?? [])}
+${JSON.stringify(framework.mentor_insights ?? [])}
 
 USER EDITS APPLIED TO THIS FRAMEWORK:
-\${framework.user_edits_summary ?? 'None recorded'}
+${framework.user_edits_summary ?? 'None recorded'}
 
-\${briefingContext}
+${briefingContext}
 
-\${voiceMemory}
+${voiceMemory}
 
 Now write the LinkedIn post. Return only the JSON structure defined in your system prompt.
 Remember: credibility_score must be 50 or above. If you cannot reach 50, explain why 
 in credibility_score_reasoning and flag what profile data is missing.
-    \`.trim();
+    `.trim();
 
 
     // ── STEP 6: Call Claude Sonnet ────────────────────────────
-    console.log(\`[Shakespeare] Requesting Claude Sonnet...\`);
+    console.log(`[Shakespeare] Requesting Claude Sonnet...`);
 
     const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -268,12 +278,17 @@ in credibility_score_reasoning and flag what profile data is missing.
 
     if (!anthropicResponse.ok) {
       const errStr = await anthropicResponse.text();
-      throw new Error(\`Anthropic Error: \${errStr}\`);
+      throw new Error(`Anthropic Error: ${errStr}`);
     }
 
     const anthropicData = await anthropicResponse.json();
     const rawOutput     = anthropicData.content[0].text;
-    const parsed        = JSON.parse(rawOutput);
+    const cleaned       = rawOutput
+      .replace(/^```json\s*/i, '')
+      .replace(/^```\s*/i, '')
+      .replace(/```\s*$/i, '')
+      .trim();
+    const parsed        = JSON.parse(cleaned);
 
 
     // ── STEP 7: Credibility gate ──────────────────────────────
@@ -282,7 +297,7 @@ in credibility_score_reasoning and flag what profile data is missing.
     let finalParsed = parsed;
 
     if (parsed.strategic_rationale?.credibility_score < 50) {
-      console.warn(\`[Shakespeare] Draft scored \${parsed.strategic_rationale.credibility_score} — below threshold. Re-prompting once.\`);
+      console.warn(`[Shakespeare] Draft scored ${parsed.strategic_rationale.credibility_score} — below threshold. Re-prompting once.`);
 
       const retryResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -300,17 +315,17 @@ in credibility_score_reasoning and flag what profile data is missing.
             { role: 'assistant', content: rawOutput },
             {
               role: 'user',
-              content: \`Your credibility score was \${parsed.strategic_rationale.credibility_score}. 
+              content: `Your credibility score was ${parsed.strategic_rationale.credibility_score}. 
 This is below the minimum threshold of 50. 
 
-Reason you gave: \${parsed.strategic_rationale.credibility_score_reasoning}
+Reason you gave: ${parsed.strategic_rationale.credibility_score_reasoning}
 
 Rewrite the post. This time:
 1. Anchor it in a specific career moment or decision from the executive's history
 2. Make the contrarian tension sharper and more specific
 3. Ensure the hook creates genuine pattern interrupt
 
-Return the same JSON structure with an improved draft.\`,
+Return the same JSON structure with an improved draft.`,
             },
           ],
         }),
@@ -320,10 +335,10 @@ Return the same JSON structure with an improved draft.\`,
         const retryData = await retryResponse.json();
         try {
           finalParsed = JSON.parse(retryData.content[0].text);
-          console.log(\`[Shakespeare] Retry scored \${finalParsed.strategic_rationale?.credibility_score}\`);
+          console.log(`[Shakespeare] Retry scored ${finalParsed.strategic_rationale?.credibility_score}`);
         } catch {
           // If retry JSON parse fails, use original
-          console.warn(\`[Shakespeare] Retry parse failed — using original draft\`);
+          console.warn(`[Shakespeare] Retry parse failed — using original draft`);
         }
       }
     }
@@ -336,6 +351,7 @@ Return the same JSON structure with an improved draft.\`,
         user_id:              userId,
         framework_id:         framework_id,
         briefing_id:          briefing_id ?? null,
+        calendar_event_id:    calendar_event_id ?? null,
         platform:             finalParsed.platform ?? 'LinkedIn',
         body_text:            finalParsed.post_body,
         hook_text:            finalParsed.hook_line,
@@ -372,7 +388,7 @@ Return the same JSON structure with an improved draft.\`,
       payload:  { draft_id: draftRow.id },
     });
 
-    console.log(\`[Shakespeare] Draft \${draftRow.id} scored \${finalParsed.strategic_rationale?.credibility_score} — routed to Editor\`);
+    console.log(`[Shakespeare] Draft ${draftRow.id} scored ${finalParsed.strategic_rationale?.credibility_score} — routed to Editor`);
 
     return new Response(
       JSON.stringify({ success: true, draft: draftRow }),
@@ -380,7 +396,7 @@ Return the same JSON structure with an improved draft.\`,
     );
 
   } catch (error: any) {
-    console.error(\`[Shakespeare] Fatal error:\`, error);
+    console.error(`[Shakespeare] Fatal error:`, error);
     return new Response(
       JSON.stringify({ error: error.message }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
