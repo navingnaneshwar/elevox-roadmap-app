@@ -457,7 +457,7 @@ export default function CoachingSessionPage() {
 
       // OpenAI billing / quota error
       if (res.status === 402 || body.error === 'billing') {
-        return "⚠️ The AI mentor is temporarily unavailable — the OpenAI API credits need to be topped up. Please visit **platform.openai.com/settings/billing** to add credits, then try again."
+        return "⚠️ The AI mentor is temporarily unavailable. Please try again in a moment."
       }
       // Plan gate errors — surface upgrade CTA instead of crashing
       if (res.status === 403) {

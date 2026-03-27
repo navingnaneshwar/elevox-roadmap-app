@@ -9,9 +9,10 @@
 //   - Sessions driven from Supabase via getMentorSessions (with mock fallback)
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { getMentorSessions } from "../lib/supabase";
+import { getMentorSessions, getPendingApprovals, getPendingCoachingAlerts } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
+import CredibilityAlertCard from "./CredibilityAlertCard";
 
 /* ─── Phase Data ─────────────────────────────────────────────── */
 const PHASES = [
@@ -219,8 +220,10 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [selectedPhase, setSelectedPhase]   = useState(null);
-  const [sessions,      setSessions]        = useState({});
+  const [selectedPhase,    setSelectedPhase]   = useState(null);
+  const [sessions,         setSessions]        = useState({});
+  const [approvalCount,    setApprovalCount]   = useState(0);
+  const [coachingAlerts,   setCoachingAlerts]  = useState([]);
 
   // Derive plan correctly (fixes dbPlan undefined crash)
   const dbPlan       = derivePlan(profileData);
@@ -237,6 +240,14 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
         map[key] = (map[key] || 0) + 1;
       });
       setSessions(map);
+    });
+    // Load approval badge count
+    getPendingApprovals(user.id).then(({ data }) => {
+      setApprovalCount(data?.length ?? 0);
+    });
+    // Load coaching alerts
+    getPendingCoachingAlerts(user.id).then(({ data }) => {
+      setCoachingAlerts(data ?? []);
     });
   }, [user]);
 
@@ -297,6 +308,36 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           <NavLink label="Brand Brief" onClick={() => handleNav("brand-brief")} />
           <NavLink label="Calendar"   onClick={() => handleNav("calendar")} />
           <NavLink label="Billing"    onClick={() => navigate("/billing")} />
+          {/* Approvals nav with badge */}
+          <button
+            onClick={() => navigate("/approvals")}
+            style={{
+              position: "relative",
+              padding: "7px 14px",
+              background: approvalCount > 0 ? "rgba(16,185,129,0.08)" : "transparent",
+              border: approvalCount > 0 ? "1px solid rgba(16,185,129,0.25)" : "1px solid transparent",
+              borderRadius: "7px",
+              color: approvalCount > 0 ? "#10b981" : "#64748B",
+              fontSize: "12px", fontWeight: "500",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              transition: "all 0.15s",
+            }}
+          >
+            Approvals
+            {approvalCount > 0 && (
+              <span style={{
+                position: "absolute", top: "-4px", right: "-4px",
+                background: "#10b981", color: "#fff",
+                fontSize: "9px", fontWeight: "700",
+                borderRadius: "100px", padding: "1px 5px",
+                fontFamily: "'JetBrains Mono', monospace",
+                minWidth: "16px", textAlign: "center",
+              }}>
+                {approvalCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Right: profile + sign out */}
@@ -390,13 +431,14 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
         {/* Quick Actions */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "48px", flexWrap: "wrap" }}>
           {[
-            { label: "✦ Brand Brief", color: "#6366f1", screen: "brand-brief" },
-            { label: "◈ Roadmap",     color: "#C8A96E", screen: "roadmap" },
-            { label: "◉ Calendar",    color: "#8B6DAA", screen: "calendar" },
-          ].map(({ label, color, screen }) => (
+            { label: "✦ Brand Brief", color: "#6366f1", action: () => handleNav("brand-brief") },
+            { label: "◈ Roadmap",     color: "#C8A96E", action: () => handleNav("roadmap") },
+            { label: "◉ Calendar",    color: "#8B6DAA", action: () => handleNav("calendar") },
+            { label: "✎ Submit Post", color: "#10b981", action: () => navigate("/submit-post") },
+          ].map(({ label, color, action }) => (
             <button
-              key={screen}
-              onClick={() => handleNav(screen)}
+              key={label}
+              onClick={action}
               style={{
                 padding: "9px 20px",
                 background: `${color}10`,
@@ -416,6 +458,19 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
             </button>
           ))}
         </div>
+
+        {/* Coaching Alerts — surface when Aristotle stalled the pipeline */}
+        {coachingAlerts.length > 0 && (
+          <div style={{ marginBottom: "32px" }}>
+            {coachingAlerts.map(alert => (
+              <CredibilityAlertCard
+                key={alert.id}
+                alert={alert}
+                onDismiss={(id) => setCoachingAlerts(prev => prev.filter(a => a.id !== id))}
+              />
+            ))}
+          </div>
+        )}
 
         {/* Phase Grid */}
         <div style={{ marginBottom: "48px" }}>

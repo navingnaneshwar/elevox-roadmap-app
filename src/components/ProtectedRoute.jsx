@@ -38,9 +38,29 @@ export default function ProtectedRoute({ children, requiredPlan = null, skipOnbo
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
+  // User exists but profile hasn't loaded yet — keep spinning so we
+  // don't evaluate the onboarding_complete check on a null profile
+  if (!profile) {
+    return (
+      <div style={{
+        minHeight: '100vh', background: '#070B14',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        <div style={{
+          width: '32px', height: '32px',
+          border: '2px solid #1E2A3E',
+          borderTop: '2px solid #C8A96E',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    )
+  }
+
   // Authenticated but onboarding incomplete → /onboarding
   // (skip this check on the onboarding route itself to avoid redirect loop)
-  if (!skipOnboardingCheck && profile && !profile.onboarding_complete && location.pathname !== '/onboarding') {
+  if (!skipOnboardingCheck && !profile.onboarding_complete && location.pathname !== '/onboarding') {
     return <Navigate to="/onboarding" replace />
   }
 
