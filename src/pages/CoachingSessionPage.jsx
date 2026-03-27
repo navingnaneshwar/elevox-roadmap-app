@@ -367,7 +367,9 @@ export default function CoachingSessionPage() {
     setThinking(true)
     try {
       // Pass a special opener message so the AI introduces the session
-      const aiReply = await callMentorAPI(meta.component.prompt, [], '__start__')
+      const mentorRes = await callMentorAPI(meta.component.prompt, [], '__start__')
+      if (mentorRes === null) return
+      const { reply: aiReply } = mentorRes
       const initial = [{ role: 'assistant', content: aiReply, ts: Date.now() }]
       setMessages(initial)
       await persist(initial)
@@ -378,6 +380,7 @@ export default function CoachingSessionPage() {
       setThinking(false)
     }
   }
+
 
   async function handleMarkComplete() {
     if (!sessionId || !user) return
