@@ -92,7 +92,7 @@ serve(async (req) => {
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const openAiKey = Deno.env.get('OPENAI_API_KEY')!;
+    const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     console.log(`[Strategist] Starting job ${job_id} for user ${user_id}`);
@@ -108,7 +108,7 @@ serve(async (req) => {
       throw new Error(`Failed to fetch profile: ${profileError?.message}`);
     }
 
-    // 2. Call OpenAI to generate Framework
+    // 2. Call Anthropic Claude to generate Framework
     const userPrompt = `
       CLIENT DOSSIER (SELF-REPORTED):
       Name: ${profile.full_name} | Role: ${profile.current_title} at ${profile.company}
@@ -135,63 +135,66 @@ serve(async (req) => {
 
     const systemPrompt = buildChanakyaSystemPrompt(profile);
     const messages: any[] = [
-      { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
     ];
 
-    let openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    let anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAiKey}`,
-        'Content-Type': 'application/json',
+        'x-api-key': anthropicKey,
+        'anthropic-version': '2023-06-01',
+        'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // using 4o for superior reasoning vs mini
-        messages: messages,
-        response_format: { type: 'json_object' },
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
         temperature: 0.7,
+        system: systemPrompt,
+        messages,
       }),
     });
 
-    if (!openAiResponse.ok) {
-        throw new Error(`OpenAI Error: ${await openAiResponse.text()}`);
+    if (!anthropicResponse.ok) {
+        throw new Error(`Anthropic Error: ${await anthropicResponse.text()}`);
     }
 
-    let openAiData = await openAiResponse.json();
-    let rawOutput = openAiData.choices[0].message.content;
+    let anthropicData = await anthropicResponse.json();
+    let rawOutput = anthropicData.content[0].text;
     let parsedFramework = JSON.parse(rawOutput);
 
     // Validate uncomfortable_truth
     const hasUncomfortableTruth = parsedFramework.mentor_insights?.some((i: any) => i.category === 'uncomfortable_truth');
-    
+
     if (!hasUncomfortableTruth) {
-        console.log(`[Strategist] Missing uncomfortable_truth. Re-invoking OpenAI...`);
+        console.log(`[Strategist] Missing uncomfortable_truth. Re-invoking Claude...`);
         messages.push({ role: 'assistant', content: rawOutput });
         messages.push({
             role: 'user',
             content: `Your mentor_insights array is missing an 'uncomfortable_truth' entry. This is required. Add one specific, honest observation about what is currently holding ${profile.full_name} back. Do not soften it.`
         });
-        
-        openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+
+        anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${openAiKey}`,
-            'Content-Type': 'application/json',
+            'x-api-key': anthropicKey,
+            'anthropic-version': '2023-06-01',
+            'content-type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'gpt-4o',
-            messages: messages,
-            response_format: { type: 'json_object' },
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 4096,
             temperature: 0.7,
+            system: systemPrompt,
+            messages,
           }),
         });
-        
-        if (!openAiResponse.ok) {
-            throw new Error(`OpenAI Retry Error: ${await openAiResponse.text()}`);
+
+        if (!anthropicResponse.ok) {
+            throw new Error(`Anthropic Retry Error: ${await anthropicResponse.text()}`);
         }
-        
-        openAiData = await openAiResponse.json();
-        rawOutput = openAiData.choices[0].message.content;
+
+        anthropicData = await anthropicResponse.json();
+        rawOutput = anthropicData.content[0].text;
         parsedFramework = JSON.parse(rawOutput);
     }
 
