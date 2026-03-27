@@ -339,7 +339,10 @@ export default function CoachingSessionPage() {
         },
         body: JSON.stringify({ text })
       })
+      // TTS unavailable (no key configured) — degrade silently, coaching continues
+      if (res.status === 503) return
       if (!res.ok) throw new Error('Failed to fetch TTS audio')
+
 
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)

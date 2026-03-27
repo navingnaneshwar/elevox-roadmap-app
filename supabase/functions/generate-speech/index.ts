@@ -22,10 +22,10 @@ serve(async (req) => {
 
     const openAiKey = Deno.env.get('OPENAI_API_KEY')
     if (!openAiKey) {
-      return new Response(JSON.stringify({ error: 'Missing OpenAI API Key' }), {
-        status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      })
+      return new Response(
+        JSON.stringify({ error: 'TTS temporarily unavailable' }),
+        { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
     }
 
     // Call OpenAI TTS API
