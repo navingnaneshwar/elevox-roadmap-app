@@ -33,13 +33,16 @@ serve(async (req) => {
 
     if (draftError || !draft) throw new Error(`Draft fetch failed: ${draftError?.message}`);
 
+    const framework = draft.brand_frameworks;
     const userId = draft.user_id;
 
     if (draft.status !== 'approved') {
-      throw new Error(`Draft ${draft_id} is not approved for scheduling.`);
+        throw new Error(`Draft ${draft_id} is not approved for scheduling.`);
     }
 
-    // 2. Determine publish date — 24 hours from now to allow manual review buffer
+    // 2. Determine optimal publish date
+    // (In a full app, this would match 'content_calendar_cadence' dynamically)
+    // For now, generously schedule it for exactly 24 hours from now to allow manual review buffer.
     const publishDate = new Date();
     publishDate.setHours(publishDate.getHours() + 24);
 
@@ -50,38 +53,38 @@ serve(async (req) => {
         user_id: userId,
         draft_id: draft_id,
         publish_date: publishDate.toISOString(),
-        status: 'scheduled',
+        status: 'scheduled'
       })
       .select()
       .single();
 
     if (insertError) throw insertError;
 
-    // 4. Update draft status to 'scheduled'
+    // 4. Update the draft status to 'scheduled'
     await supabase.from('content_drafts').update({ status: 'scheduled' }).eq('id', draft_id);
 
-    // 5. Audit log
+    // 5. Audit Log
     await supabase.from('agent_audit_logs').insert({
-      user_id: userId,
-      agent_role: 'agent-social-manager',
-      event_type: 'post_scheduled',
-      trigger_entity_id: calendarRow.id,
-      prompt_context: { system: 'Rule-based routing. No LLM.', user: `Draft ID: ${draft_id}` },
-      response_output: `Scheduled for ${publishDate.toISOString()} on platform ${draft.platform}`,
+        user_id: userId,
+        agent_role: 'agent-social-manager',
+        event_type: 'post_scheduled',
+        trigger_entity_id: calendarRow.id,
+        prompt_context: { system: "Rule-based routing (No LLM). Scheduled based on queue slot.", user: `Draft ID: ${draft_id}` },
+        response_output: `Scheduled for ${publishDate.toISOString()} on platform ${draft.platform}`
     });
 
-    console.log(`[Social Manager] Successfully scheduled draft ${draft_id}. Calendar event: ${calendarRow.id}`);
+    console.log(`[Social Manager] Successfully scheduled draft ${draft_id}. Event: ${calendarRow.id}`);
 
-    return new Response(JSON.stringify({ success: true, calendar_event: calendarRow }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      status: 200,
+    return new Response(JSON.stringify({ success: true, calendar_event: calendarRow }), { 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
     });
 
   } catch (error: any) {
     console.error(`[Social Manager] Fatal error:`, error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ error: error.message }), { 
+        status: 500, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
     });
   }
 });

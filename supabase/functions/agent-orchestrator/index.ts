@@ -1,13 +1,62 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { StateGraph, START, END, MemorySaver } from 'npm:@langchain/langgraph';
 
+// Configuration
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Maximum number of jobs to process per orchestrator tick to prevent Edge Function timeout (30s)
+// Batch size limited to 1-3 to avoid total execution timeout, though LangGraph is deterministic.
 const BATCH_SIZE = 3;
+
+// ─────────────────────────────────────────────────────────────
+// STEP 1 — Plan access map
+// ─────────────────────────────────────────────────────────────
+const JOB_PLAN_REQUIREMENTS: Record<string, string> = {
+  run_discovery_sweep: 'starter',
+  build_framework: 'starter',    // Strategist → Phase 1 (Brand Audit)
+  run_news_sweep:  'authority',  // Analyst    → Phase 3 (Content Engine)
+  generate_drafts: 'authority',  // Ghostwriter → Phase 3 (Content Engine)
+  review_draft:    'authority',  // Editor     → Phase 3 (Content Engine)
+  schedule_post:   'authority',  // Social Mgr → Phase 4 (Visibility)
+}
+
+const PLAN_RANK: Record<string, number> = {
+  starter:   1,
+  authority: 2,
+  legacy:    3,
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP 2 — Plan enforcement helper
+// ─────────────────────────────────────────────────────────────
+async function checkJobPlanAccess(
+  supabaseAdmin: any,
+  job: { id: string; job_type: string; user_id: string }
+): Promise<{ allowed: boolean; reason?: string }> {
+  const { data: profile, error } = await supabaseAdmin
+    .from('profiles')
+    .select('plan, plan_status')
+    .eq('id', job.user_id)
+    .single()
+
+  if (error || !profile) return { allowed: false, reason: `profile_not_found: could not read plan for user ${job.user_id}` }
+  if (profile.plan_status === 'past_due') return { allowed: false, reason: 'payment_required: account is past due' }
+
+  const requiredPlan = JOB_PLAN_REQUIREMENTS[job.job_type]
+  if (!requiredPlan) return { allowed: false, reason: `unknown_job_type: '${job.job_type}' is not a recognised job type` }
+
+  const userRank     = PLAN_RANK[profile.plan]     ?? 0
+  const requiredRank = PLAN_RANK[requiredPlan]     ?? 999
+
+  if (userRank < requiredRank) {
+    return { allowed: false, reason: `plan_required: job type '${job.job_type}' requires '${requiredPlan}' plan. User has '${profile.plan}'.` }
+  }
+
+  return { allowed: true }
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -35,67 +84,172 @@ serve(async (req) => {
       });
     }
 
-    // 2. Mark as processing to prevent other cron ticks from double-processing
+    // 2. Lock jobs
     const jobIds = jobs.map(j => j.id);
     await supabase.from('agent_jobs')
       .update({ status: 'processing', locked_at: new Date().toISOString() })
       .in('id', jobIds);
 
-    const results = [];
+    // -------------------------------------------------------------
+    // LANGGRAPH SETUP
+    // -------------------------------------------------------------
+    
+    // Define State schema channels
+    const graphStateChannels = {
+        job_id: { value: (x: any, y: any) => y ?? x, default: () => '' },
+        job_type: { value: (x: any, y: any) => y ?? x, default: () => '' },
+        user_id: { value: (x: any, y: any) => y ?? x, default: () => '' },
+        payload: { value: (x: any, y: any) => y ?? x, default: () => ({}) },
+        results: { value: (x: any[], y: any[]) => x.concat(y || []), default: () => [] },
+        error: { value: (x: any, y: any) => y ?? x, default: () => null }
+    };
 
-    // 3. Dispatch to specific agents sequentially to avoid rate-limiting OpenAI
-    for (const job of jobs) {
-      const { id, job_type, payload } = job;
-      
-      try {
-        let functionName = '';
-        
-        switch (job_type) {
-          case 'build_framework':
-            functionName = 'agent-strategist';
-            break;
-          case 'run_news_sweep':
-            functionName = 'agent-analyst';
-            break;
-          case 'generate_drafts':
-            functionName = 'agent-ghostwriter';
-            break;
-          case 'review_draft':
-            functionName = 'agent-editor';
-            break;
-          case 'schedule_post':
-            functionName = 'agent-social-manager';
-            break;
-          default:
-            throw new Error(`Unknown job_type: ${job_type}`);
-        }
-
-        console.log(`[Orchestrator] Dispatching Job ${id} (${job_type}) to ${functionName}`);
-        
-        // Invoke the specialized Agent Edge Function
-        // We pass the job_id so the agent can log to agent_audit_logs accurately
-        const { data, error: invokeError } = await supabase.functions.invoke(functionName, {
-          body: { job_id: id, ...payload },
+    // Generic Edge Function Invoker
+    const invokeNode = async (functionName: string, state: any) => {
+        console.log(`[LangGraph] Node: executing ${functionName}`);
+        const { data, error } = await supabase.functions.invoke(functionName, {
+            body: { job_id: state.job_id, job_type: state.job_type, user_id: state.user_id, ...state.payload },
         });
 
-        if (invokeError) throw invokeError;
+        if (error) {
+            console.error(`[LangGraph] Node Error (${functionName}):`, error.message);
+            return { error: error.message };
+        }
+        return { results: [{ node: functionName, data }] };
+    };
 
-        // If the Agent succeeds, mark complete
+    // 3. Define Nodes
+    const strategistNode = async (state: any) => await invokeNode('agent-strategist', state);
+    
+    const analystNode = async (state: any) => await invokeNode('agent-analyst', state);
+    
+    // When Shakespeare finishes, Editor needs draft_id in the payload to evaluate it.
+    // However, when piping sequentially, Editor only receives the ORIGINAL payload of the job.
+    // The Editor wrapper extracts draft_id from shakespeare's emitted result to ensure it works.
+    const shakespeareNode = async (state: any) => await invokeNode('agent-shakespeare', state);
+    
+    const aristotleNode = async (state: any) => {
+        const shakeResult = state.results.find((r: any) => r.node === 'agent-shakespeare');
+        if (shakeResult && shakeResult.data?.draft?.id) {
+            state.payload = { ...state.payload, draft_id: shakeResult.data.draft.id };
+        }
+        return await invokeNode('agent-aristotle', state);
+    };
+
+    const socialManagerNode = async (state: any) => {
+        // payload should already have draft_id if it passed the editorNode in sequential loop
+        // If triggered independently, the job payload natively contains draft_id
+        return await invokeNode('agent-social-manager', state);
+    };
+
+    // 4. Define Routing Logic
+    const routeInitialJob = (state: any) => {
+        const typeMap: Record<string, string> = {
+            'run_discovery_sweep': 'analyst',
+            'build_framework': 'strategist',
+            'run_news_sweep': 'analyst',
+            'generate_drafts': 'shakespeare',
+            'review_draft': 'aristotle',
+            'schedule_post': 'social_manager'
+        };
+        return typeMap[state.job_type] || END;
+    };
+
+    const aristotleToSocialManager = (state: any) => {
+        // Only route to the social media manager if aristotle strictly approved the content
+        const aristotleResult = state.results.find((r: any) => r.node === 'agent-aristotle');
+        if (aristotleResult && aristotleResult.data?.verdict === 'approved') {
+            return "social_manager";
+        }
+        return END;
+    };
+
+    // 5. Compile the StateGraph
+    const workflow = new StateGraph({ channels: graphStateChannels })
+        .addNode("strategist", strategistNode)
+        .addNode("analyst", analystNode)
+        .addNode("shakespeare", shakespeareNode)
+        .addNode("aristotle", aristotleNode)
+        .addNode("social_manager", socialManagerNode)
+        
+        // Conditional initial routing
+        .addConditionalEdges(START, routeInitialJob)
+        
+        // Explicit Graph Pipelines
+        .addEdge("strategist", END)
+        .addEdge("analyst", END)
+        
+        // Shakespeare automatically pipes to Aristotle!
+        .addEdge("shakespeare", "aristotle") 
+        
+        // Aristotle evaluates. If passed, pipes to Social Manager! Else dies.
+        .addConditionalEdges("aristotle", aristotleToSocialManager, {
+            "social_manager": "social_manager",
+            [END]: END
+        })
+        .addEdge("social_manager", END);
+
+    const checkpointer = new MemorySaver();
+    const app = workflow.compile({ checkpointer });
+
+    const processedResults = [];
+
+    // -------------------------------------------------------------
+    // EXECUTE GRAPH BATCH
+    // -------------------------------------------------------------
+    
+    for (const job of jobs) {
+      const { id, job_type, payload, user_id } = job;
+      
+      try {
+        console.log(`[Orchestrator] Evaluating Job ${id} (${job_type}) for user ${user_id}...`);
+        
+        // ── PLAN GUARD ──────────────────────────────────────────────
+        const access = await checkJobPlanAccess(supabase, { id, job_type, user_id });
+
+        if (!access.allowed) {
+          await supabase.from('agent_jobs').update({
+            status:     'failed',
+            error_logs: access.reason ?? 'plan_check_failed',
+          }).eq('id', id);
+
+          console.warn(`[Orchestrator] Job ${id} rejected: ${access.reason}`);
+          processedResults.push({ id, status: 'failed', error: access.reason });
+          continue;
+        }
+        // ── END PLAN GUARD ──────────────────────────────────────────
+
+        console.log(`[Orchestrator] Invoking LangGraph for Job ${id}...`);
+        
+        const config = { configurable: { thread_id: id } };
+        
+        const initialState = {
+            job_id: id,
+            job_type,
+            user_id,
+            payload: payload || {}
+        };
+
+        const finalState = await app.invoke(initialState, config);
+
+        if (finalState.error) throw new Error(finalState.error);
+
+        // Success: Status -> Complete
         await supabase.from('agent_jobs').update({ status: 'complete' }).eq('id', id);
-        results.push({ id, status: 'complete' });
+        processedResults.push({ id, status: 'complete', pipeline: finalState.results });
 
       } catch (jobErr: any) {
-        console.error(`[Orchestrator] Job ${id} failed:`, jobErr);
-        // Mark failed so it can be reviewed or retried
+        console.error(`[Orchestrator] Job ${id} failed in LangGraph:`, jobErr);
+        // Mark failed
         await supabase.from('agent_jobs').update({ 
           status: 'failed', 
           error_logs: jobErr.message || JSON.stringify(jobErr) 
         }).eq('id', id);
-        results.push({ id, status: 'failed', error: jobErr.message });
+        processedResults.push({ id, status: 'failed', error: jobErr.message });
       }
     }
 
-    return new Response(JSON.stringify({ processed: results }), { 
+    return new Response(JSON.stringify({ processed: processedResults }), { 
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 200
     });

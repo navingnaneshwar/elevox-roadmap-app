@@ -146,9 +146,9 @@ export default function ApprovalWorkflow() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F8FAFC",
+      background: "rgba(13, 18, 32, 0.8)",
       fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
-      color: "#1E293B",
+      color: "#F1F5F9",
     }}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.04)} }

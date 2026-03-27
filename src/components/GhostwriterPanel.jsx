@@ -4,7 +4,7 @@
 //   import GhostwriterPanel from './GhostwriterPanel'
 //   <GhostwriterPanel onSelectDraft={(body) => handleDraftSelected(body)} onClose={() => setGhostwriterOpen(false)} />
 import { useState } from 'react'
-import { supabase } from '../lib/supabase'
+import { supabase, saveContentDraft } from '../lib/supabase'
 
 const CONTENT_TYPES = [
   { id: 'text',     label: 'Text Post',     icon: 'T' },
@@ -56,7 +56,7 @@ function DraftCard({ draft, index, selected, onSelect }) {
         <button onClick={handleCopy} style={{ padding: '6px 14px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: copied ? '#10b981' : '#64748B', fontSize: '11px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
           {copied ? '✓ Copied' : 'Copy'}
         </button>
-        <button onClick={() => onSelect(draft.body)} style={{ padding: '6px 14px', background: selected ? `${color}20` : 'transparent', border: `1px solid ${selected ? color + '60' : '#1E2A3E'}`, borderRadius: '6px', color: selected ? color : '#64748B', fontSize: '11px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
+        <button onClick={() => onSelect(draft)} style={{ padding: '6px 14px', background: selected ? `${color}20` : 'transparent', border: `1px solid ${selected ? color + '60' : '#1E2A3E'}`, borderRadius: '6px', color: selected ? color : '#64748B', fontSize: '11px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
           {selected ? '✓ Selected' : 'Use this draft'}
         </button>
       </div>
@@ -108,9 +108,25 @@ export default function GhostwriterPanel({ onSelectDraft, onClose, anchorEventId
     }
   }
 
-  function handleSelect(idx, body) {
+  async function handleSelect(idx, draftObj) {
     setSelectedIdx(idx)
-    if (onSelectDraft) onSelectDraft(body)
+    setLoading(true)
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        await saveContentDraft(user.id, {
+          ...draftObj,
+          platform: contentType === 'linkedin_post' ? 'LinkedIn' : 'LinkedIn', // currently hardcoded as LinkedIn
+          framework_id: 'ghostwriter',
+          anchor_event_id: anchorEventId
+        })
+      }
+    } catch (err) {
+      console.error('Failed to save draft to database:', err)
+    } finally {
+      setLoading(false)
+    }
+    if (onSelectDraft) onSelectDraft(draftObj.body)
   }
 
   return (

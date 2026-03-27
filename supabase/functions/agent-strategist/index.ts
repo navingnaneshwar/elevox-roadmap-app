@@ -7,38 +7,76 @@ const corsHeaders = {
 };
 
 // --- SYSTEM PROMPT ---
-const STRATEGIST_SYSTEM_PROMPT = `
-You are CHANAKYA, the Elite Master Architect and Brand Strategy Director.
-Your job is to act as the asynchronous intellectual backbone for a high-ticket CXO client.
-You will read their onboarding profile data and synthesize a world-class, premium 90-day Personal Brand Framework.
+function buildChanakyaSystemPrompt(profile: any) {
+  return `
+You are Chanakya — the executive brand strategist and personal mentor for 
+${profile.full_name}, ${profile.current_title} at ${profile.company}.
 
-You MUST respond strictly in valid JSON matching exactly this structure:
+You operate at the intersection of elite personal branding, executive 
+communication, and market positioning. Your clients are CxOs who have 
+earned their seat at the table and now need the world to know it.
+
+YOUR INPUTS:
+- Onboarding profile: their goals, audience, differentiators, and ambitions
+- LinkedIn snapshot: how they currently show up in the market
+- Resume/bio: their career trajectory and credibility anchors
+
+YOUR TASK — THREE PARTS IN ORDER:
+
+PART 1 — GAP ANALYSIS (internal reasoning)
+Before building anything, answer these silently to shape your output:
+  • How does their LinkedIn headline/about describe them today?
+  • How should it describe them given their goals and seniority?
+  • What credibility anchors in their resume are NOT reflected on LinkedIn?
+  • What are their top 3 competitors in thought leadership doing that they are not?
+  • What is the single biggest missed opportunity in their current online presence?
+
+PART 2 — EXECUTIVE MENTOR MEMO
+Write a 200-250 word memo addressed directly to ${profile.full_name}.
+Tone: warm, direct, confident.
+Structure:
+  - Open: name the most powerful thing found in their background.
+  - Body: the single biggest opportunity for them in the next 90 days.
+  - Uncomfortable Truth: something holding them back they must act on.
+  - Close: what the framework below will unlock.
+
+PART 3 — THE 90-DAY BRAND FRAMEWORK
+Provide specific archetype, voice traits, content pillars, target audiences, platforms, cadence, and rules.
+
+OUTPUT FORMAT:
+You MUST respond strictly in valid JSON matching exactly this structure. No prose outside JSON.
 {
-  "archetype": "A single powerful phrase describing their persona (e.g. 'The Contrarian Visionary', 'The Operator-CEO')",
-  "voice_traits": ["Trait 1", "Trait 2", "Trait 3"],
-  "content_pillars": [
-    { "title": "Pillar 1", "description": "What this pillar is about..." },
-    { "title": "Pillar 2", "description": "..." },
-    { "title": "Pillar 3", "description": "..." }
-  ],
+  "gap_analysis": {
+    "linkedin_current": "...",
+    "linkedin_ideal": "...",
+    "resume_missing": "...",
+    "competitor_analysis": "...",
+    "biggest_opportunity": "..."
+  },
+  "mentor_memo": "200-250 word memo addressed directly to them here",
+  "archetype": "A single powerful phrase (e.g. 'The Contrarian Visionary')",
+  "voice_traits": ["Trait 1", "Trait 2"],
+  "content_pillars": [ { "title": "...", "description": "..." } ],
   "target_audiences": ["Audience 1", "Audience 2"],
-  "social_platforms": [
-    { "platform": "LinkedIn", "purpose": "Primary lead generation", "frequency": "Daily" },
-    { "platform": "X (Twitter)", "purpose": "Industry networking", "frequency": "3x a week" }
-  ],
-  "content_calendar_cadence": [
-    { "day": "Monday", "format": "Long-form Story", "theme": "Leadership" },
-    { "day": "Wednesday", "format": "Contrarian Take", "theme": "Industry Future" },
-    { "day": "Friday", "format": "Listicle/Framework", "theme": "Actionable Advice" }
-  ],
-  "ghostwriting_rules": [
-    "Rule 1 e.g. Never use hashtags inline, only at the end",
-    "Rule 2 e.g. Sentences must be punchy and short. No emojis.",
-    "Rule 3 e.g. Always end with an open-ended question"
+  "social_platforms": [ { "platform": "...", "purpose": "...", "frequency": "..." } ],
+  "content_calendar_cadence": [ { "day": "...", "format": "...", "theme": "..." } ],
+  "ghostwriting_rules": ["Rule 1", "Rule 2"],
+  "mentor_insights": [
+    {
+      "category": "opportunity | risk | quick_win | uncomfortable_truth",
+      "insight": "specific, named, non-generic",
+      "action": "what to do about it",
+      "priority": "high | medium | low"
+    }
   ]
 }
-Do not include any markdown styling like \`\`\`json around your response. Just the raw JSON object. You must deduce the best social platforms and calendar cadence based on their industry and goals.
+
+QUALITY BAR:
+  • "Post more consistently" is not an insight. "Your 2019 IPO story..." is.
+  • The Uncomfortable Truth must name real unvarnished truths.
+  • ghostwriting_rules must be highly opinionated and specific.
 `;
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -46,7 +84,7 @@ serve(async (req) => {
   }
 
   try {
-    const { job_id, user_id } = await req.json();
+    const { job_id, user_id, linkedin, resume, industry, live_signals } = await req.json();
 
     if (!user_id || !job_id) {
       throw new Error('Missing job_id or user_id in payload');
@@ -72,7 +110,7 @@ serve(async (req) => {
 
     // 2. Call OpenAI to generate Framework
     const userPrompt = `
-      CLIENT DOSSIER:
+      CLIENT DOSSIER (SELF-REPORTED):
       Name: ${profile.full_name} | Role: ${profile.current_title} at ${profile.company}
       Industry: ${profile.industry}
       Goals: ${JSON.stringify(profile.primary_goal)}
@@ -85,34 +123,77 @@ serve(async (req) => {
       Communication Style: ${JSON.stringify(profile.communication_style)}
       Never Sound Like: ${profile.never_sound_like}
 
-      Analyze this dossier and build the Brand Framework JSON.
+      ---
+      EMPIRICAL MARKET DATA:
+      LinkedIN Snapshot: ${linkedin ? JSON.stringify(linkedin) : 'Not provided'}
+      Resume / Career History: ${resume ? resume : 'Not provided'}
+      Industry Context: ${industry ? industry : 'Not provided'}
+      Live Industry Signals (This Week): ${live_signals ? live_signals : 'Not provided'}
+      
+      Analyze this dossier. Look for the gap between their self-reported goals and empirical market data to build the authoritative Brand Framework JSON.
     `;
 
-    const openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+    const systemPrompt = buildChanakyaSystemPrompt(profile);
+    const messages: any[] = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+
+    let openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: STRATEGIST_SYSTEM_PROMPT },
-          { role: 'user', content: userPrompt }
-        ],
+        model: 'gpt-4o', // using 4o for superior reasoning vs mini
+        messages: messages,
         response_format: { type: 'json_object' },
         temperature: 0.7,
       }),
     });
 
     if (!openAiResponse.ok) {
-        const errStr = await openAiResponse.text();
-        throw new Error(`OpenAI Error: ${errStr}`);
+        throw new Error(`OpenAI Error: ${await openAiResponse.text()}`);
     }
 
-    const openAiData = await openAiResponse.json();
-    const rawOutput = openAiData.choices[0].message.content;
-    const parsedFramework = JSON.parse(rawOutput);
+    let openAiData = await openAiResponse.json();
+    let rawOutput = openAiData.choices[0].message.content;
+    let parsedFramework = JSON.parse(rawOutput);
+
+    // Validate uncomfortable_truth
+    const hasUncomfortableTruth = parsedFramework.mentor_insights?.some((i: any) => i.category === 'uncomfortable_truth');
+    
+    if (!hasUncomfortableTruth) {
+        console.log(`[Strategist] Missing uncomfortable_truth. Re-invoking OpenAI...`);
+        messages.push({ role: 'assistant', content: rawOutput });
+        messages.push({
+            role: 'user',
+            content: `Your mentor_insights array is missing an 'uncomfortable_truth' entry. This is required. Add one specific, honest observation about what is currently holding ${profile.full_name} back. Do not soften it.`
+        });
+        
+        openAiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${openAiKey}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'gpt-4o',
+            messages: messages,
+            response_format: { type: 'json_object' },
+            temperature: 0.7,
+          }),
+        });
+        
+        if (!openAiResponse.ok) {
+            throw new Error(`OpenAI Retry Error: ${await openAiResponse.text()}`);
+        }
+        
+        openAiData = await openAiResponse.json();
+        rawOutput = openAiData.choices[0].message.content;
+        parsedFramework = JSON.parse(rawOutput);
+    }
 
     // 3. Save to brand_frameworks
     const { data: frameworkRow, error: insertError } = await supabase
@@ -126,6 +207,8 @@ serve(async (req) => {
         social_platforms: parsedFramework.social_platforms,
         content_calendar_cadence: parsedFramework.content_calendar_cadence,
         ghostwriting_rules: parsedFramework.ghostwriting_rules,
+        mentor_memo: parsedFramework.mentor_memo,
+        mentor_insights: parsedFramework.mentor_insights,
         status: 'active'
       })
       .select()
@@ -139,7 +222,7 @@ serve(async (req) => {
         agent_role: 'agent-strategist',
         event_type: 'framework_generated',
         trigger_entity_id: frameworkRow.id,
-        prompt_context: { system: STRATEGIST_SYSTEM_PROMPT, user: userPrompt },
+        prompt_context: { system: systemPrompt, user: userPrompt },
         response_output: rawOutput
     });
 

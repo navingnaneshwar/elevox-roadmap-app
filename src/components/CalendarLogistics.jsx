@@ -126,9 +126,9 @@ export default function CalendarLogistics() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F8FAFC",
+      background: "#070B14",
       fontFamily: "'Georgia', 'Times New Roman', serif",
-      color: "#0F172A",
+      color: "#F1F5F9",
       position: "relative",
       overflow: "hidden"
     }}>
@@ -149,17 +149,17 @@ export default function CalendarLogistics() {
         {/* Header */}
         <div style={{
           padding: "36px 48px 28px",
-          borderBottom: "1px solid #E2E8F0",
+          borderBottom: "1px solid #1E2A3E",
           display: "flex", justifyContent: "space-between", alignItems: "flex-end"
         }}>
           <div>
             <div style={{ fontSize: "9px", letterSpacing: "5px", color: accent, marginBottom: "8px", transition: "color 0.4s", fontFamily: "monospace" }}>
               ELEVOX — SECTION 06
             </div>
-            <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "400", letterSpacing: "-0.5px", color: "#0F172A" }}>
+            <h1 style={{ margin: 0, fontSize: "28px", fontWeight: "400", letterSpacing: "-0.5px", color: "#F1F5F9" }}>
               Calendar & Logistics
             </h1>
-            <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#64748B", fontStyle: "italic" }}>
+            <p style={{ margin: "6px 0 0", fontSize: "13px", color: "#94A3B8", fontStyle: "italic" }}>
               Where your brand meets the real world — configure your operating rhythm
             </p>
           </div>
@@ -179,8 +179,8 @@ export default function CalendarLogistics() {
 
         {/* Tab nav */}
         <div style={{
-          display: "flex", borderBottom: "1px solid #E2E8F0",
-          padding: "0 48px", background: "#FFFFFF"
+          display: "flex", borderBottom: "1px solid #1E2A3E",
+          padding: "0 48px", background: "#070B14"
         }}>
           {TABS.map(t => (
             <button key={t} onClick={() => setActiveTab(t)} style={{
@@ -209,9 +209,9 @@ export default function CalendarLogistics() {
                     <button key={f.id} onClick={() => { setPostingFreq(f.id); setActiveDays([...f.days]); }}
                       style={{
                         padding: "14px 18px", textAlign: "center",
-                        background: postingFreq === f.id ? "#4ECDC4" : "#F8FAFC",
-                        border: `1px solid ${postingFreq === f.id ? "#4ECDC4" : "#E2E8F0"}`,
-                        color: postingFreq === f.id ? "#F8FAFC" : "#64748B",
+                        background: postingFreq === f.id ? "#4ECDC4" : "rgba(13, 18, 32, 0.8)",
+                        border: `1px solid ${postingFreq === f.id ? "#4ECDC4" : "#1E2A3E"}`,
+                        color: postingFreq === f.id ? "#070B14" : "#94A3B8",
                         cursor: "pointer", fontFamily: "'Georgia', serif", transition: "all 0.15s",
                         minWidth: "60px"
                       }}>
@@ -231,9 +231,9 @@ export default function CalendarLogistics() {
                     return (
                       <button key={d} onClick={() => toggleDay(i)} style={{
                         width: "52px", height: "52px",
-                        background: isActive ? "#4ECDC4" : "#F8FAFC",
-                        border: `1px solid ${isActive ? "#4ECDC4" : isWeekend ? "#E2E8F0" : "#E2E8F0"}`,
-                        color: isActive ? "#F8FAFC" : isWeekend ? "#94A3B8" : "#64748B",
+                        background: isActive ? "#4ECDC4" : "rgba(13, 18, 32, 0.8)",
+                        border: `1px solid ${isActive ? "#4ECDC4" : isWeekend ? "#1E2A3E" : "#1E2A3E"}`,
+                        color: isActive ? "#070B14" : isWeekend ? "#334155" : "#94A3B8",
                         cursor: "pointer", fontSize: "11px", fontFamily: "monospace",
                         letterSpacing: "0.5px", transition: "all 0.15s"
                       }}>{d}</button>
@@ -249,9 +249,9 @@ export default function CalendarLogistics() {
                   {TIME_SLOTS.map(t => (
                     <button key={t.id} onClick={() => setWeeklyTime(t.id)} style={{
                       padding: "13px 18px", textAlign: "left",
-                      background: weeklyTime === t.id ? t.color + "18" : "#F8FAFC",
-                      border: `1px solid ${weeklyTime === t.id ? t.color : "#E2E8F0"}`,
-                      color: weeklyTime === t.id ? t.color : "#64748B",
+                      background: weeklyTime === t.id ? t.color + "18" : "rgba(13, 18, 32, 0.8)",
+                      border: `1px solid ${weeklyTime === t.id ? t.color : "#1E2A3E"}`,
+                      color: weeklyTime === t.id ? t.color : "#94A3B8",
                       cursor: "pointer", fontFamily: "monospace", fontSize: "12px",
                       display: "flex", justifyContent: "space-between", alignItems: "center",
                       transition: "all 0.15s"
@@ -270,8 +270,8 @@ export default function CalendarLogistics() {
                     {GHOST_LEVELS.map(g => (
                       <button key={g.id} onClick={() => setGhostLevel(g.id)} style={{
                         width: "100%", padding: "14px 18px", marginBottom: "8px",
-                        background: ghostLevel === g.id ? "#A8E6CF18" : "#F8FAFC",
-                        border: `1px solid ${ghostLevel === g.id ? "#A8E6CF" : "#E2E8F0"}`,
+                        background: ghostLevel === g.id ? "#A8E6CF18" : "rgba(13, 18, 32, 0.8)",
+                        border: `1px solid ${ghostLevel === g.id ? "#A8E6CF" : "#1E2A3E"}`,
                         color: ghostLevel === g.id ? "#A8E6CF" : "#64748B",
                         cursor: "pointer", fontFamily: "monospace", fontSize: "12px",
                         display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -294,7 +294,7 @@ export default function CalendarLogistics() {
               {/* Right: monthly preview + AI Ghostwriter */}
               <div style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
                 {/* Monthly preview card */}
-                <div style={{ padding: "24px", background: "#F8FAFC", border: "1px solid #E2E8F0" }}>
+                <div style={{ padding: "24px", background: "rgba(13, 18, 32, 0.8)", border: "1px solid #1E2A3E" }}>
                   <div style={{ fontSize: "9px", letterSpacing: "4px", color: "#64748B", marginBottom: "18px", fontFamily: "monospace" }}>
                     YOUR MONTHLY RHYTHM — PREVIEW
                   </div>
@@ -305,7 +305,7 @@ export default function CalendarLogistics() {
                     ["Writing involvement", `${currentGhost?.pct}% — ${currentGhost?.label}`],
                     ["Content needed/week", `${currentFreq?.days.length || 3} pieces`],
                   ].map(([k, v]) => (
-                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #E2E8F0" }}>
+                    <div key={k} style={{ display: "flex", justifyContent: "space-between", padding: "10px 0", borderBottom: "1px solid #1E2A3E" }}>
                       <span style={{ fontSize: "11px", color: "#64748B", fontFamily: "monospace" }}>{k}</span>
                       <span style={{ fontSize: "12px", color: "#4ECDC4", fontFamily: "monospace", textAlign: "right" }}>{v}</span>
                     </div>
@@ -356,7 +356,7 @@ export default function CalendarLogistics() {
             </div>
 
             {/* Blackout weeks */}
-            <div style={{ marginTop: "40px", paddingTop: "40px", borderTop: "1px solid #E2E8F0" }}>
+            <div style={{ marginTop: "40px", paddingTop: "40px", borderTop: "1px solid #1E2A3E" }}>
               <div style={{ fontSize: "9px", letterSpacing: "4px", color: "#64748B", marginBottom: "8px", fontFamily: "monospace" }}>
                 BLACKOUT WEEKS — click to mark weeks you cannot post
               </div>
@@ -369,8 +369,8 @@ export default function CalendarLogistics() {
                   return (
                     <button key={key} onClick={() => toggleBlackout(key)} style={{
                       padding: "8px 14px",
-                      background: isOut ? "#FF8B9422" : "#F8FAFC",
-                      border: `1px solid ${isOut ? "#FF8B94" : "#E2E8F0"}`,
+                      background: isOut ? "#FF8B9422" : "rgba(13, 18, 32, 0.8)",
+                      border: `1px solid ${isOut ? "#FF8B94" : "#1E2A3E"}`,
                       color: isOut ? "#FF8B94" : "#94A3B8",
                       fontSize: "11px", fontFamily: "monospace",
                       cursor: "pointer", transition: "all 0.15s",
