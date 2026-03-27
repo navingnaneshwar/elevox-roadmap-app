@@ -1,7 +1,7 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts'
 
-// The user rotated to OpenAI due to Anthropic credit limits.
-const OPENAI_API_KEY = Deno.env.get('OPENAI_API_KEY')!
+// Migrated to Anthropic Claude
+const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY')!
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -42,30 +42,30 @@ REQUIRED SCHEMA (JSON only):
   "associations": "Prestigious universities, companies, or organizations they are associated with."
 }`
 
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${OPENAI_API_KEY}`,
+        'x-api-key':         ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
+        'content-type':      'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        response_format: { type: "json_object" },
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: safeText }
-        ],
+        model:      'claude-sonnet-4-20250514',
+        max_tokens: 2000,
+        system:     systemPrompt,
+        messages:   [{ role: 'user', content: safeText }],
       }),
     })
 
     if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`OpenAI API error: ${errorText}`);
+        throw new Error(`Anthropic API error: ${errorText}`);
     }
 
     const data = await res.json()
-    const raw = data.choices[0]?.message?.content || '{}'
-    const parsedData = JSON.parse(raw)
+    const raw = data.content[0].text
+    const rawCleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+    const parsedData = JSON.parse(rawCleaned)
 
     // Append the linkedin URL if it was provided
     if (url) {
