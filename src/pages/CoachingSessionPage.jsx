@@ -202,7 +202,11 @@ function Message({ msg, isLatest, isPlaying }) {
           fontFamily: "'Inter', sans-serif",
           whiteSpace: 'pre-wrap',
         }}>
-          {msg.content}
+          {typeof msg.content === 'string'
+            ? msg.content
+            : typeof msg.content === 'object' && msg.content?.reply
+              ? msg.content.reply
+              : JSON.stringify(msg.content)}
         </div>
       </div>
     </div>
