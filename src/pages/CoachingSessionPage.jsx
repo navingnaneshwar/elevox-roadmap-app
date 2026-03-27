@@ -458,9 +458,13 @@ export default function CoachingSessionPage() {
       let body = {}
       try { body = JSON.parse(rawText) } catch { /* not JSON */ }
 
-      // OpenAI billing / quota error
+      // Billing / quota error
       if (res.status === 402 || body.error === 'billing') {
-        return "⚠️ The AI mentor is temporarily unavailable. Please try again in a moment."
+        return { reply: "⚠️ The AI mentor is temporarily unavailable due to a billing issue. Please try again later.", auto_complete: false }
+      }
+      // Anthropic overloaded — retried server-side, still failed
+      if (res.status === 503 || body.error === 'overloaded') {
+        return { reply: "⚠️ Vox is experiencing high demand right now. Please dismiss and try again in a moment.", auto_complete: false }
       }
       // Plan gate errors — surface upgrade CTA instead of crashing
       if (res.status === 403) {
@@ -474,6 +478,7 @@ export default function CoachingSessionPage() {
         }
       }
       throw new Error(`AI error (${res.status}): ${rawText}`)
+
     }
 
     const json = await res.json()

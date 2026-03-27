@@ -243,6 +243,8 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
           errText.includes('quota') || errText.includes('credit') ||
           errText.includes('exceeded') || errText.includes('billing')
         if (isBillingError) throw new Error('BILLING_ERROR')
+        const isOverloaded = errText.includes('overloaded_error') || errText.includes('Overloaded')
+        if (isOverloaded) throw new Error('OVERLOADED_ERROR')
         throw new Error(`Anthropic error: ${errText}`)
       }
       return await res.json()
@@ -258,7 +260,20 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
-      throw e
+      if (e.message === 'OVERLOADED_ERROR') {
+        // Retry once after 2s before giving up
+        await new Promise(r => setTimeout(r, 2000))
+        try {
+          anthropicData = await callAnthropic(messages)
+        } catch (retryErr: any) {
+          return new Response(
+            JSON.stringify({ error: 'overloaded', reply: null }),
+            { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          )
+        }
+      } else {
+        throw e
+      }
     }
 
     // ── 7. Handle Tool Use (Agentic Loop) ─────────────────
