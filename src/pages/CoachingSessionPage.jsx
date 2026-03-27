@@ -202,7 +202,11 @@ function Message({ msg, isLatest, isPlaying }) {
           fontFamily: "'Inter', sans-serif",
           whiteSpace: 'pre-wrap',
         }}>
-          {msg.content}
+          {typeof msg.content === 'string'
+            ? msg.content
+            : typeof msg.content === 'object' && msg.content?.reply
+              ? msg.content.reply
+              : JSON.stringify(msg.content)}
         </div>
       </div>
     </div>
@@ -339,7 +343,10 @@ export default function CoachingSessionPage() {
         },
         body: JSON.stringify({ text })
       })
+      // TTS unavailable (no key configured) — degrade silently, coaching continues
+      if (res.status === 503) return
       if (!res.ok) throw new Error('Failed to fetch TTS audio')
+
 
       const blob = await res.blob()
       const url = URL.createObjectURL(blob)
@@ -367,7 +374,9 @@ export default function CoachingSessionPage() {
     setThinking(true)
     try {
       // Pass a special opener message so the AI introduces the session
-      const aiReply = await callMentorAPI(meta.component.prompt, [], '__start__')
+      const mentorRes = await callMentorAPI(meta.component.prompt, [], '__start__')
+      if (mentorRes === null) return
+      const { reply: aiReply } = mentorRes
       const initial = [{ role: 'assistant', content: aiReply, ts: Date.now() }]
       setMessages(initial)
       await persist(initial)
@@ -378,6 +387,7 @@ export default function CoachingSessionPage() {
       setThinking(false)
     }
   }
+
 
   async function handleMarkComplete() {
     if (!sessionId || !user) return
@@ -455,9 +465,13 @@ export default function CoachingSessionPage() {
       let body = {}
       try { body = JSON.parse(rawText) } catch { /* not JSON */ }
 
-      // OpenAI billing / quota error
+      // Billing / quota error
       if (res.status === 402 || body.error === 'billing') {
-        return "⚠️ The AI mentor is temporarily unavailable. Please try again in a moment."
+        return { reply: "⚠️ The AI mentor is temporarily unavailable due to a billing issue. Please try again later.", auto_complete: false }
+      }
+      // Anthropic overloaded — retried server-side, still failed
+      if (res.status === 503 || body.error === 'overloaded') {
+        return { reply: "⚠️ Vox is experiencing high demand right now. Please dismiss and try again in a moment.", auto_complete: false }
       }
       // Plan gate errors — surface upgrade CTA instead of crashing
       if (res.status === 403) {
@@ -471,6 +485,7 @@ export default function CoachingSessionPage() {
         }
       }
       throw new Error(`AI error (${res.status}): ${rawText}`)
+
     }
 
     const json = await res.json()
