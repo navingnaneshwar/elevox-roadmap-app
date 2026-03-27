@@ -1,7 +1,16 @@
 // src/App.jsx — React Router root. All routes defined here.
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+
+// Smart root redirect — checks auth + onboarding state
+function RootRedirect() {
+  const { user, profile, loading } = useAuth()
+  if (loading) return null  // show nothing while session loads
+  if (!user)   return <Navigate to="/login" replace />
+  if (profile && !profile.onboarding_complete) return <Navigate to="/onboarding" replace />
+  return <Navigate to="/dashboard" replace />
+}
 
 // Public pages
 import LoginPage        from './pages/LoginPage'
@@ -15,6 +24,8 @@ import ProfilePage     from './pages/ProfilePage'
 import BrandBriefPage       from './pages/BrandBriefPage'
 import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
+import ApprovalPage    from './pages/ApprovalPage'
+import SubmitPostPage  from './pages/SubmitPostPage'
 
 import Roadmap           from './components/Roadmap'
 import ContentCalendar     from './components/ContentCalendar'
@@ -66,13 +77,22 @@ export default function App() {
             <ProtectedRoute><BillingPage /></ProtectedRoute>
           } />
 
+          <Route path="/approvals" element={
+            <ProtectedRoute><ApprovalPage /></ProtectedRoute>
+          } />
+
+          <Route path="/submit-post" element={
+            <ProtectedRoute><SubmitPostPage /></ProtectedRoute>
+          } />
+
           <Route path="/website" element={
             <ProtectedRoute><LandingPage /></ProtectedRoute>
           } />
 
-          {/* Root → dashboard (ProtectedRoute redirects to /login if needed) */}
-          <Route path="/"  element={<Navigate to="/dashboard" replace />} />
-          <Route path="*"  element={<Navigate to="/dashboard" replace />} />
+          {/* Root — smart redirect based on auth + onboarding state */}
+          <Route path="/"  element={<RootRedirect />} />
+          <Route path="*"  element={<RootRedirect />} />
+
 
         </Routes>
       </AuthProvider>

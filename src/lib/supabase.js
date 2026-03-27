@@ -131,3 +131,90 @@ export async function saveContentDraft(userId, draftData) {
     briefing_id: draftData.anchor_event_id || null
   }).select().single()
 }
+
+// ── Sprint 4: Human Approval Queue ────────────────────────────
+
+export async function getPendingApprovals(userId) {
+  return supabase
+    .from('content_drafts')
+    .select('*, brand_frameworks(archetype, voice_traits, content_pillars)')
+    .eq('user_id', userId)
+    .eq('approved_for_publish', true)
+    .is('human_approved_at', null)
+    .is('human_rejected_at', null)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+}
+
+export async function approveContentDraft(draftId, userId, editedBody = null) {
+  const updates = {
+    human_approved_at: new Date().toISOString(),
+    human_approved_by: userId,
+    status: 'human_approved',
+  }
+  if (editedBody !== null) updates.body_text = editedBody
+  return supabase.from('content_drafts').update(updates).eq('id', draftId)
+}
+
+export async function rejectContentDraft(draftId, note) {
+  return supabase.from('content_drafts').update({
+    human_rejected_at: new Date().toISOString(),
+    rejection_note: note,
+    status: 'rejected',
+  }).eq('id', draftId)
+}
+
+export async function saveEditToDraft(draftId, bodyText) {
+  return supabase.from('content_drafts').update({ body_text: bodyText }).eq('id', draftId)
+}
+
+// ── Sprint 4: Coaching Alerts ───────────────────────────────
+
+export async function getPendingCoachingAlerts(userId) {
+  return supabase
+    .from('coaching_alerts')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+}
+
+export async function acknowledgeCoachingAlert(alertId) {
+  return supabase.from('coaching_alerts').update({ status: 'acknowledged' }).eq('id', alertId)
+}
+
+// ── Sprint 4: Voice Examples (voice learning) ────────────────
+
+export async function getVoiceExamples(userId, limit = 5) {
+  return supabase
+    .from('voice_examples')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+}
+
+export async function saveVoiceExample(userId, { source, originalText, finalText, editDelta, contentPillar }) {
+  return supabase.from('voice_examples').insert({
+    user_id:       userId,
+    source,
+    original_text: originalText ?? null,
+    final_text:    finalText,
+    edit_delta:    editDelta ?? null,
+    content_pillar: contentPillar ?? null,
+  }).select().single()
+}
+
+// ── Sprint 4: User-submitted drafts ─────────────────────────
+
+export async function saveUserSubmittedDraft(userId, { bodyText, frameworkId }) {
+  return supabase.from('content_drafts').insert({
+    user_id:     userId,
+    body_text:   bodyText,
+    status:      'user_submitted',
+    source:      'user_submitted',
+    framework_id: frameworkId ?? null,
+    platform:    'linkedin',
+  }).select().single()
+}
+
