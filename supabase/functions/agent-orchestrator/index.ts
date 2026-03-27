@@ -63,6 +63,9 @@ serve(async (req) => {
           case 'review_draft':
             functionName = 'agent-editor';
             break;
+          case 'schedule_post':
+            functionName = 'agent-social-manager';
+            break;
           default:
             throw new Error(`Unknown job_type: ${job_type}`);
         }
