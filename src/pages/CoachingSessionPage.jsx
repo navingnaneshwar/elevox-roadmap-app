@@ -380,7 +380,7 @@ export default function CoachingSessionPage() {
       const initial = [{ role: 'assistant', content: aiReply, ts: Date.now() }]
       setMessages(initial)
       await persist(initial)
-      playAudioForText(aiReply)
+      // playAudioForText(aiReply) — TTS disabled
     } catch (err) {
       setError(err.message)
     } finally {
@@ -425,7 +425,7 @@ export default function CoachingSessionPage() {
         // Update DB to active
         await supabase.from('mentor_sessions').update({ status: 'active' }).eq('id', sessionId)
       }
-      playAudioForText(aiReply)
+      // playAudioForText(aiReply) — TTS disabled
     } catch (err) {
       setError(err.message)
       setSessionStatus('completed') // revert if failed
@@ -540,7 +540,7 @@ export default function CoachingSessionPage() {
         setSessionStatus('completed')
         await supabase.from('mentor_sessions').update({ status: 'completed' }).eq('id', sessionId)
       }
-      playAudioForText(aiReply)
+      // playAudioForText(aiReply) — TTS disabled
     } catch (err) {
       setError(err.message)
     } finally {
