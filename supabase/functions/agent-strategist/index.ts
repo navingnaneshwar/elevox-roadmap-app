@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // --- SYSTEM PROMPT ---
-function buildChanakyaSystemPrompt(profile: any) {
+function buildChanakyaSystemPrompt(profile: any, hasVerifiedFacts = false) {
   return `
 You are Chanakya — the executive brand strategist and personal mentor for 
 ${profile.full_name}, ${profile.current_title} at ${profile.company}.
@@ -19,7 +19,8 @@ earned their seat at the table and now need the world to know it.
 YOUR INPUTS:
 - Onboarding profile: their goals, audience, differentiators, and ambitions
 - LinkedIn snapshot: how they currently show up in the market
-- Resume/bio: their career trajectory and credibility anchors
+- Resume/bio: their career trajectory and credibility anchors${hasVerifiedFacts ? `
+- VERIFIED CAREER FACTS: direct answers collected from the executive — treat these as ground truth, highest priority` : ''}
 
 YOUR TASK — THREE PARTS IN ORDER:
 
@@ -42,6 +43,7 @@ Structure:
 
 PART 3 — THE 90-DAY BRAND FRAMEWORK
 Provide specific archetype, voice traits, content pillars, target audiences, platforms, cadence, and rules.
+If VERIFIED CAREER FACTS are provided, use them verbatim as the primary credibility anchors — do not generalise or paraphrase them.
 
 OUTPUT FORMAT:
 You MUST respond strictly in valid JSON matching exactly this structure. No prose outside JSON.
@@ -68,6 +70,32 @@ You MUST respond strictly in valid JSON matching exactly this structure. No pros
       "action": "what to do about it",
       "priority": "high | medium | low"
     }
+  ],
+  "verified_career_anchors": [
+    "Verbatim specific result or decision from their own words — quote them faithfully"
+  ],
+  "audience_personas": [
+    {
+      "name": "Short label e.g. 'The Overwhelmed CDO'",
+      "pain": "What keeps them up at night",
+      "why_you": "Why this executive is the right person to speak to this pain"
+    }
+  ],
+  "platform_strategy": [
+    {
+      "platform": "LinkedIn",
+      "role": "Primary authority channel",
+      "content_types": ["Insight posts", "Career stories"],
+      "weekly_target": 3
+    }
+  ],
+  "community_map": [
+    {
+      "type": "Comment | DM | Newsletter | Event",
+      "target": "Who to engage with",
+      "action": "Specific engagement action",
+      "frequency": "Daily | Weekly | Monthly"
+    }
   ]
 }
 
@@ -75,6 +103,7 @@ QUALITY BAR:
   • "Post more consistently" is not an insight. "Your 2019 IPO story..." is.
   • The Uncomfortable Truth must name real unvarnished truths.
   • ghostwriting_rules must be highly opinionated and specific.
+  • verified_career_anchors must quote the executive's own words — not paraphrased generalities.
 `;
 }
 
@@ -235,7 +264,7 @@ Return ONLY valid JSON:
         { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
       );
     }
-    // ── Stage 2: build_framework (existing Chanakya logic) ────────────────
+    // ── Stage 2: build_framework ─────────────────────────────────────────
     console.log(`[Strategist] Starting build_framework job ${job_id} for user ${user_id}`);
 
     // 1. Fetch Profile Data
@@ -249,7 +278,56 @@ Return ONLY valid JSON:
       throw new Error(`Failed to fetch profile: ${profileError?.message}`);
     }
 
-    // 2. Call OpenAI to generate Framework
+    // S5-05 Step A: Fetch clarification session answers if session_id provided
+    let verifiedFactsBlock = '';
+    let clarificationSessionId: string | null = session_id ?? null;
+
+    if (clarificationSessionId) {
+      console.log(`[Strategist] Fetching clarification session ${clarificationSessionId}`);
+      const { data: clarSession } = await supabase
+        .from('clarification_sessions')
+        .select('questions, answers, extracted_anchors')
+        .eq('id', clarificationSessionId)
+        .eq('user_id', user_id)
+        .single();
+
+      if (clarSession?.answers && Object.keys(clarSession.answers).length > 0) {
+        // S5-05 Step B: Map answers back to questions for context
+        const questions: any[] = clarSession.questions ?? [];
+        const answers: Record<string, string> = clarSession.answers ?? {};
+
+        const factLines = questions
+          .filter((q: any) => answers[q.id]?.trim())
+          .map((q: any) => {
+            const categoryLabel: Record<string, string> = {
+              career_anchors:      'CAREER ANCHOR',
+              contrarian_view:     'CONTRARIAN POSITION',
+              audience_definition: 'PRIMARY AUDIENCE',
+              platform_strategy:   'PLATFORM APPROACH',
+              voice_tone:          'VOICE & TONE',
+              mission_legacy:      'MISSION & LEGACY',
+            };
+            const label = categoryLabel[q.category] ?? q.category.toUpperCase();
+            return `[${label}] Q: ${q.question}\n  A: "${answers[q.id].trim()}"`;
+          });
+
+        if (factLines.length > 0) {
+          verifiedFactsBlock = `
+---
+VERIFIED CAREER FACTS (collected directly from ${profile.full_name} — treat as ground truth, highest priority over self-reported profile):
+
+${factLines.join('\n\n')}
+---`;
+          console.log(`[Strategist] Injecting ${factLines.length} verified facts into framework prompt`);
+        }
+      } else {
+        console.log(`[Strategist] No answers found in session ${clarificationSessionId} — building from profile only`);
+      }
+    }
+
+    const hasVerifiedFacts = verifiedFactsBlock.length > 0;
+
+    // S5-05 Step C: Build enriched user dossier
     const userPrompt = `
       CLIENT DOSSIER (SELF-REPORTED):
       Name: ${profile.full_name} | Role: ${profile.current_title} at ${profile.company}
@@ -266,15 +344,18 @@ Return ONLY valid JSON:
 
       ---
       EMPIRICAL MARKET DATA:
-      LinkedIN Snapshot: ${linkedin ? JSON.stringify(linkedin) : 'Not provided'}
+      LinkedIn Snapshot: ${linkedin ? JSON.stringify(linkedin) : 'Not provided'}
       Resume / Career History: ${resume ? resume : 'Not provided'}
       Industry Context: ${industry ? industry : 'Not provided'}
       Live Industry Signals (This Week): ${live_signals ? live_signals : 'Not provided'}
-      
-      Analyze this dossier. Look for the gap between their self-reported goals and empirical market data to build the authoritative Brand Framework JSON.
+      ${verifiedFactsBlock}
+
+      Analyze this dossier. Prioritise VERIFIED CAREER FACTS over self-reported data where they conflict.
+      Build the authoritative Brand Framework JSON — use the exec's own words in verified_career_anchors.
     `;
 
-    const systemPrompt = buildChanakyaSystemPrompt(profile);
+    // S5-05 Step D: Pass hasVerifiedFacts to expand the JSON schema
+    const systemPrompt = buildChanakyaSystemPrompt(profile, hasVerifiedFacts);
     const messages: any[] = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt }
@@ -339,26 +420,40 @@ Return ONLY valid JSON:
         parsedFramework = JSON.parse(rawCleaned);
     }
 
-    // 3. Save to brand_frameworks
+    // S5-05 Step E: Save to brand_frameworks — include sprint5 columns
     const { data: frameworkRow, error: insertError } = await supabase
       .from('brand_frameworks')
       .insert({
-        user_id: user_id,
-        archetype: parsedFramework.archetype,
-        voice_traits: parsedFramework.voice_traits,
-        content_pillars: parsedFramework.content_pillars,
-        target_audiences: parsedFramework.target_audiences,
-        social_platforms: parsedFramework.social_platforms,
+        user_id:                  user_id,
+        archetype:                parsedFramework.archetype,
+        voice_traits:             parsedFramework.voice_traits,
+        content_pillars:          parsedFramework.content_pillars,
+        target_audiences:         parsedFramework.target_audiences,
+        social_platforms:         parsedFramework.social_platforms,
         content_calendar_cadence: parsedFramework.content_calendar_cadence,
-        ghostwriting_rules: parsedFramework.ghostwriting_rules,
-        mentor_memo: parsedFramework.mentor_memo,
-        mentor_insights: parsedFramework.mentor_insights,
-        status: 'active'
+        ghostwriting_rules:       parsedFramework.ghostwriting_rules,
+        mentor_memo:              parsedFramework.mentor_memo,
+        mentor_insights:          parsedFramework.mentor_insights,
+        status:                   'active',
+        // Sprint 5 — clarification-derived fields
+        verified_career_anchors:  parsedFramework.verified_career_anchors  ?? [],
+        audience_personas:        parsedFramework.audience_personas        ?? [],
+        platform_strategy:        parsedFramework.platform_strategy        ?? [],
+        community_map:            parsedFramework.community_map            ?? [],
       })
       .select()
       .single();
 
     if (insertError) throw insertError;
+
+    // S5-05 Step F: Mark clarification session as used
+    if (clarificationSessionId) {
+      await supabase
+        .from('clarification_sessions')
+        .update({ status: 'used', ready_for_framework: true, updated_at: new Date().toISOString() })
+        .eq('id', clarificationSessionId);
+      console.log(`[Strategist] Marked clarification session ${clarificationSessionId} as used`);
+    }
 
     // 4. Trace the action in agent_audit_logs
     await supabase.from('agent_audit_logs').insert({
