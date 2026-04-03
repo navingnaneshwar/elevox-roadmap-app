@@ -173,7 +173,7 @@ function Message({ msg, isLatest, isPlaying }) {
           width: '44px', height: '44px', borderRadius: '50%',
           background: '#1E293B', border: '1px solid rgba(255,255,255,0.1)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: '12px', flexShrink: 0, color: '#94A3B8', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
+          fontSize: '14px', flexShrink: 0, color: '#94A3B8', fontWeight: '700', fontFamily: "'Outfit', sans-serif"
         }}>
           ME
         </div>
@@ -184,7 +184,7 @@ function Message({ msg, isLatest, isPlaying }) {
       <div style={{ maxWidth: '85%' }}>
         {/* Name Label */}
         <div style={{
-          fontSize: '13px', fontWeight: '600', color: isUser ? '#64748B' : '#8B6DAA',
+          fontSize: '15px', fontWeight: '600', color: isUser ? '#64748B' : '#8B6DAA',
           marginBottom: '6px', textAlign: isUser ? 'right' : 'left',
           letterSpacing: '0.5px'
         }}>
@@ -199,7 +199,7 @@ function Message({ msg, isLatest, isPlaying }) {
             : 'rgba(13,18,32,0.8)',
           border: `1px solid ${isUser ? 'rgba(99,102,241,0.3)' : '#1E2A3E'}`,
           borderRadius: isUser ? '16px 16px 4px 16px' : '16px 16px 16px 4px',
-          fontSize: '14px',
+          fontSize: '16px',
           color: '#F1F5F9',
           lineHeight: '1.7',
           fontFamily: "'Inter', sans-serif",
@@ -623,7 +623,7 @@ export default function CoachingSessionPage() {
         <div style={{ textAlign: 'center', color: '#64748B' }}>
           <div style={{ fontSize: '32px', marginBottom: '12px' }}>◈</div>
           <p>Session not found.</p>
-          <Link to="/dashboard" style={{ color: '#6366f1', fontSize: '13px' }}>← Back to Dashboard</Link>
+          <Link to="/dashboard" style={{ color: '#6366f1', fontSize: '15px' }}>← Back to Dashboard</Link>
         </div>
       </div>
     )
@@ -660,11 +660,11 @@ export default function CoachingSessionPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Logo size="sm" theme="dark" />
           <span style={{ width: '1px', height: '14px', background: '#1E2A3E' }} />
-          <Link to="/dashboard" style={{ fontSize: '13px', color: '#334155', textDecoration: 'none' }}>Dashboard</Link>
-          <span style={{ color: '#1E2A3E', fontSize: '12px' }}>›</span>
-          <span style={{ fontSize: '12px', color: phase.color }}>{phase.title}</span>
-          <span style={{ color: '#1E2A3E', fontSize: '12px' }}>›</span>
-          <span style={{ fontSize: '12px', color: '#94A3B8' }}>{component.title}</span>
+          <Link to="/dashboard" style={{ fontSize: '15px', color: '#334155', textDecoration: 'none' }}>Dashboard</Link>
+          <span style={{ color: '#1E2A3E', fontSize: '14px' }}>›</span>
+          <span style={{ fontSize: '14px', color: phase.color }}>{phase.title}</span>
+          <span style={{ color: '#1E2A3E', fontSize: '14px' }}>›</span>
+          <span style={{ fontSize: '14px', color: '#94A3B8' }}>{component.title}</span>
         </div>
 
         {/* Global Controls */}
@@ -675,7 +675,7 @@ export default function CoachingSessionPage() {
               disabled={thinking}
               style={{
                 padding: '6px 14px', background: 'rgba(74, 158, 122, 0.15)', border: '1px solid rgba(74, 158, 122, 0.4)',
-                borderRadius: '6px', color: '#4A9E7A', fontSize: '11px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Inter', sans-serif"
+                borderRadius: '6px', color: '#4A9E7A', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Inter', sans-serif"
               }}
             >
               ✓ Mark as Complete
@@ -687,15 +687,15 @@ export default function CoachingSessionPage() {
             <button
               onClick={() => prevComp !== null && navigate(`/coach/${phaseId}/${prevComp}`)}
               disabled={prevComp === null}
-              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: prevComp !== null ? '#64748B' : '#1E2A3E', fontSize: '12px', cursor: prevComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: prevComp !== null ? '#64748B' : '#1E2A3E', fontSize: '14px', cursor: prevComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
             >← Prev</button>
-            <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
+            <span style={{ fontSize: '13px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
               {compIdx + 1}/{totalComponents}
             </span>
             <button
               onClick={() => nextComp !== null && navigate(`/coach/${phaseId}/${nextComp}`)}
               disabled={nextComp === null}
-              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: nextComp !== null ? '#64748B' : '#1E2A3E', fontSize: '12px', cursor: nextComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: nextComp !== null ? '#64748B' : '#1E2A3E', fontSize: '14px', cursor: nextComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
             >Next →</button>
           </div>
         </div>
@@ -716,14 +716,14 @@ export default function CoachingSessionPage() {
               width: '28px', height: '28px', borderRadius: '50%',
               background: `${phase.color}20`, border: `1px solid ${phase.color}40`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '13px', color: phase.color,
+              fontSize: '15px', color: phase.color,
             }}>{phase.icon}</div>
-            <span style={{ fontSize: '11px', color: phase.color, letterSpacing: '2px', fontWeight: '600' }}>PHASE {phase.label} · SESSION {String(compIdx + 1).padStart(2, '0')}</span>
+            <span style={{ fontSize: '13px', color: phase.color, letterSpacing: '2px', fontWeight: '600' }}>PHASE {phase.label} · SESSION {String(compIdx + 1).padStart(2, '0')}</span>
           </div>
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: 0, letterSpacing: '-0.3px' }}>
             {component.title}
           </h1>
-          <p style={{ fontSize: '13px', color: '#334155', margin: '4px 0 0' }}>
+          <p style={{ fontSize: '15px', color: '#334155', margin: '4px 0 0' }}>
             Session with <strong style={{ color: '#6366f1' }}>Vox</strong> — your Executive Brand Strategist · Dictation enabled · Auto-saved
           </p>
         </div>
@@ -740,7 +740,7 @@ export default function CoachingSessionPage() {
           {!loaded && (
             <div style={{ textAlign: 'center', padding: '60px 0', color: '#334155' }}>
               <div style={{ fontSize: '28px', marginBottom: '12px', animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
-              <p style={{ fontSize: '13px' }}>Starting your session…</p>
+              <p style={{ fontSize: '15px' }}>Starting your session…</p>
             </div>
           )}
 
@@ -772,10 +772,10 @@ export default function CoachingSessionPage() {
                       display: 'flex', alignItems: 'center', gap: '12px',
                       animation: 'msg-in 0.4s ease both',
                     }}>
-                      <span style={{ fontSize: '18px', flexShrink: 0 }}>◎</span>
+                      <span style={{ fontSize: '20px', flexShrink: 0 }}>◎</span>
                       <div>
-                        <div style={{ fontSize: '12px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
-                        <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7' }}>
+                        <div style={{ fontSize: '14px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
+                        <div style={{ fontSize: '16px', color: '#475569', lineHeight: '1.7' }}>
                           {empathyLevel === 1 && "You've been at this for a few minutes now — that's exactly the kind of commitment that separates a great brand from a generic one. Keep going."}
                           {empathyLevel === 2 && "Most executives tap out long before this point. The depth you're putting in right now is what makes the framework Chanakya builds genuinely yours. You're close."}
                           {empathyLevel >= 3 && "This is rare. The level of insight you're sharing here takes most executives months to articulate. Chanakya is going to have more to work with than most. Almost there."}
@@ -793,9 +793,9 @@ export default function CoachingSessionPage() {
             <div style={{
               margin: '12px 0', padding: '12px 16px',
               background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
-              borderRadius: '8px', color: '#fca5a5', fontSize: '13px',
+              borderRadius: '8px', color: '#fca5a5', fontSize: '15px',
             }}>
-              ⚠ {error} — <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>dismiss</button>
+              ⚠ {error} — <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '15px', textDecoration: 'underline' }}>dismiss</button>
             </div>
           )}
 
@@ -813,23 +813,23 @@ export default function CoachingSessionPage() {
               <div style={{ fontSize: '32px', marginBottom: '12px' }}>🔒</div>
               {planError.type === 'payment' ? (
                 <>
-                  <h3 style={{ color: '#F1F5F9', fontSize: '17px', fontWeight: '700', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
+                  <h3 style={{ color: '#F1F5F9', fontSize: '19px', fontWeight: '700', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
                     Subscription Required
                   </h3>
-                  <p style={{ color: '#64748B', fontSize: '13px', margin: '0 0 20px', lineHeight: '1.6' }}>
+                  <p style={{ color: '#64748B', fontSize: '15px', margin: '0 0 20px', lineHeight: '1.6' }}>
                     Your subscription is inactive. Reactivate your plan to continue your AI mentor sessions.
                   </p>
                 </>
               ) : (
                 <>
-                  <h3 style={{ color: '#F1F5F9', fontSize: '17px', fontWeight: '700', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
+                  <h3 style={{ color: '#F1F5F9', fontSize: '19px', fontWeight: '700', margin: '0 0 8px', fontFamily: "'Outfit', sans-serif" }}>
                     Upgrade to Unlock Phase {phaseId}
                   </h3>
-                  <p style={{ color: '#64748B', fontSize: '13px', margin: '0 0 4px', lineHeight: '1.6' }}>
+                  <p style={{ color: '#64748B', fontSize: '15px', margin: '0 0 4px', lineHeight: '1.6' }}>
                     This session is part of a higher-tier phase.
                   </p>
                   {planError.required_plan && (
-                    <p style={{ color: '#8B6DAA', fontSize: '12px', margin: '0 0 20px', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', textTransform: 'uppercase' }}>
+                    <p style={{ color: '#8B6DAA', fontSize: '14px', margin: '0 0 20px', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', textTransform: 'uppercase' }}>
                       Requires: {planError.required_plan} plan
                     </p>
                   )}
@@ -843,7 +843,7 @@ export default function CoachingSessionPage() {
                   background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
                   borderRadius: '10px',
                   color: '#fff',
-                  fontSize: '13px',
+                  fontSize: '15px',
                   fontWeight: '700',
                   textDecoration: 'none',
                   boxShadow: '0 4px 20px rgba(99,102,241,0.35)',
@@ -871,9 +871,9 @@ export default function CoachingSessionPage() {
       }}>
         {sessionStatus === 'completed' ? (
           <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 0' }}>
-            <span style={{ fontSize: '12px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>SESSION COMPLETE</span>
-            <span style={{ color: '#1E2A3E', fontSize: '11px' }}>·</span>
-            <span style={{ fontSize: '12px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>Review your recap above</span>
+            <span style={{ fontSize: '14px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>SESSION COMPLETE</span>
+            <span style={{ color: '#1E2A3E', fontSize: '13px' }}>·</span>
+            <span style={{ fontSize: '14px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>Review your recap above</span>
           </div>
         ) : (
           <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
@@ -892,7 +892,7 @@ export default function CoachingSessionPage() {
               border: `1px solid ${planError ? 'rgba(99,102,241,0.15)' : '#1E2A3E'}`,
               borderRadius: '10px',
               color: planError ? '#334155' : '#F1F5F9',
-              fontSize: '14px',
+              fontSize: '16px',
               fontFamily: "'Inter', sans-serif",
               outline: 'none',
               resize: 'none',
@@ -970,7 +970,7 @@ export default function CoachingSessionPage() {
               border: input.trim() && !thinking && !planError ? 'none' : '1px solid #1E2A3E',
               borderRadius: '10px',
               color: input.trim() && !thinking && !planError ? '#fff' : '#334155',
-              fontSize: '13px',
+              fontSize: '15px',
               fontWeight: '600',
               cursor: input.trim() && !thinking && !planError ? 'pointer' : 'default',
               fontFamily: "'Inter', sans-serif",
@@ -991,7 +991,7 @@ export default function CoachingSessionPage() {
         </div>
         )}
         <div style={{ maxWidth: '760px', margin: '12px auto 0', textAlign: 'center' }}>
-          <span style={{ fontSize: '10px', color: '#1E2A3E', fontFamily: "'JetBrains Mono', monospace" }}>
+          <span style={{ fontSize: '12px', color: '#1E2A3E', fontFamily: "'JetBrains Mono', monospace" }}>
             Vox · Elevox Brand Guru Agent · Powered by Claude
           </span>
         </div>
