@@ -283,24 +283,38 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       return await res.json()
     }
 
+    // ── DEBUG TRACE (temporary — remove after diagnosis) ──────────────
+    const _debug: any[] = []
+
+    // Opener calls (__start__) must NEVER use tools — they just greet and ask Q1.
+    // Tools (web search) fire on the first real user reply when there's actual content to search.
+    const useTools = !isOpener
+
     let anthropicData
     try {
-      anthropicData = await callAnthropic(messages, true)
+      anthropicData = await callAnthropic(messages, useTools)
+      _debug.push({
+        step: 'first_anthropic_call',
+        stop_reason: anthropicData.stop_reason,
+        content_types: anthropicData.content?.map((b: any) => b.type),
+      })
     } catch (e: any) {
+      _debug.push({ step: 'first_anthropic_call', error: e.message })
       if (e.message === 'BILLING_ERROR') {
         return new Response(
-          JSON.stringify({ error: 'billing', reply: null }),
+          JSON.stringify({ error: 'billing', reply: null, _debug }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
       if (e.message === 'OVERLOADED_ERROR') {
-        // Retry once after 2s before giving up
         await new Promise(r => setTimeout(r, 2000))
         try {
-          anthropicData = await callAnthropic(messages)
+          anthropicData = await callAnthropic(messages, true)
+          _debug.push({ step: 'retry_anthropic_call', stop_reason: anthropicData.stop_reason })
         } catch (retryErr: any) {
+          _debug.push({ step: 'retry_anthropic_call', error: retryErr.message })
           return new Response(
-            JSON.stringify({ error: 'overloaded', reply: null }),
+            JSON.stringify({ error: 'overloaded', reply: null, _debug }),
             { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -309,29 +323,28 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       }
     }
 
-    // ── 7. Agentic Tool Loop ───────────────────────────────
-    // Keep executing tool calls until Anthropic returns a final text response.
-    // Safety cap: max 3 tool rounds (search once, maybe retry, then wrap up).
+    // ── 7. Agentic Tool Loop ────────────────────────────────
     const MAX_TOOL_ROUNDS = 3
     let toolRound = 0
 
     while (toolRound < MAX_TOOL_ROUNDS) {
       const toolUseBlocks = anthropicData.content?.filter((b: any) => b.type === 'tool_use') ?? []
-      if (toolUseBlocks.length === 0) break  // No more tool calls — Claude is done searching
+      if (toolUseBlocks.length === 0) break
 
       toolRound++
       messages.push({ role: 'assistant', content: anthropicData.content })
 
-      // Execute all tool calls in this round in parallel
       const toolResults = await Promise.all(
         toolUseBlocks.map(async (toolBlock: any) => {
           let toolResponse = 'No results found.'
+          const toolDebug: any = { round: toolRound, tool: toolBlock.name, query: toolBlock.input?.query }
+
           if (toolBlock.name === 'search_web') {
             if (TAVILY_API_KEY) {
               try {
-                // 8-second timeout so slow LinkedIn scrapes don't stall the loop
                 const tavilyController = new AbortController()
                 const tavilyTimeout = setTimeout(() => tavilyController.abort(), 8000)
+                const t0 = Date.now()
                 const tavilyRes = await fetch('https://api.tavily.com/search', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -343,84 +356,82 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
                   }),
                   signal: tavilyController.signal,
                 }).finally(() => clearTimeout(tavilyTimeout))
+                toolDebug.tavily_status = tavilyRes.status
+                toolDebug.tavily_ms = Date.now() - t0
                 const tavilyData = await tavilyRes.json()
+                toolDebug.tavily_result_count = tavilyData.results?.length ?? 0
+                toolDebug.tavily_has_answer = !!tavilyData.answer
                 toolResponse = JSON.stringify({
                   answer: tavilyData.answer,
                   results: tavilyData.results?.slice(0, 3) || []
                 })
-              } catch (err) {
-                toolResponse = 'Web search failed. Proceed without live data.'
+              } catch (err: any) {
+                toolDebug.tavily_error = err.name === 'AbortError' ? 'TIMEOUT_8s' : err.message
+                toolResponse = `Web search failed (${toolDebug.tavily_error}). Proceed without live data.`
               }
             } else {
-              toolResponse = 'TAVILY_API_KEY is not configured. Please rely on user input.'
+              toolDebug.tavily_error = 'NO_API_KEY'
+              toolResponse = 'TAVILY_API_KEY is not configured.'
             }
           }
-          return {
-            type:        'tool_result',
-            tool_use_id: toolBlock.id,
-            content:     toolResponse,
-          }
+
+          _debug.push(toolDebug)
+          return { type: 'tool_result', tool_use_id: toolBlock.id, content: toolResponse }
         })
       )
 
-      // All tool results go in one user message (Anthropic requirement)
       messages.push({ role: 'user', content: toolResults })
-
-      // Call Anthropic again — may return more tool calls or final text
-      anthropicData = await callAnthropic(messages)
+      anthropicData = await callAnthropic(messages, true)
+      _debug.push({
+        step: `after_tool_round_${toolRound}`,
+        stop_reason: anthropicData.stop_reason,
+        content_types: anthropicData.content?.map((b: any) => b.type),
+      })
     }
-
 
     const textBlock = anthropicData.content?.find((b: any) => b.type === 'text')
     let replyText: string
 
     if (textBlock?.text?.trim()) {
       replyText = textBlock.text.trim()
+      _debug.push({ step: 'success', source: 'tool_loop_text' })
     } else {
-      // Tool loop exhausted with no final text.
-      // We MUST close off any pending tool_use blocks with empty tool_results
-      // before making a new call, otherwise Anthropic returns a 400.
-      console.warn('[mentor-chat] No text block after tool loop — forcing tool-free text response')
+      _debug.push({ step: 'fallback', pending_tool_use: anthropicData.content?.filter((b: any) => b.type === 'tool_use')?.length })
       const pendingToolUse = anthropicData.content?.filter((b: any) => b.type === 'tool_use') ?? []
 
       if (pendingToolUse.length > 0) {
-        // Close off the pending tool_use blocks with synthetic empty results
         messages.push({ role: 'assistant', content: anthropicData.content })
         messages.push({
           role: 'user',
           content: pendingToolUse.map((tb: any) => ({
-            type:        'tool_result',
-            tool_use_id: tb.id,
-            content:     'Search results unavailable. Please proceed with your analysis based on available information.',
+            type: 'tool_result', tool_use_id: tb.id,
+            content: 'Search unavailable. Proceed with analysis.',
           }))
         })
       }
 
-      // Final call with NO tools — Claude must respond in text only
-      messages.push({
-        role: 'user',
-        content: 'Based on your research, please share your analysis and first question now. Respond conversationally in plain text only.'
-      })
+      messages.push({ role: 'user', content: 'Share your analysis now as plain conversational text. No tools.' })
 
       try {
-        const forced = await callAnthropic(messages, false)  // withTools=false
+        const forced = await callAnthropic(messages, false)
         const forcedText = forced.content?.find((b: any) => b.type === 'text')
+        _debug.push({ step: 'forced_call', stop_reason: forced.stop_reason, has_text: !!forcedText })
         replyText = forcedText?.text?.trim() ||
-          'Based on what I can see about your digital footprint, let me start here: what is the single most important thing you want a board member to understand about you within 5 seconds of landing on your LinkedIn profile?'
-      } catch {
-        replyText = 'Based on what I can see about your LinkedIn profile, let me start here: what is the single most important thing you want a board member to understand about you within 5 seconds of visiting your profile?'
+          'Let me ask you this directly: what is the single most important thing you want a board member to understand about you within 5 seconds of landing on your LinkedIn profile?'
+      } catch (e: any) {
+        _debug.push({ step: 'forced_call_error', error: e.message })
+        replyText = 'Let me ask you this directly: what do you want a board member to understand about you within 5 seconds of your LinkedIn profile?'
       }
     }
+
     let auto_complete = false
-    
-    // Check for the hidden auto-advancement token
     if (replyText.includes('[STAGE_COMPLETE]')) {
       auto_complete = true
       replyText = replyText.replace(/\[STAGE_COMPLETE\]/gi, '').trim()
     }
 
     return new Response(
-      JSON.stringify({ reply: replyText, auto_complete }),
+      JSON.stringify({ reply: replyText, auto_complete, _debug }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
