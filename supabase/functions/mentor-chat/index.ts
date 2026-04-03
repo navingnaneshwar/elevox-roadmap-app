@@ -248,7 +248,17 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       }
     ]
 
-    async function callAnthropic(msgs: any[]) {
+    // ── 6. Anthropic helpers ───────────────────────────────
+    async function callAnthropic(msgs: any[], withTools = true) {
+      const body: any = {
+        model:      'claude-sonnet-4-5',
+        max_tokens: 800,
+        system:     systemPrompt,
+        messages:   msgs,
+      }
+      // Only include tools when allowed — prevents Claude re-triggering search_web
+      if (withTools) body.tools = tools
+
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -256,13 +266,7 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
           'anthropic-version': '2023-06-01',
           'content-type':      'application/json',
         },
-        body: JSON.stringify({
-          model:      'claude-sonnet-4-5',
-          max_tokens: 800,
-          system:     systemPrompt,
-          tools,
-          messages:   msgs,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!res.ok) {
@@ -281,7 +285,7 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
 
     let anthropicData
     try {
-      anthropicData = await callAnthropic(messages)
+      anthropicData = await callAnthropic(messages, true)
     } catch (e: any) {
       if (e.message === 'BILLING_ERROR') {
         return new Response(
@@ -307,8 +311,8 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
 
     // ── 7. Agentic Tool Loop ───────────────────────────────
     // Keep executing tool calls until Anthropic returns a final text response.
-    // Safety cap: max 5 tool rounds to prevent runaway loops.
-    const MAX_TOOL_ROUNDS = 5
+    // Safety cap: max 3 tool rounds (search once, maybe retry, then wrap up).
+    const MAX_TOOL_ROUNDS = 3
     let toolRound = 0
 
     while (toolRound < MAX_TOOL_ROUNDS) {
@@ -373,17 +377,39 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
     if (textBlock?.text?.trim()) {
       replyText = textBlock.text.trim()
     } else {
-      // Tool loop exhausted with no final text — force one more call asking for text
-      console.warn('[mentor-chat] No text block after tool loop — forcing text-only response')
-      messages.push({ role: 'assistant', content: anthropicData.content })
+      // Tool loop exhausted with no final text.
+      // We MUST close off any pending tool_use blocks with empty tool_results
+      // before making a new call, otherwise Anthropic returns a 400.
+      console.warn('[mentor-chat] No text block after tool loop — forcing tool-free text response')
+      const pendingToolUse = anthropicData.content?.filter((b: any) => b.type === 'tool_use') ?? []
+
+      if (pendingToolUse.length > 0) {
+        // Close off the pending tool_use blocks with synthetic empty results
+        messages.push({ role: 'assistant', content: anthropicData.content })
+        messages.push({
+          role: 'user',
+          content: pendingToolUse.map((tb: any) => ({
+            type:        'tool_result',
+            tool_use_id: tb.id,
+            content:     'Search results unavailable. Please proceed with your analysis based on available information.',
+          }))
+        })
+      }
+
+      // Final call with NO tools — Claude must respond in text only
       messages.push({
         role: 'user',
-        content: 'Please share your analysis now as a conversational text response. Do not call any more tools.'
+        content: 'Based on your research, please share your analysis and first question now. Respond conversationally in plain text only.'
       })
-      const forced = await callAnthropic(messages)
-      const forcedText = forced.content?.find((b: any) => b.type === 'text')
-      replyText = forcedText?.text?.trim() ||
-        'I\'ve reviewed your LinkedIn profile and current digital footprint. Let me ask you this first: what is the single most important thing you want a board member or potential employer to understand about you within 5 seconds of landing on your profile?'
+
+      try {
+        const forced = await callAnthropic(messages, false)  // withTools=false
+        const forcedText = forced.content?.find((b: any) => b.type === 'text')
+        replyText = forcedText?.text?.trim() ||
+          'Based on what I can see about your digital footprint, let me start here: what is the single most important thing you want a board member to understand about you within 5 seconds of landing on your LinkedIn profile?'
+      } catch {
+        replyText = 'Based on what I can see about your LinkedIn profile, let me start here: what is the single most important thing you want a board member to understand about you within 5 seconds of visiting your profile?'
+      }
     }
     let auto_complete = false
     
