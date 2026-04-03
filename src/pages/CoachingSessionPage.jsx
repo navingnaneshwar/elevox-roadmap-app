@@ -860,7 +860,6 @@ export default function CoachingSessionPage() {
           <div ref={bottomRef} />
           </div>
         )}
-        </div>
       </div>
 
       {/* ── Input Bar ── */}
