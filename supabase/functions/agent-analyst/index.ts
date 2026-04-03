@@ -231,8 +231,8 @@ For each news angle you identify:
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1024,
+        model: 'claude-sonnet-4-5',
+        max_tokens: 3000,
         system: ANALYST_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
       }),
@@ -244,7 +244,19 @@ For each news angle you identify:
 
     const anthropicData = await anthropicResponse.json();
     const rawOutput = anthropicData.content[0].text;
-    const parsedBriefing = JSON.parse(rawOutput);
+    // Robustly extract JSON: strip fences, then find outermost { } block.
+    // Claude occasionally adds prose before/after JSON or uses invalid characters
+    // outside the object — extracting just the object boundary is more reliable.
+    function extractJSON(text: string): any {
+      // 1. Strip markdown fences if present
+      let s = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```\s*$/i, '').trim();
+      // 2. Find the outermost { } block
+      const start = s.indexOf('{');
+      const end   = s.lastIndexOf('}');
+      if (start === -1 || end === -1 || end <= start) throw new Error('No JSON object found in Anthropic response');
+      return JSON.parse(s.slice(start, end + 1));
+    }
+    const parsedBriefing = extractJSON(rawOutput);
 
     // 4. Save to industry_briefings
     const { data: briefingRow, error: insertError } = await supabase

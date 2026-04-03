@@ -56,15 +56,37 @@ export async function upsertProfile(userId, fields) {
 }
 
 export async function completeOnboarding(userId, budget) {
-  const plan = (budget || '').toLowerCase().includes('legacy')    ? 'legacy'
-             : (budget || '').toLowerCase().includes('authority') ? 'authority'
-             : 'starter'
-  return supabase.from('profiles').update({
+  // ⚠️ BETA OVERRIDE: All testers get 'authority' plan to unlock the full pipeline.
+  // TODO: Revert to budget-derived plan logic before commercial launch.
+  // Original: 'legacy' | 'authority' | 'starter' based on budget field
+  const plan = 'authority'
+
+  const { error } = await supabase.from('profiles').update({
     onboarding_complete: true,
     plan,
     plan_status: 'trialing',   // grant AI mentor access on signup
     updated_at: new Date().toISOString()
   }).eq('id', userId)
+
+  if (error) return { error }
+
+  // Kick off the Vox agent pipeline:
+  // Analyst (discovery sweep) → Strategist (brand framework) → Analyst (news sweep)
+  // → Machiavelli (reserve slot) → Shakespeare (draft) → Aristotle (edit) → Machiavelli (schedule)
+  const { error: jobError } = await supabase.from('agent_jobs').insert({
+    user_id:  userId,
+    job_type: 'run_discovery_sweep',
+    status:   'pending',
+    payload:  {},
+  })
+
+  if (jobError) {
+    console.error('[Elevox] Failed to queue Vox pipeline after onboarding:', jobError)
+    // Non-fatal — profile is saved, but agent won't auto-run
+    // User can manually trigger from dashboard
+  }
+
+  return { error: null }
 }
 
 export async function getCalendarSettings(userId) {

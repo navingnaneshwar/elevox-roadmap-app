@@ -301,7 +301,7 @@ export default function CoachingSessionPage() {
     async function loadSession() {
       try {
         const { data } = await getMentorSessions(user.id, parseInt(phaseId))
-        const existing = data?.find(s => s.component_id === parseInt(componentId))
+        const existing = data?.find(s => String(s.component_id) === String(componentId))
         if (existing) {
           setSessionId(existing.id)
           setSessionStatus(existing.status || 'active')
@@ -539,6 +539,19 @@ export default function CoachingSessionPage() {
       if (auto_complete) {
         setSessionStatus('completed')
         await supabase.from('mentor_sessions').update({ status: 'completed' }).eq('id', sessionId)
+        // Queue a build_framework job so the Strategist agent picks up
+        // this completed session and builds the brand framework in the background.
+        await supabase.from('agent_jobs').insert({
+          user_id: user.id,
+          job_type: 'build_framework',
+          status: 'pending',
+          payload: {
+            phase_id: parseInt(phaseId),
+            component_id: parseInt(componentId),
+            session_id: sessionId,
+            component_title: meta.component.title,
+          }
+        })
       }
       // playAudioForText(aiReply) — TTS disabled
     } catch (err) {
