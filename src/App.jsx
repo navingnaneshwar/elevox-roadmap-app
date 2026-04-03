@@ -2,6 +2,7 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+import { Analytics } from '@vercel/analytics/react'
 
 // Smart root redirect — checks auth + onboarding state
 function RootRedirect() {
@@ -95,6 +96,7 @@ export default function App() {
 
 
         </Routes>
+        <Analytics />
       </AuthProvider>
     </BrowserRouter>
   )
