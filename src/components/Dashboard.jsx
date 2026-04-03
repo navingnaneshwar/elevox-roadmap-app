@@ -9,7 +9,7 @@
 //   - Sessions driven from Supabase via getMentorSessions (with mock fallback)
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { getMentorSessions, getPendingApprovals, getPendingCoachingAlerts } from "../lib/supabase";
+import { getMentorSessions, getPendingApprovals, getPendingCoachingAlerts, getActiveClarificationSession } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
 import CredibilityAlertCard from "./CredibilityAlertCard";
@@ -294,10 +294,11 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [selectedPhase,    setSelectedPhase]   = useState(null);
-  const [sessions,         setSessions]        = useState({});
-  const [approvalCount,    setApprovalCount]   = useState(0);
-  const [coachingAlerts,   setCoachingAlerts]  = useState([]);
+  const [selectedPhase,      setSelectedPhase]       = useState(null);
+  const [sessions,           setSessions]            = useState({});
+  const [approvalCount,      setApprovalCount]       = useState(0);
+  const [coachingAlerts,     setCoachingAlerts]      = useState([]);
+  const [clarSession,        setClarSession]         = useState(null);  // S5-08
 
   // Derive plan correctly (fixes dbPlan undefined crash)
   const dbPlan       = derivePlan(profileData);
@@ -325,6 +326,10 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
     // Load coaching alerts
     getPendingCoachingAlerts(user.id).then(({ data }) => {
       setCoachingAlerts(data ?? []);
+    });
+    // S5-08: Check for an active clarification session
+    getActiveClarificationSession(user.id).then(({ data }) => {
+      setClarSession(data ?? null);
     });
   }, [user]);
 
@@ -513,6 +518,82 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
             icon="⭐"
           />
         </div>
+
+        {/* S5-08: Clarification Session Banner */}
+        {clarSession && (
+          <div
+            onClick={() => navigate('/clarification')}
+            style={{
+              marginBottom: '32px',
+              padding: '20px 24px',
+              background: 'linear-gradient(135deg, rgba(200,169,110,0.08), rgba(200,169,110,0.03))',
+              border: '1px solid rgba(200,169,110,0.35)',
+              borderRadius: '14px',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '18px',
+              transition: 'all 0.2s ease',
+              animation: 'ob-field-in 0.4s 0.1s ease both',
+              position: 'relative',
+              overflow: 'hidden',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(200,169,110,0.6)'; e.currentTarget.style.background = 'linear-gradient(135deg, rgba(200,169,110,0.12), rgba(200,169,110,0.05))'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(200,169,110,0.35)'; e.currentTarget.style.background = 'linear-gradient(135deg, rgba(200,169,110,0.08), rgba(200,169,110,0.03))'; }}
+          >
+            {/* Pulse indicator */}
+            <div style={{
+              width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+              background: 'rgba(200,169,110,0.12)',
+              border: '1px solid rgba(200,169,110,0.4)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: '16px',
+              position: 'relative',
+            }}>
+              ✦
+              <span style={{
+                position: 'absolute', inset: '-4px',
+                borderRadius: '50%',
+                border: '1px solid rgba(200,169,110,0.25)',
+                animation: 'badge-pulse 2s ease-in-out infinite',
+              }} />
+            </div>
+
+            <div style={{ flex: 1 }}>
+              <div style={{
+                fontSize: '10px', fontWeight: '700', letterSpacing: '1.8px',
+                textTransform: 'uppercase', color: '#C8A96E',
+                fontFamily: "'JetBrains Mono', monospace", marginBottom: '4px',
+              }}>
+                Chanakya · Action Required
+              </div>
+              <div style={{
+                fontSize: '15px', fontWeight: '600', color: '#F1F5F9',
+                fontFamily: "'Outfit', sans-serif", marginBottom: '3px',
+              }}>
+                Complete your brand profile
+              </div>
+              <div style={{ fontSize: '12px', color: '#64748B' }}>
+                Chanakya has prepared {clarSession.questions?.length ?? 6} targeted questions to
+                personalise your 90-day framework. Takes ~5 minutes.
+              </div>
+            </div>
+
+            <div style={{
+              padding: '8px 18px',
+              background: 'rgba(200,169,110,0.12)',
+              border: '1px solid rgba(200,169,110,0.3)',
+              borderRadius: '8px',
+              color: '#C8A96E',
+              fontSize: '12px', fontWeight: '600',
+              fontFamily: "'Inter', sans-serif",
+              whiteSpace: 'nowrap',
+              flexShrink: 0,
+            }}>
+              Continue →
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "48px", flexWrap: "wrap" }}>
