@@ -121,32 +121,50 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
 
   const summaryText = extractText(summaryMsg)
 
-  // Key user exchanges — pair each user answer with the Vox question before it
-  // This prevents bare "yes" answers appearing with no context.
-  const FEEDS_INTO_LABELS = [
-    'Brand Archetype & Voice',
-    'Content Pillars',
-    'Ghostwriting Rules',
-    'Target Audience Matrix',
-    'Platform Strategy',
-    '90-Day Framework',
+  // Vox Inferences — extract personality/brand conclusions Vox drew from the conversation.
+  // Scan assistant messages for sentences that make an observation ABOUT the executive.
+  // These are displayed as 'Vox's profile reads' — what the AI concluded about them.
+  const INFERENCE_SIGNALS = [
+    /\byou(?:'re| are)\b/i,
+    /\byour brand\b/i,
+    /\byour positioning\b/i,
+    /\bthat tells me\b/i,
+    /\bi (?:can )?see you\b/i,
+    /\byou(?:'ve| have) built\b/i,
+    /\byou(?:'ve| have) demonstrated\b/i,
+    /\byou(?:'re| are) (?:a |the )/i,
+    /\byour (?:strength|edge|differentiat|audience|voice|style|narrative)\b/i,
+    /\bwhat (?:sets|makes) you\b/i,
+    /\byou lead\b/i,
+    /\byou think\b/i,
+    /\byou operate\b/i,
+  ]
+  const INFERENCE_CATEGORIES = [
+    { label: 'Positioning Assumption',  color: '#6366f1' },
+    { label: 'Voice & Tone Read',        color: '#8b5cf6' },
+    { label: 'Audience Inference',       color: '#C8A96E' },
+    { label: 'Credibility Signal',       color: '#10b981' },
+    { label: 'Contrarian Lens',          color: '#5B8FA8' },
+    { label: 'Leadership Profile',       color: '#C85A5A' },
   ]
 
-  const userHighlights = messages
-    .reduce((pairs, msg, idx, arr) => {
-      if (msg.role !== 'user') return pairs
-      const content = typeof msg.content === 'string' ? msg.content : (msg.content?.reply || '')
-      if (!content || content === '__start__') return pairs
-      // Find the Vox question that immediately preceded this user turn
-      const prevVox = arr.slice(0, idx).filter(m => m.role === 'assistant').pop()
-      const question = typeof prevVox?.content === 'string'
-        ? prevVox.content.split('\n').filter(l => l.trim()).pop()?.trim() // last line = the question
-        : null
-      pairs.push({ question, answer: content })
-      return pairs
-    }, [])
-    .filter(p => p.answer && p.answer !== '__start__')
-    .slice(-5) // last 5 exchanges
+  const voxInferences = messages
+    .filter(m => m.role === 'assistant')
+    .flatMap(m => {
+      const text = typeof m.content === 'string' ? m.content : ''
+      // Split into sentences and pick those that look like inferences about the exec
+      return text
+        .split(/(?<=[.!?])\s+/)
+        .map(s => s.trim())
+        .filter(s =>
+          s.length > 30 &&
+          s.length < 250 &&
+          INFERENCE_SIGNALS.some(rx => rx.test(s)) &&
+          !s.toLowerCase().startsWith('what ') // skip pure questions
+        )
+    })
+    .slice(0, 6) // max 6 shown
+
 
   const sessionDate = summaryMsg?.ts
     ? new Date(summaryMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -245,50 +263,59 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
       )}
 
       {/* ── Key Exchanges ── */}
-      {userHighlights.length > 0 && (
+      {voxInferences.length > 0 && (
         <div style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            Key Points Captured
+          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '4px' }}>
+            Vox's Profile Read
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            {userHighlights.map(({ question, answer }, i) => (
-              <div key={i} style={{
-                padding: '14px 16px',
-                background: 'rgba(255,255,255,0.02)',
-                border: '1px solid #1E2A3E',
-                borderRadius: '8px',
-              }}>
-                {/* Vox question that prompted this */ }
-                {question && (
-                  <div style={{ fontSize: '11px', color: '#334155', fontFamily: "'Inter', sans-serif", marginBottom: '6px', lineHeight: '1.5' }}>
-                    <span style={{ color: '#475569' }}>Vox asked: </span>{question.length > 140 ? question.slice(0, 140) + '…' : question}
+          <div style={{ fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
+            What Vox concluded about you from this session — these shape every artefact Elevox builds.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {voxInferences.map((inference, i) => {
+              const cat = INFERENCE_CATEGORIES[i % INFERENCE_CATEGORIES.length]
+              return (
+                <div key={i} style={{
+                  padding: '12px 16px',
+                  background: `${cat.color}06`,
+                  border: `1px solid ${cat.color}25`,
+                  borderRadius: '8px',
+                  display: 'flex', gap: '12px', alignItems: 'flex-start',
+                }}>
+                  <div style={{ flexShrink: 0, marginTop: '2px' }}>
+                    <div style={{
+                      fontSize: '8px', fontWeight: '700', letterSpacing: '1.5px',
+                      textTransform: 'uppercase', color: cat.color,
+                      fontFamily: "'JetBrains Mono', monospace",
+                      background: `${cat.color}12`,
+                      border: `1px solid ${cat.color}30`,
+                      borderRadius: '4px', padding: '2px 6px',
+                      whiteSpace: 'nowrap',
+                    }}>
+                      {cat.label}
+                    </div>
                   </div>
-                )}
-                {/* User's answer */}
-                <div style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.6', marginBottom: '8px' }}>
-                  <span style={{ color: '#6366f1', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", marginRight: '6px' }}>You:</span>
-                  {answer.length > 300 ? answer.slice(0, 300) + '…' : answer}
+                  <div style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.6' }}>
+                    {inference}
+                  </div>
                 </div>
-                {/* What this feeds into */}
-                <div style={{ fontSize: '10px', color: '#1E3A5F', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>
-                  ↳ FEEDS INTO: {FEEDS_INTO_LABELS[i % FEEDS_INTO_LABELS.length]}
-                </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
 
-          {/* Data store callout */}
+          {/* Data pipeline callout */}
           <div style={{
-            marginTop: '12px', padding: '10px 14px',
-            background: 'rgba(99,102,241,0.04)',
-            border: '1px solid rgba(99,102,241,0.12)',
+            marginTop: '10px', padding: '10px 14px',
+            background: 'rgba(99,102,241,0.03)',
+            border: '1px solid rgba(99,102,241,0.10)',
             borderRadius: '8px',
             fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: '1.6',
           }}>
-            <span style={{ color: '#6366f1', fontWeight: '700' }}>How Elevox uses this:</span> These answers are stored as{' '}
-            <code style={{ background: 'rgba(99,102,241,0.12)', padding: '1px 5px', borderRadius: '3px', fontSize: '10px' }}>mentor_sessions.messages</code>{' '}
-            and flow directly into Chanakya's brand framework prompt as verified career facts —{' '}
-            shaping your archetype, content pillars, ghostwriting rules, and the 90-day action plan.
+            <span style={{ color: '#6366f1', fontWeight: '700' }}>Data pipeline:</span>{' '}
+            These inferences are stored in{' '}
+            <code style={{ background: 'rgba(99,102,241,0.1)', padding: '1px 5px', borderRadius: '3px', fontSize: '10px' }}>mentor_sessions.messages</code>
+            {' '}→ ingested by <strong style={{ color: '#94A3B8' }}>Chanakya</strong> as verified career facts
+            {' '}→ used to generate your <strong style={{ color: '#94A3B8' }}>archetype, content pillars, ghostwriting rules & 90-day framework</strong>.
           </div>
         </div>
       )}
