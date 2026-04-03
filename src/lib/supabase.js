@@ -251,3 +251,16 @@ export async function saveUserSubmittedDraft(userId, { bodyText, frameworkId }) 
   }).select().single()
 }
 
+// ── Sprint 5: Clarification Sessions ────────────────────────
+
+/** Returns the user's most recent active clarification session, or null */
+export async function getActiveClarificationSession(userId) {
+  return supabase
+    .from('clarification_sessions')
+    .select('id, questions, answers, status, created_at')
+    .eq('user_id', userId)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .maybeSingle()
+}
