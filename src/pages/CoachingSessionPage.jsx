@@ -275,95 +275,133 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
         </div>
       )}
 
-      {/* ── Brand Framework (if Chanakya has already built it) ── */}
+      {/* ── Brand Framework ── */}
       {framework && (
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            Your Brand Framework — Built by Chanakya, your Brand Architect
+        <div style={{ marginBottom: '32px' }}>
+
+          {/* Section header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+            <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>
+              Brand Framework
+            </div>
+            <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
+            <div style={{ fontSize: '9px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>BUILT BY CHANAKYA</div>
           </div>
-          <div style={{
-            padding: '20px 24px',
-            background: 'rgba(99,102,241,0.04)',
-            border: '1px solid rgba(99,102,241,0.15)',
-            borderRadius: '12px',
-          }}>
-            {framework.archetype && archetypeApproach && (
-              <div style={{ marginBottom: '20px' }}>
-                <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '8px' }}>Your Archetype</div>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <span style={{ fontSize: '22px', flexShrink: 0, marginTop: '2px' }}>{archetypeApproach.icon}</span>
-                  <div>
-                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#a5b4fc', fontFamily: "'Outfit', sans-serif", marginBottom: '6px' }}>{framework.archetype}</div>
-                    <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', marginBottom: '8px' }}>{archetypeApproach.description}</div>
-                    <div style={{
-                      fontSize: '11px', color: '#6366f1',
-                      fontFamily: "'JetBrains Mono', monospace",
-                      background: 'rgba(99,102,241,0.06)',
-                      border: '1px solid rgba(99,102,241,0.15)',
-                      borderRadius: '6px', padding: '6px 10px',
-                      lineHeight: '1.5',
-                    }}>
-                      ▶ Content Mandate: {archetypeApproach.mandate}
-                    </div>
+
+          {/* ─ Archetype Hero Card ─ */}
+          {framework.archetype && archetypeApproach && (
+            <div style={{
+              marginBottom: '12px',
+              borderRadius: '14px',
+              overflow: 'hidden',
+              border: '1px solid rgba(99,102,241,0.25)',
+            }}>
+              {/* Top gradient band */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(139,92,246,0.10) 50%, rgba(200,169,110,0.06) 100%)',
+                borderBottom: '1px solid rgba(99,102,241,0.12)',
+                padding: '20px 24px',
+                display: 'flex', alignItems: 'flex-start', gap: '16px',
+              }}>
+                <div style={{
+                  width: '48px', height: '48px', borderRadius: '12px', flexShrink: 0,
+                  background: 'rgba(99,102,241,0.15)',
+                  border: '1px solid rgba(99,102,241,0.3)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px',
+                }}>
+                  {archetypeApproach.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '9px', color: '#6366f1', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '6px' }}>YOUR ARCHETYPE</div>
+                  <div style={{ fontSize: '18px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: '1.3', marginBottom: '8px', letterSpacing: '-0.3px' }}>
+                    {framework.archetype}
+                  </div>
+                  <div style={{ fontSize: '13px', color: '#94A3B8', lineHeight: '1.65', fontFamily: "'Inter', sans-serif" }}>
+                    {archetypeApproach.description}
                   </div>
                 </div>
               </div>
-            )}
-            {framework.content_pillars?.length > 0 && (
-              <div>
-                <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '10px' }}>Content Pillars</div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                  {framework.content_pillars.map((p, i) => (
-                    <span key={i} style={{
-                      fontSize: '12px', padding: '5px 12px',
-                      background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
-                      borderRadius: '100px', color: '#a5b4fc',
-                      fontFamily: "'Inter', sans-serif",
-                    }}>
-                      {typeof p === 'object' ? p.title : p}
-                    </span>
-                  ))}
+              {/* Content Mandate footer */}
+              <div style={{
+                padding: '14px 24px',
+                background: 'rgba(8,10,20,0.6)',
+                display: 'flex', alignItems: 'flex-start', gap: '10px',
+              }}>
+                <span style={{ color: '#6366f1', fontSize: '14px', flexShrink: 0, marginTop: '1px' }}>▶</span>
+                <div>
+                  <span style={{ fontSize: '9px', color: '#6366f1', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1.5px', textTransform: 'uppercase', marginRight: '8px' }}>Content Mandate</span>
+                  <span style={{ fontSize: '12px', color: '#64748B', fontFamily: "'Inter', sans-serif", lineHeight: '1.6' }}>{archetypeApproach.mandate}</span>
                 </div>
               </div>
-            )}
-          </div>
+            </div>
+          )}
+
+          {/* ─ Content Pillars ─ */}
+          {framework.content_pillars?.length > 0 && (
+            <div>
+              <div style={{ fontSize: '9px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '10px' }}>Content Pillars</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '8px' }}>
+                {framework.content_pillars.map((p, i) => {
+                  const title = typeof p === 'object' ? p.title : p
+                  const desc = typeof p === 'object' ? (p.description || p.desc || '') : ''
+                  const pillarColors = ['#6366f1','#8b5cf6','#C8A96E','#10b981','#5B8FA8','#C85A5A']
+                  const col = pillarColors[i % pillarColors.length]
+                  return (
+                    <div key={i} style={{
+                      padding: '14px 16px',
+                      background: 'rgba(13,18,32,0.7)',
+                      border: `1px solid ${col}30`,
+                      borderTop: `3px solid ${col}`,
+                      borderRadius: '10px',
+                    }}>
+                      <div style={{ fontSize: '9px', color: col, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '6px' }}>PILLAR {String(i + 1).padStart(2, '0')}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: '1.3', marginBottom: desc ? '6px' : 0 }}>{title}</div>
+                      {desc && <div style={{ fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: '1.5' }}>{desc}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
 
-      {/* ── Key Exchanges ── */}
+      {/* ── Vox's Profile Read ── */}
       {voxInferences.length > 0 && (
         <div style={{ marginBottom: '28px' }}>
-          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '4px' }}>
-            Vox's Profile Read
+
+          {/* Section header */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+            <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Vox’s Profile Read</div>
+            <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
           </div>
-          <div style={{ fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            What Vox concluded about you from this session — these shape every artefact Elevox builds.
+          <div style={{ fontSize: '11px', color: '#334155', fontFamily: "'Inter', sans-serif", marginBottom: '14px', lineHeight: '1.5' }}>
+            What Vox concluded about you — these inferences govern every artefact Elevox builds.
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {voxInferences.map((inference, i) => {
               const cat = INFERENCE_CATEGORIES[i % INFERENCE_CATEGORIES.length]
               return (
                 <div key={i} style={{
                   padding: '12px 16px',
-                  background: `${cat.color}06`,
-                  border: `1px solid ${cat.color}25`,
-                  borderRadius: '8px',
-                  display: 'flex', gap: '12px', alignItems: 'flex-start',
+                  background: 'rgba(13,18,32,0.5)',
+                  border: '1px solid #1E2A3E',
+                  borderLeft: `3px solid ${cat.color}`,
+                  borderRadius: '6px',
+                  display: 'flex', gap: '14px', alignItems: 'flex-start',
                 }}>
-                  <div style={{ flexShrink: 0, marginTop: '2px' }}>
-                    <div style={{
-                      fontSize: '8px', fontWeight: '700', letterSpacing: '1.5px',
-                      textTransform: 'uppercase', color: cat.color,
-                      fontFamily: "'JetBrains Mono', monospace",
-                      background: `${cat.color}12`,
-                      border: `1px solid ${cat.color}30`,
-                      borderRadius: '4px', padding: '2px 6px',
-                      whiteSpace: 'nowrap',
-                    }}>
-                      {cat.label}
-                    </div>
+                  <div style={{
+                    fontSize: '8px', fontWeight: '700', letterSpacing: '1.2px',
+                    textTransform: 'uppercase', color: cat.color,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    flexShrink: 0, marginTop: '3px',
+                    minWidth: '120px',
+                  }}>
+                    {cat.label}
                   </div>
-                  <div style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.6' }}>
+                  <div style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.65' }}>
                     {inference}
                   </div>
                 </div>
@@ -371,7 +409,7 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
             })}
           </div>
 
-          {/* Data pipeline callout */}
+          {/* Data pipeline */}
           <div style={{
             marginTop: '10px', padding: '10px 14px',
             background: 'rgba(99,102,241,0.03)',
