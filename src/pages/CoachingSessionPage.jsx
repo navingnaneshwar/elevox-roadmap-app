@@ -734,7 +734,7 @@ export default function CoachingSessionPage() {
       <div style={{
         flex: 1,
         overflowY: loaded && sessionStatus === 'completed' ? 'hidden' : 'auto',
-        padding: loaded && sessionStatus === 'completed' ? '16px 32px 0' : '32px 40px',
+        padding: loaded && sessionStatus === 'completed' ? '10px 0 0' : '32px 40px',
         display: 'flex',
         flexDirection: 'column',
         position: 'relative', zIndex: 1,
