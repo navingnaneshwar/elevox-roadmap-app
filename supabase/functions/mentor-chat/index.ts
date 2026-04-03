@@ -325,6 +325,9 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
           if (toolBlock.name === 'search_web') {
             if (TAVILY_API_KEY) {
               try {
+                // 8-second timeout so slow LinkedIn scrapes don't stall the loop
+                const tavilyController = new AbortController()
+                const tavilyTimeout = setTimeout(() => tavilyController.abort(), 8000)
                 const tavilyRes = await fetch('https://api.tavily.com/search', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -333,8 +336,9 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
                     query: toolBlock.input.query,
                     search_depth: 'basic',
                     include_answer: true,
-                  })
-                })
+                  }),
+                  signal: tavilyController.signal,
+                }).finally(() => clearTimeout(tavilyTimeout))
                 const tavilyData = await tavilyRes.json()
                 toolResponse = JSON.stringify({
                   answer: tavilyData.answer,
@@ -364,7 +368,23 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
 
 
     const textBlock = anthropicData.content?.find((b: any) => b.type === 'text')
-    let replyText = textBlock?.text?.trim() || 'I am thinking through your response...'
+    let replyText: string
+
+    if (textBlock?.text?.trim()) {
+      replyText = textBlock.text.trim()
+    } else {
+      // Tool loop exhausted with no final text — force one more call asking for text
+      console.warn('[mentor-chat] No text block after tool loop — forcing text-only response')
+      messages.push({ role: 'assistant', content: anthropicData.content })
+      messages.push({
+        role: 'user',
+        content: 'Please share your analysis now as a conversational text response. Do not call any more tools.'
+      })
+      const forced = await callAnthropic(messages)
+      const forcedText = forced.content?.find((b: any) => b.type === 'text')
+      replyText = forcedText?.text?.trim() ||
+        'I\'ve reviewed your LinkedIn profile and current digital footprint. Let me ask you this first: what is the single most important thing you want a board member or potential employer to understand about you within 5 seconds of landing on your profile?'
+    }
     let auto_complete = false
     
     // Check for the hidden auto-advancement token
