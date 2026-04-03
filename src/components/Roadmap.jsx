@@ -92,6 +92,8 @@ const PLAN_PHASES = {
   authority: [1, 2, 3, 4],
   legacy:    [1, 2, 3, 4, 5, 6],
 }
+// ⚠️ BETA: mirrors completeOnboarding() override. Revert to 'starter' at launch.
+const DEFAULT_BETA_PLAN = 'authority'
 
 function ComponentRow({ comp, phaseId, compId, phaseColor, unlocked }) {
   const [isHovered, setIsHovered] = useState(false)
@@ -187,11 +189,12 @@ export default function Roadmap({ profileData }) {
 
   const [expandedPhase, setExpandedPhase] = useState(1)
 
-  const plan = profile?.plan || profile?.budget?.toLowerCase().includes('legacy') ? 'legacy'
-             : profile?.budget?.toLowerCase().includes('authority') ? 'authority'
-             : 'starter'
+  const plan = profile?.plan
+             || (profile?.budget?.toLowerCase().includes('legacy') ? 'legacy'
+               : profile?.budget?.toLowerCase().includes('authority') ? 'authority'
+               : DEFAULT_BETA_PLAN)
 
-  const unlockedPhases = PLAN_PHASES[plan] || PLAN_PHASES.starter
+  const unlockedPhases = PLAN_PHASES[plan] || PLAN_PHASES[DEFAULT_BETA_PLAN]
   const unlockedComponents = PHASES
     .filter(p => unlockedPhases.includes(p.id))
     .reduce((sum, p) => sum + p.components.length, 0)

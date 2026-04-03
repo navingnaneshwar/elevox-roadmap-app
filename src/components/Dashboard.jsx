@@ -60,6 +60,10 @@ const PLAN_PHASES = {
   starter:   [1, 2],
 };
 
+// ⚠️ BETA: All testers are granted 'authority' — mirrors completeOnboarding() override.
+// TODO: Revert to 'starter' before commercial launch.
+const DEFAULT_BETA_PLAN = 'authority';
+
 /* ─── Helpers ────────────────────────────────────────────────── */
 function derivePlan(profileData) {
   // Prefer the DB plan field (mapped by dbToFormData)
@@ -68,7 +72,9 @@ function derivePlan(profileData) {
   const b = (profileData?.budget || "").toLowerCase();
   if (b.includes("legacy"))    return "legacy";
   if (b.includes("authority")) return "authority";
-  return "starter";
+  // ⚠️ BETA: Default to authority instead of starter so testers don't see a
+  // locked-out dashboard when profile.plan hasn't persisted yet.
+  return DEFAULT_BETA_PLAN;
 }
 
 /* ─── Stat Card ──────────────────────────────────────────────── */
@@ -227,7 +233,7 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
 
   // Derive plan correctly (fixes dbPlan undefined crash)
   const dbPlan       = derivePlan(profileData);
-  const unlockedPhases = PLAN_PHASES[dbPlan] || PLAN_PHASES.starter;
+  const unlockedPhases = PLAN_PHASES[dbPlan] || PLAN_PHASES[DEFAULT_BETA_PLAN];
 
   // Load real session data from Supabase
   useEffect(() => {

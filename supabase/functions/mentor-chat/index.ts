@@ -77,7 +77,9 @@ serve(async (req) => {
 
     if (phase_id !== undefined && phase_id !== null) {
       const phaseNum = parseInt(phase_id, 10)
-      const allowed = PLAN_PHASE_ACCESS[profile.plan ?? 'starter'] ?? [1, 2]
+      // ⚠️ BETA: Default to 'authority' — mirrors completeOnboarding() override.
+      // TODO: Revert to 'starter' before commercial launch.
+      const allowed = PLAN_PHASE_ACCESS[profile.plan ?? 'authority'] ?? [1, 2, 3, 4]
       if (!allowed.includes(phaseNum)) {
         const required_plan = phaseNum <= 4 ? 'authority' : 'legacy'
         return new Response(
