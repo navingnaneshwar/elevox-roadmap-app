@@ -269,7 +269,7 @@ in credibility_score_reasoning and flag what profile data is missing.
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-5',
         max_tokens: 1500,
         system: SHAKESPEARE_SYSTEM_PROMPT,
         messages: [{ role: 'user', content: userPrompt }],
@@ -307,7 +307,7 @@ in credibility_score_reasoning and flag what profile data is missing.
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
+          model: 'claude-sonnet-4-5',
           max_tokens: 1500,
           system: SHAKESPEARE_SYSTEM_PROMPT,
           messages: [

@@ -192,6 +192,32 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       ? 'Please introduce this coaching session and ask your first question.'
       : message
 
+    // Count how many user turns have happened (not counting __start__)
+    const userTurnCount = history.filter((m: {role: string}) => m.role === 'user').length
+
+    // After 8 user messages, force Vox to wrap up.
+    // Two-phase: turn 8 → ask for validation, turn 9+ → immediately conclude.
+    const MAX_TURNS = 8
+    if (!isOpener && !continuation_flag && userTurnCount === MAX_TURNS) {
+      // Phase 1: first time hitting the limit — summarise and ask to confirm
+      systemPrompt += `
+
+TURN LIMIT REACHED (${userTurnCount} user exchanges complete):
+You have gathered sufficient context. You MUST NOT ask any more questions.
+In this response you must:
+1. Briefly summarise the 3–4 key strategic insights you have captured.
+2. Ask the user ONE closing validation question: "Does this capture your direction accurately?"
+Do NOT ask anything else. Do NOT append [STAGE_COMPLETE] yet — wait for their confirmation.`
+    } else if (!isOpener && !continuation_flag && userTurnCount > MAX_TURNS) {
+      // Phase 2: user has already seen the summary and replied — conclude immediately
+      systemPrompt += `
+
+SESSION CONCLUSION:
+The user has seen your summary and responded. Treat their response as confirmation.
+You MUST immediately initiate the Chanakya handoff in this response, and append [STAGE_COMPLETE] at the very end.
+Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handoff and close the session.`
+    }
+
     // history contains [{role: 'user'|'assistant', content: string}]
     // We keep the last 10 messages to stay within context limits
     const recentHistory = history.slice(-10).map((m: {role: string, content: string}) => ({
@@ -203,6 +229,7 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       ...recentHistory,
       { role: 'user', content: userContent },
     ]
+
 
     // ── 6. Call Anthropic with Tools ───────────────────────
     const tools = [
@@ -228,7 +255,7 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
           'content-type':      'application/json',
         },
         body: JSON.stringify({
-          model:      'claude-sonnet-4-20250514',
+          model:      'claude-sonnet-4-5',
           max_tokens: 800,
           system:     systemPrompt,
           tools,
@@ -276,54 +303,63 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       }
     }
 
-    // ── 7. Handle Tool Use (Agentic Loop) ─────────────────
-    // Anthropic returns tool_use blocks in content array
-    let toolUseBlock = anthropicData.content?.find((b: any) => b.type === 'tool_use')
+    // ── 7. Agentic Tool Loop ───────────────────────────────
+    // Keep executing tool calls until Anthropic returns a final text response.
+    // Safety cap: max 5 tool rounds to prevent runaway loops.
+    const MAX_TOOL_ROUNDS = 5
+    let toolRound = 0
 
-    if (toolUseBlock) {
-      // Add assistant turn with tool_use block
+    while (toolRound < MAX_TOOL_ROUNDS) {
+      const toolUseBlocks = anthropicData.content?.filter((b: any) => b.type === 'tool_use') ?? []
+      if (toolUseBlocks.length === 0) break  // No more tool calls — Claude is done searching
+
+      toolRound++
       messages.push({ role: 'assistant', content: anthropicData.content })
 
-      let toolResponse = 'No results found.'
-      if (toolUseBlock.name === 'search_web') {
-        if (TAVILY_API_KEY) {
-          try {
-            const tavilyRes = await fetch('https://api.tavily.com/search', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                api_key: TAVILY_API_KEY,
-                query: toolUseBlock.input.query,
-                search_depth: 'basic',
-                include_answer: true,
-              })
-            })
-            const tavilyData = await tavilyRes.json()
-            toolResponse = JSON.stringify({
-              answer: tavilyData.answer,
-              results: tavilyData.results?.slice(0, 3) || []
-            })
-          } catch (err) {
-            toolResponse = 'Web search failed. Proceed without live data.'
+      // Execute all tool calls in this round in parallel
+      const toolResults = await Promise.all(
+        toolUseBlocks.map(async (toolBlock: any) => {
+          let toolResponse = 'No results found.'
+          if (toolBlock.name === 'search_web') {
+            if (TAVILY_API_KEY) {
+              try {
+                const tavilyRes = await fetch('https://api.tavily.com/search', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    api_key: TAVILY_API_KEY,
+                    query: toolBlock.input.query,
+                    search_depth: 'basic',
+                    include_answer: true,
+                  })
+                })
+                const tavilyData = await tavilyRes.json()
+                toolResponse = JSON.stringify({
+                  answer: tavilyData.answer,
+                  results: tavilyData.results?.slice(0, 3) || []
+                })
+              } catch (err) {
+                toolResponse = 'Web search failed. Proceed without live data.'
+              }
+            } else {
+              toolResponse = 'TAVILY_API_KEY is not configured. Please rely on user input.'
+            }
           }
-        } else {
-          toolResponse = 'TAVILY_API_KEY is not configured. Please rely on user input.'
-        }
-      }
+          return {
+            type:        'tool_result',
+            tool_use_id: toolBlock.id,
+            content:     toolResponse,
+          }
+        })
+      )
 
-      // Add tool result in Anthropic format
-      messages.push({
-        role: 'user',
-        content: [{
-          type:        'tool_result',
-          tool_use_id: toolUseBlock.id,
-          content:     toolResponse,
-        }]
-      })
+      // All tool results go in one user message (Anthropic requirement)
+      messages.push({ role: 'user', content: toolResults })
 
-      // Call Anthropic again with the tool result
+      // Call Anthropic again — may return more tool calls or final text
       anthropicData = await callAnthropic(messages)
     }
+
 
     const textBlock = anthropicData.content?.find((b: any) => b.type === 'text')
     let replyText = textBlock?.text?.trim() || 'I am thinking through your response...'

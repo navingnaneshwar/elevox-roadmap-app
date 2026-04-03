@@ -175,7 +175,7 @@ Return valid JSON only:
       'content-type':      'application/json',
     },
     body: JSON.stringify({
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-5',
       max_tokens: 1000,
       messages:   [{ role: 'user', content: prompt }],
     }),
@@ -244,7 +244,7 @@ Return ONLY valid JSON:
       'content-type':      'application/json',
     },
     body: JSON.stringify({
-      model:      'claude-sonnet-4-20250514',
+      model:      'claude-sonnet-4-5',
       max_tokens: 1200,
       messages:   [{ role: 'user', content: prompt }],
     }),
@@ -458,7 +458,7 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
         'content-type':       'application/json',
       },
       body: JSON.stringify({
-        model:      'claude-sonnet-4-20250514',
+        model:      'claude-sonnet-4-5',
         max_tokens: 1000,
         system:     ARISTOTLE_SYSTEM_PROMPT,
         messages:   [{ role: 'user', content: userPrompt }],
