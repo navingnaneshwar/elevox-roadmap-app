@@ -129,14 +129,14 @@ export default function ClarificationPage() {
       <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,169,110,0.1)', border: '1px solid rgba(200,169,110,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', marginBottom: '24px' }}>
         ◈
       </div>
-      <div style={{ fontSize: '11px', color: '#C8A96E', letterSpacing: '2px', fontFamily: "'JetBrains Mono', monospace", marginBottom: '12px' }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
+      <div style={{ fontSize: '12px', color: '#C8A96E', letterSpacing: '2px', fontFamily: "'JetBrains Mono', monospace", marginBottom: '12px' }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
       <div style={{ fontSize: '24px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '12px', textAlign: 'center' }}>
         Your blueprint is being built
       </div>
       <div style={{ fontSize: '14px', color: '#64748B', textAlign: 'center', maxWidth: '480px', lineHeight: '1.8', marginBottom: '8px' }}>
         Chanakya — your Brand Architect — is now cross-referencing your answers with live industry signals to build a 90-day framework that is uniquely yours.
       </div>
-      <div style={{ fontSize: '12px', color: '#334155', textAlign: 'center', maxWidth: '420px', lineHeight: '1.7', marginBottom: '32px' }}>
+      <div style={{ fontSize: '14px', color: '#334155', textAlign: 'center', maxWidth: '480px', lineHeight: '1.8', marginBottom: '32px' }}>
         This is the blueprint that will govern every post Shakespeare writes, every angle Aristotle checks, and every decision Machiavelli makes about your distribution. Takes 1–2 minutes.
       </div>
       <button
@@ -180,7 +180,7 @@ export default function ClarificationPage() {
               <span style={{ fontSize: '18px' }}>◈</span>
               <div>
                 <div style={{ fontSize: '10px', letterSpacing: '2px', color: '#C8A96E', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
-                <div style={{ fontSize: '11px', color: '#475569', marginTop: '2px' }}>The strategist who turns your story into a 90-day framework.</div>
+                <div style={{ fontSize: '13px', color: '#475569', marginTop: '2px' }}>The strategist who turns your story into a 90-day framework.</div>
               </div>
             </div>
             <div style={{ fontSize: '14px', color: '#94a3b8', lineHeight: '1.8' }}>
@@ -193,7 +193,7 @@ export default function ClarificationPage() {
         {currentIdx >= 2 && currentIdx < questions.length - 1 && (
           <div style={{ marginBottom: '20px', padding: '10px 16px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
             <span style={{ fontSize: '16px' }}>◎</span>
-            <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.6' }}>
+            <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7' }}>
               {currentIdx === 2 && "You're halfway there. The answers you're sharing right now are what separates a generic strategy from one that's entirely yours."}
               {currentIdx === 3 && "Chanakya is already seeing a pattern. Every answer is sharpening your positioning in ways most executives never have the patience for — well done."}
               {currentIdx >= 4 && "Almost done. These final answers are the highest-leverage input in your entire brand framework. This is the work that compounds."}
@@ -221,7 +221,7 @@ export default function ClarificationPage() {
 
         {/* Why we ask */}
         {currentQ?.why_we_ask && (
-          <div style={{ fontSize: '12px', color: '#475569', marginBottom: '28px', lineHeight: '1.6', fontStyle: 'italic' }}>
+          <div style={{ fontSize: '14px', color: '#475569', marginBottom: '28px', lineHeight: '1.75', fontStyle: 'italic' }}>
             {currentQ.why_we_ask}
           </div>
         )}
@@ -256,7 +256,7 @@ export default function ClarificationPage() {
         </div>
 
         {error && (
-          <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(200,90,90,0.1)', border: '1px solid rgba(200,90,90,0.3)', borderRadius: '6px', fontSize: '12px', color: '#ff8080' }}>
+          <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(200,90,90,0.1)', border: '1px solid rgba(200,90,90,0.3)', borderRadius: '6px', fontSize: '13px', color: '#ff8080' }}>
             {error}
           </div>
         )}
@@ -304,7 +304,7 @@ export default function ClarificationPage() {
                     <div style={{ fontSize: '10px', color: qMeta.color, marginBottom: '6px', letterSpacing: '1px' }}>
                       {qMeta.icon} {q.question.slice(0, 60)}{q.question.length > 60 ? '…' : ''}
                     </div>
-                    <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6' }}>
+                    <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.7' }}>
                       {answers[q.id] ?? '—'}
                     </div>
                   </div>
