@@ -171,7 +171,7 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
     : null
 
   // Truncate summary to first 5 lines; user can expand
-  const [summaryExpanded, setSummaryExpanded] = React.useState(false)
+  const [summaryExpanded, setSummaryExpanded] = useState(false)
   const summaryLines = summaryText.split('\n').filter(l => l.trim())
   const truncatedSummary = summaryLines.slice(0, 5).join('\n')
   const hasMoreSummary = summaryLines.length > 5
