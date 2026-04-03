@@ -170,13 +170,16 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
     ? new Date(summaryMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
     : null
 
-  // Truncate summary to first 5 lines; user can expand
+  // Truncate summary to first 5 sentences; user can expand
+  // Vox writes in continuous paragraphs, so split by sentence boundary not newline
   const [summaryExpanded, setSummaryExpanded] = useState(false)
-  const summaryLines = summaryText.split('\n').filter(l => l.trim())
-  const truncatedSummary = summaryLines.slice(0, 5).join('\n')
-  const hasMoreSummary = summaryLines.length > 5
+  const sentenceRegex = /[^.!?]+[.!?]+/g
+  const summaryAllSentences = summaryText.match(sentenceRegex) || [summaryText]
+  const truncatedSummary = summaryAllSentences.slice(0, 5).join(' ').trim()
+  const hasMoreSummary = summaryAllSentences.length > 5
 
-  // Archetype approach lookup — explains what each archetype means for content strategy
+  // Archetype approach lookup — uses PREFIX match so extended names like
+  // 'The Translator: Non-Technical AI Executive Who Ships' still resolve
   const ARCHETYPE_APPROACH = {
     'The Visionary':       { icon: '◎', description: 'You challenge the status quo and lead with bold predictions. Content focuses on where the industry is going — not where it is.', mandate: 'Posts that reframe the future, challenge consensus, and position you as the person who saw it coming.' },
     'The Architect':       { icon: '◈', description: 'You build systems and frameworks others can\'t. Content focuses on your proprietary thinking — the mental models behind your results.', mandate: 'Posts that break down complex decisions into repeatable frameworks your audience can apply.' },
@@ -187,10 +190,16 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
     'The Authority':       { icon: '✦', description: 'You are the benchmark. Content focuses on the standards you set and enforce — intellectual rigour over broad appeal.', mandate: 'Posts that establish criteria, set the bar, and invite serious conversation from serious people.' },
     'The Practitioner':    { icon: '⬡', description: 'You have done the work. Content focuses on the specific, lived expertise that can only come from years of execution.', mandate: 'Posts anchored in specific career moments, real numbers, and decisions that shaped outcomes.' },
   }
-  const archetypeApproach = framework?.archetype
-    ? (ARCHETYPE_APPROACH[framework.archetype] ||
-       { icon: '◎', description: 'Your archetype drives a distinctive content voice built around your unique career positioning.', mandate: 'Every post Shakespeare writes will be anchored in your specific experience and strategic angle.' })
-    : null
+  const archetypeApproach = (() => {
+    if (!framework?.archetype) return null
+    const name = framework.archetype
+    // Try exact match first, then prefix match (e.g. 'The Translator: ...' → 'The Translator')
+    if (ARCHETYPE_APPROACH[name]) return ARCHETYPE_APPROACH[name]
+    const key = Object.keys(ARCHETYPE_APPROACH).find(k => name.startsWith(k))
+    return key
+      ? ARCHETYPE_APPROACH[key]
+      : { icon: '◎', description: 'Your archetype drives a distinctive content voice built around your unique career positioning.', mandate: 'Every post Shakespeare writes will be anchored in your specific experience and strategic angle.' }
+  })()
 
   return (
     <div style={{ animation: 'msg-in 0.4s ease both' }}>
