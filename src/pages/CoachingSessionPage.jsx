@@ -703,14 +703,15 @@ export default function CoachingSessionPage() {
 
       {/* ── Session Header ── */}
       <div style={{
-        padding: '24px 40px 20px',
+        padding: '20px 40px 16px',
         borderBottom: '1px solid #1E2A3E',
         background: 'rgba(13,18,32,0.4)',
         backdropFilter: 'blur(8px)',
         flexShrink: 0,
         position: 'relative', zIndex: 1,
       }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto' }}>
+        {/* Full-width when recap, centred at 760px when chatting */}
+        <div style={{ maxWidth: loaded && sessionStatus === 'completed' ? 'none' : '760px', margin: '0 auto' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
             <div style={{
               width: '28px', height: '28px', borderRadius: '50%',
@@ -731,62 +732,62 @@ export default function CoachingSessionPage() {
 
       {/* ── Chat Window ── */}
       <div style={{
-        flex: 1, overflowY: 'auto',
-        padding: '32px 40px',
+        flex: 1,
+        overflowY: loaded && sessionStatus === 'completed' ? 'hidden' : 'auto',
+        padding: loaded && sessionStatus === 'completed' ? '16px 32px 0' : '32px 40px',
+        display: 'flex',
+        flexDirection: 'column',
         position: 'relative', zIndex: 1,
       }}>
-        <div style={{ maxWidth: '760px', margin: '0 auto' }}>
-
-          {!loaded && (
-            <div style={{ textAlign: 'center', padding: '60px 0', color: '#334155' }}>
-              <div style={{ fontSize: '28px', marginBottom: '12px', animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
-              <p style={{ fontSize: '15px' }}>Starting your session…</p>
-            </div>
-          )}
-
-          {/* ── Completed: show Session Recap instead of raw chat ── */}
-          {loaded && sessionStatus === 'completed'
-            ? <SessionRecap
-                messages={messages}
-                framework={framework}
-                phase={phase}
-                component={component}
-                onFollowUp={handleRequestFollowUp}
-                thinking={thinking}
-                error={error}
-                onDismissError={() => setError(null)}
-              />
-            : loaded && (
-                <>
-                  {messages.map((msg, i) => (
-                    <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
-                  ))}
-                  {/* Mid-session empathy banner — appears after 4.5 min of active session */}
-                  {empathyLevel > 0 && !thinking && (
-                    <div style={{
-                      margin: '8px 0 24px',
-                      padding: '12px 16px',
-                      background: 'rgba(139,92,246,0.05)',
-                      border: '1px solid rgba(139,92,246,0.15)',
-                      borderRadius: '10px',
-                      display: 'flex', alignItems: 'center', gap: '12px',
-                      animation: 'msg-in 0.4s ease both',
-                    }}>
-                      <span style={{ fontSize: '20px', flexShrink: 0 }}>◎</span>
-                      <div>
-                        <div style={{ fontSize: '14px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
-                        <div style={{ fontSize: '16px', color: '#475569', lineHeight: '1.7' }}>
-                          {empathyLevel === 1 && "You've been at this for a few minutes now — that's exactly the kind of commitment that separates a great brand from a generic one. Keep going."}
-                          {empathyLevel === 2 && "Most executives tap out long before this point. The depth you're putting in right now is what makes the framework Chanakya builds genuinely yours. You're close."}
-                          {empathyLevel >= 3 && "This is rare. The level of insight you're sharing here takes most executives months to articulate. Chanakya is going to have more to work with than most. Almost there."}
-                        </div>
+        {/* Recap: full-width, no maxWidth wrapper */}
+        {loaded && sessionStatus === 'completed' ? (
+          <SessionRecap
+            messages={messages}
+            framework={framework}
+            phase={phase}
+            component={component}
+            onFollowUp={handleRequestFollowUp}
+            thinking={thinking}
+            error={error}
+            onDismissError={() => setError(null)}
+          />
+        ) : (
+          <div style={{ maxWidth: '760px', margin: '0 auto', width: '100%' }}>
+            {!loaded && (
+              <div style={{ textAlign: 'center', padding: '60px 0', color: '#334155' }}>
+                <div style={{ fontSize: '28px', marginBottom: '12px', animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
+                <p style={{ fontSize: '15px' }}>Starting your session…</p>
+              </div>
+            )}
+            {loaded && (
+              <>
+                {messages.map((msg, i) => (
+                  <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
+                ))}
+                {/* Mid-session empathy banner — appears after 4.5 min of active session */}
+                {empathyLevel > 0 && !thinking && (
+                  <div style={{
+                    margin: '8px 0 24px',
+                    padding: '12px 16px',
+                    background: 'rgba(139,92,246,0.05)',
+                    border: '1px solid rgba(139,92,246,0.15)',
+                    borderRadius: '10px',
+                    display: 'flex', alignItems: 'center', gap: '12px',
+                    animation: 'msg-in 0.4s ease both',
+                  }}>
+                    <span style={{ fontSize: '20px', flexShrink: 0 }}>◎</span>
+                    <div>
+                      <div style={{ fontSize: '14px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
+                      <div style={{ fontSize: '16px', color: '#475569', lineHeight: '1.7' }}>
+                        {empathyLevel === 1 && "You've been at this for a few minutes now — that's exactly the kind of commitment that separates a great brand from a generic one. Keep going."}
+                        {empathyLevel === 2 && "Most executives tap out long before this point. The depth you're putting in right now is what makes the framework Chanakya builds genuinely yours. You're close."}
+                        {empathyLevel >= 3 && "This is rare. The level of insight you're sharing here takes most executives months to articulate. Chanakya is going to have more to work with than most. Almost there."}
                       </div>
                     </div>
-                  )}
-                </>
-              )
-          }
-
+                  </div>
+                )}
+              </>
+            )}
           {thinking && sessionStatus !== 'completed' && <TypingIndicator />}
 
           {error && sessionStatus !== 'completed' && (
@@ -857,6 +858,8 @@ export default function CoachingSessionPage() {
           )}
 
           <div ref={bottomRef} />
+          </div>
+        )}
         </div>
       </div>
 
