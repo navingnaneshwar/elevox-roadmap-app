@@ -121,12 +121,32 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
 
   const summaryText = extractText(summaryMsg)
 
-  // Key user exchanges — last 3 user messages as highlights
+  // Key user exchanges — pair each user answer with the Vox question before it
+  // This prevents bare "yes" answers appearing with no context.
+  const FEEDS_INTO_LABELS = [
+    'Brand Archetype & Voice',
+    'Content Pillars',
+    'Ghostwriting Rules',
+    'Target Audience Matrix',
+    'Platform Strategy',
+    '90-Day Framework',
+  ]
+
   const userHighlights = messages
-    .filter(m => m.role === 'user')
-    .slice(-3)
-    .map(m => typeof m.content === 'string' ? m.content : m.content?.reply || '')
-    .filter(t => t && t !== '__start__')
+    .reduce((pairs, msg, idx, arr) => {
+      if (msg.role !== 'user') return pairs
+      const content = typeof msg.content === 'string' ? msg.content : (msg.content?.reply || '')
+      if (!content || content === '__start__') return pairs
+      // Find the Vox question that immediately preceded this user turn
+      const prevVox = arr.slice(0, idx).filter(m => m.role === 'assistant').pop()
+      const question = typeof prevVox?.content === 'string'
+        ? prevVox.content.split('\n').filter(l => l.trim()).pop()?.trim() // last line = the question
+        : null
+      pairs.push({ question, answer: content })
+      return pairs
+    }, [])
+    .filter(p => p.answer && p.answer !== '__start__')
+    .slice(-5) // last 5 exchanges
 
   const sessionDate = summaryMsg?.ts
     ? new Date(summaryMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -228,23 +248,47 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
       {userHighlights.length > 0 && (
         <div style={{ marginBottom: '28px' }}>
           <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            Key Points You Shared
+            Key Points Captured
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {userHighlights.map((highlight, i) => (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {userHighlights.map(({ question, answer }, i) => (
               <div key={i} style={{
-                display: 'flex', gap: '12px', alignItems: 'flex-start',
-                padding: '12px 16px',
+                padding: '14px 16px',
                 background: 'rgba(255,255,255,0.02)',
                 border: '1px solid #1E2A3E',
                 borderRadius: '8px',
               }}>
-                <span style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, marginTop: '2px' }}>0{i + 1}</span>
-                <span style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.6' }}>
-                  {highlight.length > 200 ? highlight.slice(0, 200) + '…' : highlight}
-                </span>
+                {/* Vox question that prompted this */ }
+                {question && (
+                  <div style={{ fontSize: '11px', color: '#334155', fontFamily: "'Inter', sans-serif", marginBottom: '6px', lineHeight: '1.5' }}>
+                    <span style={{ color: '#475569' }}>Vox asked: </span>{question.length > 140 ? question.slice(0, 140) + '…' : question}
+                  </div>
+                )}
+                {/* User's answer */}
+                <div style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.6', marginBottom: '8px' }}>
+                  <span style={{ color: '#6366f1', fontSize: '11px', fontFamily: "'JetBrains Mono', monospace", marginRight: '6px' }}>You:</span>
+                  {answer.length > 300 ? answer.slice(0, 300) + '…' : answer}
+                </div>
+                {/* What this feeds into */}
+                <div style={{ fontSize: '10px', color: '#1E3A5F', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>
+                  ↳ FEEDS INTO: {FEEDS_INTO_LABELS[i % FEEDS_INTO_LABELS.length]}
+                </div>
               </div>
             ))}
+          </div>
+
+          {/* Data store callout */}
+          <div style={{
+            marginTop: '12px', padding: '10px 14px',
+            background: 'rgba(99,102,241,0.04)',
+            border: '1px solid rgba(99,102,241,0.12)',
+            borderRadius: '8px',
+            fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: '1.6',
+          }}>
+            <span style={{ color: '#6366f1', fontWeight: '700' }}>How Elevox uses this:</span> These answers are stored as{' '}
+            <code style={{ background: 'rgba(99,102,241,0.12)', padding: '1px 5px', borderRadius: '3px', fontSize: '10px' }}>mentor_sessions.messages</code>{' '}
+            and flow directly into Chanakya's brand framework prompt as verified career facts —{' '}
+            shaping your archetype, content pillars, ghostwriting rules, and the 90-day action plan.
           </div>
         </div>
       )}
