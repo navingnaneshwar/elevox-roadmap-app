@@ -184,7 +184,7 @@ function Message({ msg, isLatest, isPlaying }) {
       <div style={{ maxWidth: '85%' }}>
         {/* Name Label */}
         <div style={{
-          fontSize: '11px', fontWeight: '600', color: isUser ? '#64748B' : '#8B6DAA',
+          fontSize: '13px', fontWeight: '600', color: isUser ? '#64748B' : '#8B6DAA',
           marginBottom: '6px', textAlign: isUser ? 'right' : 'left',
           letterSpacing: '0.5px'
         }}>
@@ -660,7 +660,7 @@ export default function CoachingSessionPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <Logo size="sm" theme="dark" />
           <span style={{ width: '1px', height: '14px', background: '#1E2A3E' }} />
-          <Link to="/dashboard" style={{ fontSize: '12px', color: '#334155', textDecoration: 'none' }}>Dashboard</Link>
+          <Link to="/dashboard" style={{ fontSize: '13px', color: '#334155', textDecoration: 'none' }}>Dashboard</Link>
           <span style={{ color: '#1E2A3E', fontSize: '12px' }}>›</span>
           <span style={{ fontSize: '12px', color: phase.color }}>{phase.title}</span>
           <span style={{ color: '#1E2A3E', fontSize: '12px' }}>›</span>
@@ -687,7 +687,7 @@ export default function CoachingSessionPage() {
             <button
               onClick={() => prevComp !== null && navigate(`/coach/${phaseId}/${prevComp}`)}
               disabled={prevComp === null}
-              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: prevComp !== null ? '#64748B' : '#1E2A3E', fontSize: '11px', cursor: prevComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: prevComp !== null ? '#64748B' : '#1E2A3E', fontSize: '12px', cursor: prevComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
             >← Prev</button>
             <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
               {compIdx + 1}/{totalComponents}
@@ -695,7 +695,7 @@ export default function CoachingSessionPage() {
             <button
               onClick={() => nextComp !== null && navigate(`/coach/${phaseId}/${nextComp}`)}
               disabled={nextComp === null}
-              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: nextComp !== null ? '#64748B' : '#1E2A3E', fontSize: '11px', cursor: nextComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
+              style={{ padding: '6px 12px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '6px', color: nextComp !== null ? '#64748B' : '#1E2A3E', fontSize: '12px', cursor: nextComp !== null ? 'pointer' : 'default', fontFamily: "'Inter', sans-serif" }}
             >Next →</button>
           </div>
         </div>
@@ -716,14 +716,14 @@ export default function CoachingSessionPage() {
               width: '28px', height: '28px', borderRadius: '50%',
               background: `${phase.color}20`, border: `1px solid ${phase.color}40`,
               display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '12px', color: phase.color,
+              fontSize: '13px', color: phase.color,
             }}>{phase.icon}</div>
-            <span style={{ fontSize: '10px', color: phase.color, letterSpacing: '2px', fontWeight: '600' }}>PHASE {phase.label} · SESSION {String(compIdx + 1).padStart(2, '0')}</span>
+            <span style={{ fontSize: '11px', color: phase.color, letterSpacing: '2px', fontWeight: '600' }}>PHASE {phase.label} · SESSION {String(compIdx + 1).padStart(2, '0')}</span>
           </div>
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: 0, letterSpacing: '-0.3px' }}>
             {component.title}
           </h1>
-          <p style={{ fontSize: '12px', color: '#334155', margin: '4px 0 0' }}>
+          <p style={{ fontSize: '13px', color: '#334155', margin: '4px 0 0' }}>
             Session with <strong style={{ color: '#6366f1' }}>Vox</strong> — your Executive Brand Strategist · Dictation enabled · Auto-saved
           </p>
         </div>
@@ -774,8 +774,8 @@ export default function CoachingSessionPage() {
                     }}>
                       <span style={{ fontSize: '18px', flexShrink: 0 }}>◎</span>
                       <div>
-                        <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
-                        <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.6' }}>
+                        <div style={{ fontSize: '12px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
+                        <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7' }}>
                           {empathyLevel === 1 && "You've been at this for a few minutes now — that's exactly the kind of commitment that separates a great brand from a generic one. Keep going."}
                           {empathyLevel === 2 && "Most executives tap out long before this point. The depth you're putting in right now is what makes the framework Chanakya builds genuinely yours. You're close."}
                           {empathyLevel >= 3 && "This is rare. The level of insight you're sharing here takes most executives months to articulate. Chanakya is going to have more to work with than most. Almost there."}
@@ -871,9 +871,9 @@ export default function CoachingSessionPage() {
       }}>
         {sessionStatus === 'completed' ? (
           <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 0' }}>
-            <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>SESSION COMPLETE</span>
+            <span style={{ fontSize: '12px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>SESSION COMPLETE</span>
             <span style={{ color: '#1E2A3E', fontSize: '11px' }}>·</span>
-            <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>Review your recap above</span>
+            <span style={{ fontSize: '12px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>Review your recap above</span>
           </div>
         ) : (
           <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>

@@ -1,7 +1,8 @@
 // src/components/SessionRecap.jsx
 // Session-complete summary dashboard.
-// Desktop: single-screen 2-column layout (no vertical scroll).
-// Mobile: single-column, vertical-scroll only.
+// Desktop: single-screen 2-column layout — each pane scrolls independently.
+// Mobile: single-column, vertical scroll only.
+// Font sizes optimised for 40–70 year old executive audience.
 
 import { useState } from 'react'
 
@@ -28,30 +29,25 @@ function resolveArchetype(name) {
 
 /* ── Inference category colours ─────────────── */
 const INFERENCE_CATEGORIES = [
-  { label: 'Positioning Assumption', color: '#6366f1' },
-  { label: 'Voice & Tone Read',      color: '#8b5cf6' },
-  { label: 'Audience Inference',     color: '#C8A96E' },
-  { label: 'Credibility Signal',     color: '#10b981' },
-  { label: 'Contrarian Lens',        color: '#5B8FA8' },
-  { label: 'Leadership Profile',     color: '#C85A5A' },
+  { label: 'Positioning',    color: '#6366f1' },
+  { label: 'Voice & Tone',   color: '#8b5cf6' },
+  { label: 'Your Audience',  color: '#C8A96E' },
+  { label: 'Credibility',    color: '#10b981' },
+  { label: 'Contrarian Lens',color: '#5B8FA8' },
+  { label: 'Leadership',     color: '#C85A5A' },
 ]
 
-/* ── Pillar colours ─────────────────────────── */
 const PILLAR_COLORS = ['#6366f1','#8b5cf6','#C8A96E','#10b981','#5B8FA8','#C85A5A']
 
-/* ═══════════════════════════════════════════════
+/* ═══════════════════════════════════════════
    SessionRecap Component
-   Props: phase, component, messages, framework,
-          summaryText, voxInferences, error,
-          thinking, onFollowUp, onDismissError
-═══════════════════════════════════════════════ */
+   ════════════════════════════════════════ */
 export default function SessionRecap({
   phase, component, messages,
   framework, error, thinking, onFollowUp, onDismissError,
 }) {
   const [summaryExpanded, setSummaryExpanded] = useState(false)
 
-  // Date from last message
   const sessionDate = messages?.length
     ? new Date(messages[messages.length - 1].ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
     : null
@@ -63,25 +59,22 @@ export default function SessionRecap({
     : voxMsgs[voxMsgs.length - 1]
   const summaryText = summaryMsg?.content || ''
 
-  // Derive voxInferences: Vox's analytical statements from the session
-  // Use early Vox messages (Q1–Q5) which contain Vox's framing of each topic,
-  // rather than raw user answers.
+  // Vox inferences: first sentence from each early Vox message (Vox's own framing)
   const voxInferences = voxMsgs
-    .slice(0, -2) // exclude the last 2 (summary + handoff)
+    .slice(0, -2)
     .map(m => {
-      // Extract the opening sentence of each Vox message (the framing/assertion)
       const content = m.content?.trim() || ''
-      const firstSentence = content.match(/[^.!?]+[.!?]+/)?.[0]?.trim()
-      return firstSentence && firstSentence.length > 20 ? firstSentence : null
+      const first = content.match(/[^.!?]+[.!?]+/)?.[0]?.trim()
+      return first && first.length > 20 ? first : null
     })
     .filter(Boolean)
-    .slice(0, 6) // max 6 inferences
+    .slice(0, 6)
 
-  // Summary: first 5 sentences (Vox writes single paragraphs)
+  // Summary truncation: first 4 sentences
   const sentenceRegex = /[^.!?]+[.!?]+/g
   const allSentences = summaryText ? (summaryText.match(sentenceRegex) || [summaryText]) : []
-  const truncatedSummary = allSentences.slice(0, 5).join(' ').trim()
-  const hasMoreSummary = allSentences.length > 5
+  const truncatedSummary = allSentences.slice(0, 4).join(' ').trim()
+  const hasMoreSummary = allSentences.length > 4
 
   const archetypeApproach = resolveArchetype(framework?.archetype)
   const pc = phase?.color || '#6366f1'
@@ -89,7 +82,8 @@ export default function SessionRecap({
   return (
     <div className="sr-root" style={{ '--pc': pc }}>
       <style>{`
-        /* ── Root ── */
+        /* ─── Single-screen dashboard (desktop) ─── */
+        /* Body text ≥13px, labels ≥10px for 40-70yo audience */
         .sr-root {
           display: flex;
           flex-direction: column;
@@ -97,78 +91,78 @@ export default function SessionRecap({
           min-height: 0;
           font-family: 'Inter', sans-serif;
           animation: msg-in 0.4s ease both;
-          padding: 4px 0;
           box-sizing: border-box;
+          overflow: hidden;
         }
-        /* ── Badge ── */
+        /* Badge row */
         .sr-badge {
           display: flex;
           align-items: center;
           gap: 10px;
-          padding: 7px 14px;
+          padding: 6px 14px;
           border-radius: 9px;
           flex-shrink: 0;
-          margin-bottom: 8px;
+          margin-bottom: 7px;
         }
-        /* ── 2-col body ── */
+        /* 2-column body */
         .sr-body {
           display: grid;
           grid-template-columns: 5fr 7fr;
-          gap: 10px;
+          gap: 8px;
           flex: 1;
           min-height: 0;
           overflow: hidden;
-          margin-bottom: 8px;
+          margin-bottom: 7px;
         }
-        /* ── Left pane: summary ── */
+        /* Left pane — summary */
         .sr-left {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 5px;
           min-height: 0;
           overflow: hidden;
         }
         .sr-summary-box {
           flex: 1;
-          overflow: hidden;
-          border-radius: 8px;
-          padding: 10px 12px;
+          overflow-y: auto;      /* summary scrolls internally if long */
+          border-radius: 9px;
+          padding: 10px 13px;
           background: rgba(13,18,32,0.8);
           border: 1px solid #1E2A3E;
           border-left: 3px solid var(--pc);
+          scrollbar-width: thin;
+          scrollbar-color: #1E2A3E transparent;
         }
         .sr-summary-text {
-          font-size: 11.5px;
+          font-size: 13px;       /* readable for 40-70yo */
           color: #94A3B8;
-          line-height: 1.65;
-          display: -webkit-box;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
+          line-height: 1.7;
+          white-space: pre-wrap;
         }
-        /* ── Right pane: archetype + pillars ── */
+        /* Right pane — archetype + pillars */
         .sr-right {
           display: flex;
           flex-direction: column;
-          gap: 6px;
+          gap: 5px;
           min-height: 0;
           overflow: hidden;
         }
         .sr-archetype-card {
           flex-shrink: 0;
-          border-radius: 10px;
+          border-radius: 9px;
           overflow: hidden;
           border: 1px solid rgba(99,102,241,0.25);
         }
         .sr-archetype-top {
           background: linear-gradient(135deg, rgba(99,102,241,0.18) 0%, rgba(139,92,246,0.10) 60%, rgba(200,169,110,0.05) 100%);
           border-bottom: 1px solid rgba(99,102,241,0.12);
-          padding: 10px 14px;
+          padding: 9px 13px;
           display: flex;
           align-items: flex-start;
           gap: 10px;
         }
         .sr-archetype-mandate {
-          padding: 7px 14px;
+          padding: 6px 13px;
           background: rgba(8,10,20,0.7);
           display: flex;
           align-items: flex-start;
@@ -187,35 +181,43 @@ export default function SessionRecap({
           display: grid;
           grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
           gap: 5px;
+          scrollbar-width: thin;
+          scrollbar-color: #1E2A3E transparent;
         }
-        /* ── Inference grid ── */
+        /* Inference strip — horizontally scrollable 1-row */
         .sr-inferences {
           flex-shrink: 0;
-          margin-bottom: 7px;
+          margin-bottom: 6px;
         }
-        .sr-inferences-grid {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 4px;
+        .sr-inferences-strip {
+          display: flex;
+          gap: 5px;
+          overflow-x: auto;
+          scrollbar-width: thin;
+          scrollbar-color: #1E2A3E transparent;
+          padding-bottom: 3px;
         }
         .sr-inf-card {
-          padding: 6px 8px;
+          flex-shrink: 0;
+          min-width: 220px;
+          max-width: 280px;
+          padding: 7px 10px;
           background: rgba(13,18,32,0.5);
           border: 1px solid #1E2A3E;
-          border-radius: 5px;
-          display: flex;
-          gap: 8px;
-          align-items: flex-start;
+          border-radius: 6px;
+          border-left-width: 3px;
           overflow: hidden;
         }
-        /* ── Section divider ── */
-        .sr-divider {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          flex-shrink: 0;
+        /* Section label */
+        .sr-section-label {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 2px;
+          text-transform: uppercase;
+          font-family: 'JetBrains Mono', monospace;
+          color: #334155;
         }
-        /* ── Footer ── */
+        /* Footer CTA */
         .sr-footer {
           flex-shrink: 0;
           display: flex;
@@ -227,33 +229,44 @@ export default function SessionRecap({
           border: 1px solid #1E2A3E;
           border-radius: 9px;
         }
-        /* ── Mobile: single column, vertical scroll only ── */
+        /* Divider */
+        .sr-divider {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          flex-shrink: 0;
+          margin-bottom: 4px;
+        }
+        .sr-divider-line { flex: 1; height: 1px; background: #1E2A3E; }
+        /* Mobile: single column vertical scroll */
         @media (max-width: 860px) {
           .sr-root { height: auto; overflow: visible; }
           .sr-body  { grid-template-columns: 1fr; overflow: visible; flex: none; }
           .sr-left, .sr-right { overflow: visible; }
-          .sr-summary-box { flex: none; }
+          .sr-summary-box { flex: none; max-height: 200px; }
           .sr-pillars, .sr-pillars-grid { overflow: visible; min-height: auto; }
-          .sr-inferences-grid { grid-template-columns: 1fr; }
+          .sr-inferences-strip { flex-wrap: wrap; overflow: visible; }
+          .sr-inf-card { min-width: 100%; max-width: 100%; }
         }
       `}</style>
 
       {/* ── Badge ── */}
       <div className="sr-badge" style={{ background: `linear-gradient(135deg,${pc}12,${pc}06)`, border: `1px solid ${pc}30` }}>
         <div style={{
-          width: '26px', height: '26px', borderRadius: '50%',
+          width: '28px', height: '28px', borderRadius: '50%',
           background: `${pc}20`, border: `1px solid ${pc}40`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', flexShrink: 0,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '14px', flexShrink: 0,
         }}>✓</div>
         <div style={{ flex: 1 }}>
-          <div style={{ fontSize: '8px', color: pc, letterSpacing: '2px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontSize: '10px', color: pc, letterSpacing: '2px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>
             SESSION COMPLETE{sessionDate ? ` · ${sessionDate}` : ''}
           </div>
-          <div style={{ fontSize: '13px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2 }}>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2 }}>
             {component?.title}
           </div>
         </div>
-        <div style={{ fontSize: '8px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right', flexShrink: 0 }}>
           {messages?.length || 0} exchanges
         </div>
       </div>
@@ -261,25 +274,24 @@ export default function SessionRecap({
       {/* ── 2-Column Body ── */}
       <div className="sr-body">
 
-        {/* LEFT — Strategic Summary */}
+        {/* LEFT — Strategic Summary (internal scroll) */}
         <div className="sr-left">
           <div className="sr-divider">
-            <div style={{ fontSize: '8px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Vox's Strategic Summary</div>
-            <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
+            <div className="sr-section-label">Vox's Strategic Summary</div>
+            <div className="sr-divider-line" />
           </div>
           <div className="sr-summary-box">
-            <div
-              className="sr-summary-text"
-              style={{ WebkitLineClamp: summaryExpanded ? 'unset' : 6 }}
-            >
-              {summaryText || 'Summary will appear here once Vox finalises the strategy.'}
+            <div className="sr-summary-text">
+              {summaryExpanded
+                ? summaryText
+                : (truncatedSummary || 'Summary will appear here once Vox finalises the strategy.')}
             </div>
             {hasMoreSummary && (
               <button
                 onClick={() => setSummaryExpanded(e => !e)}
-                style={{ background: 'none', border: 'none', color: '#475569', fontSize: '10px', cursor: 'pointer', fontFamily: "'Inter', sans-serif", padding: '4px 0 0', textDecoration: 'underline' }}
+                style={{ background: 'none', border: 'none', color: '#475569', fontSize: '11px', cursor: 'pointer', fontFamily: "'Inter', sans-serif", padding: '5px 0 0', textDecoration: 'underline' }}
               >
-                {summaryExpanded ? '↑ Less' : '↓ Full summary'}
+                {summaryExpanded ? '↑ Show less' : '↓ Read full summary'}
               </button>
             )}
           </div>
@@ -288,47 +300,47 @@ export default function SessionRecap({
         {/* RIGHT — Brand Framework */}
         <div className="sr-right">
           <div className="sr-divider">
-            <div style={{ fontSize: '8px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Brand Framework</div>
-            <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
-            <div style={{ fontSize: '7px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>CHANAKYA</div>
+            <div className="sr-section-label">Brand Framework</div>
+            <div className="sr-divider-line" />
+            <div style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', flexShrink: 0 }}>CHANAKYA</div>
           </div>
 
-          {/* Archetype Card */}
+          {/* Archetype Hero Card */}
           {framework?.archetype && archetypeApproach && (
             <div className="sr-archetype-card">
               <div className="sr-archetype-top">
                 <div style={{
-                  width: '34px', height: '34px', borderRadius: '8px', flexShrink: 0,
+                  width: '38px', height: '38px', borderRadius: '9px', flexShrink: 0,
                   background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '17px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '20px',
                 }}>
                   {archetypeApproach.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: '7px', color: '#6366f1', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '2px' }}>YOUR ARCHETYPE</div>
-                  <div style={{ fontSize: '13px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: '3px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '2px' }}>YOUR ARCHETYPE</div>
+                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {framework.archetype}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.45, fontFamily: "'Inter', sans-serif",
+                  <div style={{ fontSize: '12px', color: '#64748B', lineHeight: 1.5, fontFamily: "'Inter', sans-serif",
                     overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                     {archetypeApproach.description}
                   </div>
                 </div>
               </div>
               <div className="sr-archetype-mandate">
-                <span style={{ color: '#6366f1', fontSize: '11px', flexShrink: 0 }}>▶</span>
+                <span style={{ color: '#6366f1', fontSize: '12px', flexShrink: 0 }}>▶</span>
                 <div>
-                  <span style={{ fontSize: '7px', color: '#6366f1', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1.2px', textTransform: 'uppercase', marginRight: '6px' }}>Content Mandate</span>
-                  <span style={{ fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: 1.45 }}>{archetypeApproach.mandate}</span>
+                  <span style={{ fontSize: '10px', color: '#6366f1', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1.2px', textTransform: 'uppercase', marginRight: '6px' }}>Content Mandate</span>
+                  <span style={{ fontSize: '12px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>{archetypeApproach.mandate}</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Content Pillars */}
+          {/* Content Pillars (internal scroll) */}
           {framework?.content_pillars?.length > 0 && (
             <div className="sr-pillars">
-              <div style={{ fontSize: '8px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '4px', flexShrink: 0 }}>Content Pillars</div>
+              <div className="sr-section-label" style={{ marginBottom: '4px' }}>Content Pillars</div>
               <div className="sr-pillars-grid">
                 {framework.content_pillars.map((p, i) => {
                   const title = typeof p === 'object' ? p.title : p
@@ -336,16 +348,16 @@ export default function SessionRecap({
                   const col   = PILLAR_COLORS[i % PILLAR_COLORS.length]
                   return (
                     <div key={i} style={{
-                      padding: '7px 9px',
+                      padding: '8px 10px',
                       background: 'rgba(13,18,32,0.7)',
                       border: `1px solid ${col}28`,
                       borderTop: `2px solid ${col}`,
-                      borderRadius: '7px',
+                      borderRadius: '8px',
                     }}>
-                      <div style={{ fontSize: '7px', color: col, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>P{String(i + 1).padStart(2, '0')}</div>
-                      <div style={{ fontSize: '11.5px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.25, marginBottom: desc ? '2px' : 0 }}>{title}</div>
+                      <div style={{ fontSize: '10px', color: col, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '4px' }}>PILLAR {String(i + 1).padStart(2, '0')}</div>
+                      <div style={{ fontSize: '13px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.25, marginBottom: desc ? '3px' : 0 }}>{title}</div>
                       {desc && (
-                        <div style={{ fontSize: '10px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: 1.4,
+                        <div style={{ fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: 1.45,
                           overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                           {desc}
                         </div>
@@ -359,29 +371,24 @@ export default function SessionRecap({
         </div>
       </div>
 
-      {/* ── Vox Inferences ── */}
-      {voxInferences?.length > 0 && (
+      {/* ── Vox's Profile Read (horizontal strip) ── */}
+      {voxInferences.length > 0 && (
         <div className="sr-inferences">
-          <div className="sr-divider" style={{ marginBottom: '5px' }}>
-            <div style={{ fontSize: '8px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace" }}>Vox's Profile Read</div>
-            <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
-            <div style={{ fontSize: '8px', color: '#334155', fontFamily: "'Inter', sans-serif" }}>shapes every artefact Elevox builds</div>
+          <div className="sr-divider">
+            <div className="sr-section-label">Vox's Profile Read</div>
+            <div className="sr-divider-line" />
+            <div style={{ fontSize: '10px', color: '#334155', fontFamily: "'Inter', sans-serif", flexShrink: 0 }}>scroll →</div>
           </div>
-          <div className="sr-inferences-grid">
+          <div className="sr-inferences-strip">
             {voxInferences.map((inference, i) => {
               const cat = INFERENCE_CATEGORIES[i % INFERENCE_CATEGORIES.length]
               return (
-                <div key={i} className="sr-inf-card" style={{ borderLeft: `2px solid ${cat.color}` }}>
-                  <div style={{
-                    fontSize: '7px', fontWeight: '700', letterSpacing: '1px',
-                    textTransform: 'uppercase', color: cat.color,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    flexShrink: 0, marginTop: '1px', minWidth: '80px',
-                  }}>
+                <div key={i} className="sr-inf-card" style={{ borderLeftColor: cat.color }}>
+                  <div style={{ fontSize: '10px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', color: cat.color, fontFamily: "'JetBrains Mono', monospace", marginBottom: '3px' }}>
                     {cat.label}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: 1.5,
-                    overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical' }}>
+                  <div style={{ fontSize: '12px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: 1.5,
+                    overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
                     {inference}
                   </div>
                 </div>
@@ -393,28 +400,28 @@ export default function SessionRecap({
 
       {/* ── Error ── */}
       {error && (
-        <div style={{ padding: '7px 12px', marginBottom: '6px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px', color: '#fca5a5', fontSize: '12px' }}>
+        <div style={{ padding: '8px 14px', marginBottom: '6px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#fca5a5', fontSize: '13px' }}>
           ⚠ {error}{' '}
-          <button onClick={onDismissError} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' }}>dismiss</button>
+          <button onClick={onDismissError} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>dismiss</button>
         </div>
       )}
 
       {/* ── Footer CTA ── */}
       <div className="sr-footer">
         <div>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '1px' }}>Want to revisit or adjust?</div>
-          <div style={{ fontSize: '10px', color: '#475569', fontFamily: "'Inter', sans-serif" }}>Vox will summarise your decisions and ask what you'd like to change.</div>
+          <div style={{ fontSize: '13px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '2px' }}>Want to revisit or adjust?</div>
+          <div style={{ fontSize: '12px', color: '#475569', fontFamily: "'Inter', sans-serif" }}>Vox will summarise your decisions and ask what you'd like to change.</div>
         </div>
         <button
           onClick={onFollowUp}
           disabled={thinking}
           style={{
-            padding: '8px 18px',
+            padding: '9px 20px',
             background: thinking ? 'rgba(99,102,241,0.1)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
             border: thinking ? '1px solid rgba(99,102,241,0.2)' : 'none',
             borderRadius: '8px',
             color: thinking ? '#64748B' : '#fff',
-            fontSize: '12px', fontWeight: '600',
+            fontSize: '13px', fontWeight: '600',
             cursor: thinking ? 'default' : 'pointer',
             fontFamily: "'Inter', sans-serif",
             boxShadow: thinking ? 'none' : '0 4px 14px rgba(99,102,241,0.3)',
