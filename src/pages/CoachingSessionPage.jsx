@@ -170,6 +170,28 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
     ? new Date(summaryMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
     : null
 
+  // Truncate summary to first 5 lines; user can expand
+  const [summaryExpanded, setSummaryExpanded] = React.useState(false)
+  const summaryLines = summaryText.split('\n').filter(l => l.trim())
+  const truncatedSummary = summaryLines.slice(0, 5).join('\n')
+  const hasMoreSummary = summaryLines.length > 5
+
+  // Archetype approach lookup — explains what each archetype means for content strategy
+  const ARCHETYPE_APPROACH = {
+    'The Visionary':       { icon: '◎', description: 'You challenge the status quo and lead with bold predictions. Content focuses on where the industry is going — not where it is.', mandate: 'Posts that reframe the future, challenge consensus, and position you as the person who saw it coming.' },
+    'The Architect':       { icon: '◈', description: 'You build systems and frameworks others can\'t. Content focuses on your proprietary thinking — the mental models behind your results.', mandate: 'Posts that break down complex decisions into repeatable frameworks your audience can apply.' },
+    'The Operator':        { icon: '◉', description: 'You execute at scale. Content focuses on the unglamorous precision of how things actually get done at the top.', mandate: 'Posts about real operational decisions, trade-offs, and the discipline behind sustainable performance.' },
+    'The Contrarian':      { icon: '◆', description: 'You are most valuable when you disagree. Content focuses on the mainstream beliefs in your industry that are holding people back.', mandate: 'Posts that name the conventional wisdom, then dismantle it with a sharper, more experienced view.' },
+    'The Translator':      { icon: '◐', description: 'You make the complex legible. Content focuses on turning technical depth or specialist insight into language decision-makers can act on.', mandate: 'Posts that decode complexity — the jargon-free explanation that earns trust across the boardroom table.' },
+    'The Connector':       { icon: '◇', description: 'You build rooms. Content focuses on the relationships behind outcomes — who you bring together, and why that changes results.', mandate: 'Posts about ecosystem-building, network leverage, and the human intelligence beneath every deal.' },
+    'The Authority':       { icon: '✦', description: 'You are the benchmark. Content focuses on the standards you set and enforce — intellectual rigour over broad appeal.', mandate: 'Posts that establish criteria, set the bar, and invite serious conversation from serious people.' },
+    'The Practitioner':    { icon: '⬡', description: 'You have done the work. Content focuses on the specific, lived expertise that can only come from years of execution.', mandate: 'Posts anchored in specific career moments, real numbers, and decisions that shaped outcomes.' },
+  }
+  const archetypeApproach = framework?.archetype
+    ? (ARCHETYPE_APPROACH[framework.archetype] ||
+       { icon: '◎', description: 'Your archetype drives a distinctive content voice built around your unique career positioning.', mandate: 'Every post Shakespeare writes will be anchored in your specific experience and strategic angle.' })
+    : null
+
   return (
     <div style={{ animation: 'msg-in 0.4s ease both' }}>
 
@@ -203,8 +225,13 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
       {/* ── Your Strategic Summary ── */}
       {summaryText && (
         <div style={{ marginBottom: '24px' }}>
-          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            Your Strategic Summary
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif" }}>
+              Strategic Summary
+            </div>
+            <div style={{ fontSize: '10px', color: '#334155', fontFamily: "'Inter', sans-serif" }}>
+              Vox’s session read
+            </div>
           </div>
           <div style={{
             padding: '20px 24px',
@@ -218,8 +245,24 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
             fontFamily: "'Inter', sans-serif",
             whiteSpace: 'pre-wrap',
           }}>
-            {summaryText}
+            {summaryExpanded ? summaryText : truncatedSummary}
           </div>
+          {hasMoreSummary && (
+            <button
+              onClick={() => setSummaryExpanded(e => !e)}
+              style={{
+                marginTop: '8px',
+                background: 'none', border: 'none',
+                color: '#475569', fontSize: '11px',
+                cursor: 'pointer', fontFamily: "'Inter', sans-serif",
+                padding: '4px 0',
+                textDecoration: 'underline',
+                textDecorationColor: '#334155',
+              }}
+            >
+              {summaryExpanded ? '↑ Collapse' : '↓ Read full summary'}
+            </button>
+          )}
         </div>
       )}
 
@@ -235,10 +278,26 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
             border: '1px solid rgba(99,102,241,0.15)',
             borderRadius: '12px',
           }}>
-            {framework.archetype && (
-              <div style={{ marginBottom: '16px' }}>
-                <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '6px' }}>Archetype</div>
-                <div style={{ fontSize: '15px', fontWeight: '700', color: '#a5b4fc', fontFamily: "'Outfit', sans-serif" }}>{framework.archetype}</div>
+            {framework.archetype && archetypeApproach && (
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '8px' }}>Your Archetype</div>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <span style={{ fontSize: '22px', flexShrink: 0, marginTop: '2px' }}>{archetypeApproach.icon}</span>
+                  <div>
+                    <div style={{ fontSize: '16px', fontWeight: '700', color: '#a5b4fc', fontFamily: "'Outfit', sans-serif", marginBottom: '6px' }}>{framework.archetype}</div>
+                    <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', marginBottom: '8px' }}>{archetypeApproach.description}</div>
+                    <div style={{
+                      fontSize: '11px', color: '#6366f1',
+                      fontFamily: "'JetBrains Mono', monospace",
+                      background: 'rgba(99,102,241,0.06)',
+                      border: '1px solid rgba(99,102,241,0.15)',
+                      borderRadius: '6px', padding: '6px 10px',
+                      lineHeight: '1.5',
+                    }}>
+                      ▶ Content Mandate: {archetypeApproach.mandate}
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
             {framework.content_pillars?.length > 0 && (
