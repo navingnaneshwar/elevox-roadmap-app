@@ -97,21 +97,39 @@ function getPhaseComponent(phaseId, componentId) {
 
 /* ─── Session Recap (shown when session = completed) ────────── */
 function SessionRecap({ messages, framework, phase, component, onFollowUp, thinking, error, onDismissError }) {
-  // The last Vox message is the handoff summary
-  const lastVoxMsg = [...messages].reverse().find(m => m.role === 'assistant')
-  const lastVoxText = lastVoxMsg
-    ? (typeof lastVoxMsg.content === 'string' ? lastVoxMsg.content : lastVoxMsg.content?.reply || '')
-    : ''
+  // The SECOND-TO-LAST Vox message is the human-readable validation summary
+  // ("Here's what I captured — does this accurately reflect your direction?")
+  // The LAST message is the internal agent handoff ("Transferring to Chanakya...")
+  // which contains jargon the user doesn't need to see.
+  const voxMessages = messages.filter(m => m.role === 'assistant')
+  const summaryMsg = voxMessages.length >= 2
+    ? voxMessages[voxMessages.length - 2]   // validation summary — user-facing
+    : voxMessages[voxMessages.length - 1]   // fallback: only one msg
 
-  // Key user exchanges — pick up to 3 user messages as highlights
+  function extractText(msg) {
+    if (!msg) return ''
+    const raw = typeof msg.content === 'string' ? msg.content : msg.content?.reply || ''
+    // Strip residual agent/jargon phrases the user doesn't need to see
+    return raw
+      .replace(/\[STAGE_COMPLETE\]/gi, '')
+      .replace(/I(?:'m| am) (?:now )?transferring[^.]*\./gi, '')
+      .replace(/(?:Chanakya|The Architect|the Strategist|the back[- ]end[^.]*)\./gi, '')
+      .replace(/hang tight[^.]*\./gi, '')
+      .replace(/your (?:Brand |brand )?(?:Blueprint|Framework|Dossier) will (?:be )?(?:ready|appear)[^.]*\./gi, '')
+      .trim()
+  }
+
+  const summaryText = extractText(summaryMsg)
+
+  // Key user exchanges — last 3 user messages as highlights
   const userHighlights = messages
     .filter(m => m.role === 'user')
     .slice(-3)
     .map(m => typeof m.content === 'string' ? m.content : m.content?.reply || '')
-    .filter(Boolean)
+    .filter(t => t && t !== '__start__')
 
-  const sessionDate = lastVoxMsg?.ts
-    ? new Date(lastVoxMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+  const sessionDate = summaryMsg?.ts
+    ? new Date(summaryMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
     : null
 
   return (
@@ -144,11 +162,11 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
         </div>
       </div>
 
-      {/* ── What Vox Captured ── */}
-      {lastVoxText && (
+      {/* ── Your Strategic Summary ── */}
+      {summaryText && (
         <div style={{ marginBottom: '24px' }}>
           <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            What Vox Captured
+            Your Strategic Summary
           </div>
           <div style={{
             padding: '20px 24px',
@@ -162,7 +180,7 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
             fontFamily: "'Inter', sans-serif",
             whiteSpace: 'pre-wrap',
           }}>
-            {lastVoxText}
+            {summaryText}
           </div>
         </div>
       )}
