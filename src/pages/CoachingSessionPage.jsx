@@ -227,7 +227,7 @@ function SessionRecap({ messages, framework, phase, component, onFollowUp, think
       {framework && (
         <div style={{ marginBottom: '24px' }}>
           <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
-            Your Brand Framework — Built by Chanakya
+            Your Brand Framework — Built by Chanakya, your Brand Architect
           </div>
           <div style={{
             padding: '20px 24px',
@@ -461,7 +461,7 @@ function Message({ msg, isLatest, isPlaying }) {
           marginBottom: '6px', textAlign: isUser ? 'right' : 'left',
           letterSpacing: '0.5px'
         }}>
-          {isUser ? 'YOU' : 'VOX (BRAND GURU)'}
+          {isUser ? 'YOU' : 'VOX · YOUR BRAND STRATEGIST'}
         </div>
 
         {/* Bubble */}
@@ -533,12 +533,36 @@ export default function CoachingSessionPage() {
   const [sessionStatus,setSessionStatus] = useState('active')
   const [sessionId,   setSessionId]   = useState(null)
   const [framework,   setFramework]   = useState(null)
+  // S5-UX: time-based empathy banner — shows after 4.5 min of active session
+  const [empathyLevel, setEmpathyLevel] = useState(0) // 0=hidden, 1=4.5min, 2=7min, 3=10min+
+  const sessionStartRef = useRef(null)
 
   const bottomRef      = useRef(null)
   const inputRef       = useRef(null)
   const textareaRef    = useRef(null)
   const recognitionRef = useRef(null)
   const audioRef       = useRef(null)
+  const empathyTimerRef = useRef(null)
+
+  // Start session clock when loaded & active; check every 30s for duration thresholds
+  useEffect(() => {
+    if (!loaded || sessionStatus === 'completed') {
+      if (empathyTimerRef.current) clearInterval(empathyTimerRef.current)
+      return
+    }
+    // Record session start time once
+    if (!sessionStartRef.current) sessionStartRef.current = Date.now()
+
+    empathyTimerRef.current = setInterval(() => {
+      const elapsedMs = Date.now() - sessionStartRef.current
+      const elapsedMin = elapsedMs / 60000
+      if      (elapsedMin >= 10)  setEmpathyLevel(3)
+      else if (elapsedMin >= 7)   setEmpathyLevel(2)
+      else if (elapsedMin >= 4.5) setEmpathyLevel(1)
+    }, 30_000) // check every 30 seconds
+
+    return () => clearInterval(empathyTimerRef.current)
+  }, [loaded, sessionStatus])
 
   // Initialize Speech Recognition
   useEffect(() => {
@@ -972,8 +996,8 @@ export default function CoachingSessionPage() {
           <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: 0, letterSpacing: '-0.3px' }}>
             {component.title}
           </h1>
-          <p style={{ fontSize: '12px', color: '#334155', margin: '4px 0 0', fontStyle: 'italic' }}>
-            Session with Vox · Dictation enabled · Responses auto-saved
+          <p style={{ fontSize: '12px', color: '#334155', margin: '4px 0 0' }}>
+            Session with <strong style={{ color: '#6366f1' }}>Vox</strong> — your Executive Brand Strategist · Dictation enabled · Auto-saved
           </p>
         </div>
       </div>
@@ -1005,9 +1029,35 @@ export default function CoachingSessionPage() {
                 error={error}
                 onDismissError={() => setError(null)}
               />
-            : loaded && messages.map((msg, i) => (
-                <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
-              ))
+            : loaded && (
+                <>
+                  {messages.map((msg, i) => (
+                    <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
+                  ))}
+                  {/* Mid-session empathy banner — appears after 4.5 min of active session */}
+                  {empathyLevel > 0 && !thinking && (
+                    <div style={{
+                      margin: '8px 0 24px',
+                      padding: '12px 16px',
+                      background: 'rgba(139,92,246,0.05)',
+                      border: '1px solid rgba(139,92,246,0.15)',
+                      borderRadius: '10px',
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      animation: 'msg-in 0.4s ease both',
+                    }}>
+                      <span style={{ fontSize: '18px', flexShrink: 0 }}>◎</span>
+                      <div>
+                        <div style={{ fontSize: '11px', color: '#8b5cf6', fontWeight: '600', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>VOX · CHECK-IN</div>
+                        <div style={{ fontSize: '12px', color: '#475569', lineHeight: '1.6' }}>
+                          {empathyLevel === 1 && "You've been at this for a few minutes now — that's exactly the kind of commitment that separates a great brand from a generic one. Keep going."}
+                          {empathyLevel === 2 && "Most executives tap out long before this point. The depth you're putting in right now is what makes the framework Chanakya builds genuinely yours. You're close."}
+                          {empathyLevel >= 3 && "This is rare. The level of insight you're sharing here takes most executives months to articulate. Chanakya is going to have more to work with than most. Almost there."}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )
           }
 
           {thinking && sessionStatus !== 'completed' && <TypingIndicator />}
