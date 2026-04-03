@@ -222,7 +222,22 @@ of these approved posts. The executive has already signed off on this voice.
       'Establish thought leadership and visibility in their industry';
 
 
-    // ── STEP 5: Build the full prompt ─────────────────────────
+    // ── S5-09: Build credibility anchor block ─────────────────
+    // Priority: verified_career_anchors (verbatim Q&A) > career_highlights > differentiator
+    const verifiedAnchors: string[] = framework.verified_career_anchors ?? [];
+    const hasVerifiedAnchors = verifiedAnchors.length > 0;
+
+    const credibilityAnchorsBlock = hasVerifiedAnchors
+      ? `CAREER CREDIBILITY ANCHORS — VERIFIED (PRIMARY SOURCE — use these verbatim):
+These are direct quotes from the executive's own words collected in a dedicated Q&A session.
+They are the highest-priority source. Do NOT paraphrase them — quote or closely echo their exact language:
+
+${verifiedAnchors.map((a: string, i: number) => `${i + 1}. "${a}"`).join('\n')}
+
+Additional profile context (secondary, use only to supplement the verified anchors above):
+${profile.career_highlights ?? profile.differentiator ?? 'No additional context.'}`
+      : `CAREER CREDIBILITY ANCHORS (draw from these for the post):
+${profile.career_highlights ?? profile.differentiator ?? 'Use career history from the profile to identify specific, owned experiences.'}`;
     const userPrompt = `
 EXECUTIVE DOSSIER:
 Name: ${profile.full_name}
@@ -239,8 +254,7 @@ Active Platforms: ${JSON.stringify(framework.social_platforms ?? [])}
 Content Calendar Cadence: ${JSON.stringify(framework.content_calendar_cadence ?? [])}
 Strict Ghostwriting Rules: ${JSON.stringify(framework.ghostwriting_rules ?? [])}
 
-CAREER CREDIBILITY ANCHORS (draw from these for the post):
-${profile.career_highlights ?? profile.differentiator ?? 'Use career history from the profile to identify specific, owned experiences.'}
+${credibilityAnchorsBlock}
 
 MENTOR INSIGHTS (strategic context from Chanakya):
 ${JSON.stringify(framework.mentor_insights ?? [])}

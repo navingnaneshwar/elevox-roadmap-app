@@ -283,9 +283,6 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       return await res.json()
     }
 
-    // ── DEBUG TRACE (temporary — remove after diagnosis) ──────────────
-    const _debug: any[] = []
-
     // Opener calls (__start__) must NEVER use tools — they just greet and ask Q1.
     // Tools (web search) fire on the first real user reply when there's actual content to search.
     const useTools = !isOpener
@@ -293,16 +290,10 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
     let anthropicData
     try {
       anthropicData = await callAnthropic(messages, useTools)
-      _debug.push({
-        step: 'first_anthropic_call',
-        stop_reason: anthropicData.stop_reason,
-        content_types: anthropicData.content?.map((b: any) => b.type),
-      })
     } catch (e: any) {
-      _debug.push({ step: 'first_anthropic_call', error: e.message })
       if (e.message === 'BILLING_ERROR') {
         return new Response(
-          JSON.stringify({ error: 'billing', reply: null, _debug }),
+          JSON.stringify({ error: 'billing', reply: null }),
           { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         )
       }
@@ -310,11 +301,9 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
         await new Promise(r => setTimeout(r, 2000))
         try {
           anthropicData = await callAnthropic(messages, true)
-          _debug.push({ step: 'retry_anthropic_call', stop_reason: anthropicData.stop_reason })
         } catch (retryErr: any) {
-          _debug.push({ step: 'retry_anthropic_call', error: retryErr.message })
           return new Response(
-            JSON.stringify({ error: 'overloaded', reply: null, _debug }),
+            JSON.stringify({ error: 'overloaded', reply: null }),
             { status: 503, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           )
         }
@@ -337,14 +326,12 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       const toolResults = await Promise.all(
         toolUseBlocks.map(async (toolBlock: any) => {
           let toolResponse = 'No results found.'
-          const toolDebug: any = { round: toolRound, tool: toolBlock.name, query: toolBlock.input?.query }
 
           if (toolBlock.name === 'search_web') {
             if (TAVILY_API_KEY) {
               try {
                 const tavilyController = new AbortController()
                 const tavilyTimeout = setTimeout(() => tavilyController.abort(), 8000)
-                const t0 = Date.now()
                 const tavilyRes = await fetch('https://api.tavily.com/search', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -356,37 +343,26 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
                   }),
                   signal: tavilyController.signal,
                 }).finally(() => clearTimeout(tavilyTimeout))
-                toolDebug.tavily_status = tavilyRes.status
-                toolDebug.tavily_ms = Date.now() - t0
                 const tavilyData = await tavilyRes.json()
-                toolDebug.tavily_result_count = tavilyData.results?.length ?? 0
-                toolDebug.tavily_has_answer = !!tavilyData.answer
                 toolResponse = JSON.stringify({
                   answer: tavilyData.answer,
                   results: tavilyData.results?.slice(0, 3) || []
                 })
               } catch (err: any) {
-                toolDebug.tavily_error = err.name === 'AbortError' ? 'TIMEOUT_8s' : err.message
-                toolResponse = `Web search failed (${toolDebug.tavily_error}). Proceed without live data.`
+                const errMsg = err.name === 'AbortError' ? 'TIMEOUT_8s' : err.message
+                toolResponse = `Web search failed (${errMsg}). Proceed without live data.`
               }
             } else {
-              toolDebug.tavily_error = 'NO_API_KEY'
               toolResponse = 'TAVILY_API_KEY is not configured.'
             }
           }
 
-          _debug.push(toolDebug)
           return { type: 'tool_result', tool_use_id: toolBlock.id, content: toolResponse }
         })
       )
 
       messages.push({ role: 'user', content: toolResults })
       anthropicData = await callAnthropic(messages, true)
-      _debug.push({
-        step: `after_tool_round_${toolRound}`,
-        stop_reason: anthropicData.stop_reason,
-        content_types: anthropicData.content?.map((b: any) => b.type),
-      })
     }
 
     const textBlock = anthropicData.content?.find((b: any) => b.type === 'text')
@@ -394,9 +370,7 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
 
     if (textBlock?.text?.trim()) {
       replyText = textBlock.text.trim()
-      _debug.push({ step: 'success', source: 'tool_loop_text' })
     } else {
-      _debug.push({ step: 'fallback', pending_tool_use: anthropicData.content?.filter((b: any) => b.type === 'tool_use')?.length })
       const pendingToolUse = anthropicData.content?.filter((b: any) => b.type === 'tool_use') ?? []
 
       if (pendingToolUse.length > 0) {
@@ -415,11 +389,9 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       try {
         const forced = await callAnthropic(messages, false)
         const forcedText = forced.content?.find((b: any) => b.type === 'text')
-        _debug.push({ step: 'forced_call', stop_reason: forced.stop_reason, has_text: !!forcedText })
         replyText = forcedText?.text?.trim() ||
           'Let me ask you this directly: what is the single most important thing you want a board member to understand about you within 5 seconds of landing on your LinkedIn profile?'
-      } catch (e: any) {
-        _debug.push({ step: 'forced_call_error', error: e.message })
+      } catch {
         replyText = 'Let me ask you this directly: what do you want a board member to understand about you within 5 seconds of your LinkedIn profile?'
       }
     }
@@ -431,7 +403,7 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
     }
 
     return new Response(
-      JSON.stringify({ reply: replyText, auto_complete, _debug }),
+      JSON.stringify({ reply: replyText, auto_complete }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     )
 
