@@ -118,7 +118,7 @@ export default function ClarificationPage() {
 
   if (loading) return (
     <div style={{ minHeight: '100vh', background: '#070B14', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ color: '#334155', fontSize: '12px', fontFamily: "'Inter', sans-serif", letterSpacing: '2px' }}>
+      <div style={{ color: '#334155', fontSize: '14px', fontFamily: "'Inter', sans-serif", letterSpacing: '2px' }}>
         Loading your session…
       </div>
     </div>
@@ -129,19 +129,19 @@ export default function ClarificationPage() {
       <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(200,169,110,0.1)', border: '1px solid rgba(200,169,110,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', marginBottom: '24px' }}>
         ◈
       </div>
-      <div style={{ fontSize: '12px', color: '#C8A96E', letterSpacing: '2px', fontFamily: "'JetBrains Mono', monospace", marginBottom: '12px' }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
+      <div style={{ fontSize: '14px', color: '#C8A96E', letterSpacing: '2px', fontFamily: "'JetBrains Mono', monospace", marginBottom: '12px' }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
       <div style={{ fontSize: '24px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '12px', textAlign: 'center' }}>
         Your blueprint is being built
       </div>
-      <div style={{ fontSize: '14px', color: '#64748B', textAlign: 'center', maxWidth: '480px', lineHeight: '1.8', marginBottom: '8px' }}>
+      <div style={{ fontSize: '16px', color: '#64748B', textAlign: 'center', maxWidth: '480px', lineHeight: '1.8', marginBottom: '8px' }}>
         Chanakya — your Brand Architect — is now cross-referencing your answers with live industry signals to build a 90-day framework that is uniquely yours.
       </div>
-      <div style={{ fontSize: '14px', color: '#334155', textAlign: 'center', maxWidth: '480px', lineHeight: '1.8', marginBottom: '32px' }}>
+      <div style={{ fontSize: '16px', color: '#334155', textAlign: 'center', maxWidth: '480px', lineHeight: '1.8', marginBottom: '32px' }}>
         This is the blueprint that will govern every post Shakespeare writes, every angle Aristotle checks, and every decision Machiavelli makes about your distribution. Takes 1–2 minutes.
       </div>
       <button
         onClick={() => navigate('/dashboard')}
-        style={{ padding: '11px 28px', background: 'rgba(200,169,110,0.1)', border: '1px solid rgba(200,169,110,0.3)', borderRadius: '8px', color: '#C8A96E', fontSize: '13px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+        style={{ padding: '11px 28px', background: 'rgba(200,169,110,0.1)', border: '1px solid rgba(200,169,110,0.3)', borderRadius: '8px', color: '#C8A96E', fontSize: '15px', fontWeight: '600', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
       >
         Back to Dashboard →
       </button>
@@ -159,9 +159,9 @@ export default function ClarificationPage() {
       <div style={{ borderBottom: '1px solid #1E2A3E', padding: '16px 40px', display: 'flex', alignItems: 'center', gap: '16px', position: 'relative', zIndex: 2 }}>
         <Logo size="sm" theme="dark" />
         <span style={{ width: '1px', height: '14px', background: '#1E2A3E' }} />
-        <span style={{ fontSize: '12px', color: '#334155' }}>Brand Intelligence</span>
+        <span style={{ fontSize: '14px', color: '#334155' }}>Brand Intelligence</span>
         <div style={{ flex: 1 }} />
-        <span style={{ fontSize: '10px', color: '#334155', letterSpacing: '1.5px' }}>
+        <span style={{ fontSize: '12px', color: '#334155', letterSpacing: '1.5px' }}>
           {currentIdx + 1} of {questions.length}
         </span>
       </div>
@@ -177,13 +177,13 @@ export default function ClarificationPage() {
         {currentIdx === 0 && (
           <div style={{ marginBottom: '36px', padding: '20px 24px', background: 'rgba(200,169,110,0.05)', border: '1px solid rgba(200,169,110,0.2)', borderRadius: '12px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
-              <span style={{ fontSize: '18px' }}>◈</span>
+              <span style={{ fontSize: '20px' }}>◈</span>
               <div>
-                <div style={{ fontSize: '10px', letterSpacing: '2px', color: '#C8A96E', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
-                <div style={{ fontSize: '13px', color: '#475569', marginTop: '2px' }}>The strategist who turns your story into a 90-day framework.</div>
+                <div style={{ fontSize: '12px', letterSpacing: '2px', color: '#C8A96E', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>CHANAKYA · YOUR BRAND ARCHITECT</div>
+                <div style={{ fontSize: '15px', color: '#475569', marginTop: '2px' }}>The strategist who turns your story into a 90-day framework.</div>
               </div>
             </div>
-            <div style={{ fontSize: '14px', color: '#94a3b8', lineHeight: '1.8' }}>
+            <div style={{ fontSize: '16px', color: '#94a3b8', lineHeight: '1.8' }}>
               I've reviewed your industry, your career, and today's market signals. Before I build your framework, I need to hear it directly from you — in your own words. Your answers become the verified career facts that govern everything Elevox creates for you.
             </div>
           </div>
@@ -192,8 +192,8 @@ export default function ClarificationPage() {
         {/* Empathy nudge — shows from Q3 onwards to keep momentum */}
         {currentIdx >= 2 && currentIdx < questions.length - 1 && (
           <div style={{ marginBottom: '20px', padding: '10px 16px', background: 'rgba(99,102,241,0.04)', border: '1px solid rgba(99,102,241,0.12)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <span style={{ fontSize: '16px' }}>◎</span>
-            <div style={{ fontSize: '14px', color: '#475569', lineHeight: '1.7' }}>
+            <span style={{ fontSize: '18px' }}>◎</span>
+            <div style={{ fontSize: '16px', color: '#475569', lineHeight: '1.7' }}>
               {currentIdx === 2 && "You're halfway there. The answers you're sharing right now are what separates a generic strategy from one that's entirely yours."}
               {currentIdx === 3 && "Chanakya is already seeing a pattern. Every answer is sharpening your positioning in ways most executives never have the patience for — well done."}
               {currentIdx >= 4 && "Almost done. These final answers are the highest-leverage input in your entire brand framework. This is the work that compounds."}
@@ -203,8 +203,8 @@ export default function ClarificationPage() {
 
         {/* Category badge */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
-          <span style={{ fontSize: '14px', color: meta.color }}>{meta.icon}</span>
-          <span style={{ fontSize: '10px', letterSpacing: '2px', color: meta.color, fontWeight: '600' }}>
+          <span style={{ fontSize: '16px', color: meta.color }}>{meta.icon}</span>
+          <span style={{ fontSize: '12px', letterSpacing: '2px', color: meta.color, fontWeight: '600' }}>
             {meta.label.toUpperCase()}
           </span>
           {currentQ?.priority === 'high' && (
@@ -221,7 +221,7 @@ export default function ClarificationPage() {
 
         {/* Why we ask */}
         {currentQ?.why_we_ask && (
-          <div style={{ fontSize: '14px', color: '#475569', marginBottom: '28px', lineHeight: '1.75', fontStyle: 'italic' }}>
+          <div style={{ fontSize: '16px', color: '#475569', marginBottom: '28px', lineHeight: '1.75', fontStyle: 'italic' }}>
             {currentQ.why_we_ask}
           </div>
         )}
@@ -239,7 +239,7 @@ export default function ClarificationPage() {
             border: `1px solid ${draftAnswer.trim() ? meta.color + '60' : '#1E2A3E'}`,
             borderRadius: '10px',
             color: '#F1F5F9',
-            fontSize: '14px',
+            fontSize: '16px',
             fontFamily: "'Inter', sans-serif",
             lineHeight: '1.7',
             resize: 'vertical',
@@ -251,12 +251,12 @@ export default function ClarificationPage() {
             if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) handleNext()
           }}
         />
-        <div style={{ fontSize: '10px', color: '#334155', marginTop: '6px', textAlign: 'right' }}>
+        <div style={{ fontSize: '12px', color: '#334155', marginTop: '6px', textAlign: 'right' }}>
           ⌘↵ to continue
         </div>
 
         {error && (
-          <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(200,90,90,0.1)', border: '1px solid rgba(200,90,90,0.3)', borderRadius: '6px', fontSize: '13px', color: '#ff8080' }}>
+          <div style={{ marginTop: '12px', padding: '10px 14px', background: 'rgba(200,90,90,0.1)', border: '1px solid rgba(200,90,90,0.3)', borderRadius: '6px', fontSize: '15px', color: '#ff8080' }}>
             {error}
           </div>
         )}
@@ -272,7 +272,7 @@ export default function ClarificationPage() {
               border: 'none',
               borderRadius: '8px',
               color: draftAnswer.trim() ? '#070B14' : '#334155',
-              fontSize: '13px',
+              fontSize: '15px',
               fontWeight: '700',
               cursor: draftAnswer.trim() ? 'pointer' : 'not-allowed',
               fontFamily: "'Inter', sans-serif",
@@ -285,7 +285,7 @@ export default function ClarificationPage() {
           {currentIdx > 0 && (
             <button
               onClick={() => { setCurrentIdx(i => i - 1); setDraftAnswer(answers[questions[currentIdx - 1]?.id] ?? '') }}
-              style={{ padding: '12px 20px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '8px', color: '#334155', fontSize: '13px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
+              style={{ padding: '12px 20px', background: 'transparent', border: '1px solid #1E2A3E', borderRadius: '8px', color: '#334155', fontSize: '15px', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}
             >
               ← Back
             </button>
@@ -295,16 +295,16 @@ export default function ClarificationPage() {
         {/* Previous answers recap */}
         {Object.keys(answers).length > 0 && (
           <div style={{ marginTop: '48px', borderTop: '1px solid #1E2A3E', paddingTop: '24px' }}>
-            <div style={{ fontSize: '10px', letterSpacing: '2px', color: '#334155', marginBottom: '16px' }}>YOUR ANSWERS SO FAR</div>
+            <div style={{ fontSize: '12px', letterSpacing: '2px', color: '#334155', marginBottom: '16px' }}>YOUR ANSWERS SO FAR</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               {questions.slice(0, currentIdx).map((q, i) => {
                 const qMeta = CATEGORY_META[q.category] ?? { color: '#4A9EFF', icon: '◎' }
                 return (
                   <div key={q.id} style={{ padding: '14px 16px', background: 'rgba(13,18,32,0.6)', border: '1px solid #1E2A3E', borderRadius: '8px' }}>
-                    <div style={{ fontSize: '10px', color: qMeta.color, marginBottom: '6px', letterSpacing: '1px' }}>
+                    <div style={{ fontSize: '12px', color: qMeta.color, marginBottom: '6px', letterSpacing: '1px' }}>
                       {qMeta.icon} {q.question.slice(0, 60)}{q.question.length > 60 ? '…' : ''}
                     </div>
-                    <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.7' }}>
+                    <div style={{ fontSize: '15px', color: '#64748B', lineHeight: '1.7' }}>
                       {answers[q.id] ?? '—'}
                     </div>
                   </div>
