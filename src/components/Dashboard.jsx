@@ -563,19 +563,21 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
               <div style={{
                 fontSize: '10px', fontWeight: '700', letterSpacing: '1.8px',
                 textTransform: 'uppercase', color: '#C8A96E',
-                fontFamily: "'JetBrains Mono', monospace", marginBottom: '4px',
+                fontFamily: "'JetBrains Mono', monospace", marginBottom: '2px',
               }}>
-                Chanakya · Action Required
+                Chanakya · Your Brand Architect
+              </div>
+              <div style={{ fontSize: '11px', color: '#475569', fontFamily: "'Inter', sans-serif", marginBottom: '6px' }}>
+                The strategist who turns your career into a 90-day framework
               </div>
               <div style={{
                 fontSize: '15px', fontWeight: '600', color: '#F1F5F9',
-                fontFamily: "'Outfit', sans-serif", marginBottom: '3px',
+                fontFamily: "'Outfit', sans-serif", marginBottom: '4px',
               }}>
                 Complete your brand profile
               </div>
-              <div style={{ fontSize: '12px', color: '#64748B' }}>
-                Chanakya has prepared {clarSession.questions?.length ?? 6} targeted questions to
-                personalise your 90-day framework. Takes ~5 minutes.
+              <div style={{ fontSize: '12px', color: '#64748B', lineHeight: '1.6' }}>
+                Chanakya has {clarSession.questions?.length ?? 6} targeted questions ready. Your answers unlock a personalised 90-day framework that governs every post, every campaign, and every positioning decision Elevox makes for you.
               </div>
             </div>
 
