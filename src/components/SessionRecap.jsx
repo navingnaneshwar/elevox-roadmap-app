@@ -100,7 +100,7 @@ export default function SessionRecap({
           flex: 1;
           min-height: 0;
           overflow-y: auto;
-          font-size: 13px;
+          font-size: 11px;
           color: #C4CDD9;
           line-height: 1.75;
           white-space: pre-wrap;
@@ -170,18 +170,18 @@ export default function SessionRecap({
         <div style={{
           width: '26px', height: '26px', borderRadius: '50%', flexShrink: 0,
           background: `${pc}22`, border: `1px solid ${pc}45`,
-          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '13px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px',
         }}>✓</div>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: '10px', color: pc, letterSpacing: '2px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>
+          <div style={{ fontSize: '8px', color: pc, letterSpacing: '2px', fontWeight: '700', fontFamily: "'JetBrains Mono', monospace" }}>
             SESSION COMPLETE{sessionDate ? ` · ${sessionDate}` : ''}
           </div>
-          <div style={{ fontSize: '14px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontSize: '12px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {component?.title}
           </div>
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexShrink: 0 }}>
-          <div style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right' }}>
+          <div style={{ fontSize: '8px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right' }}>
             {messages?.length || 0} exchanges
           </div>
         </div>
@@ -215,30 +215,30 @@ export default function SessionRecap({
                 <div style={{
                   width: '36px', height: '36px', borderRadius: '8px', flexShrink: 0,
                   background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '18px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px',
                 }}>
                   {archetypeApproach.icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: '9px', color: '#6366f1', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '2px' }}>YOUR ARCHETYPE</div>
-                  <div style={{ fontSize: '14px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: '3px' }}>
+                  <div style={{ fontSize: '12px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: '3px' }}>
                     {framework.archetype}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#64748B', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  <div style={{ fontSize: '9px', color: '#64748B', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {archetypeApproach.description}
                   </div>
                 </div>
               </div>
               <div style={{ padding: '6px 12px', background: 'rgba(8,10,20,0.7)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
-                <span style={{ color: '#6366f1', fontSize: '11px', flexShrink: 0, marginTop: '1px' }}>▶</span>
-                <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.5 }}>
+                <span style={{ color: '#6366f1', fontSize: '9px', flexShrink: 0, marginTop: '1px' }}>▶</span>
+                <div style={{ fontSize: '9px', color: '#475569', lineHeight: 1.5 }}>
                   <span style={{ fontSize: '9px', color: '#6366f1', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1.5px', textTransform: 'uppercase', marginRight: '6px' }}>Content Mandate</span>
                   {archetypeApproach.mandate}
                 </div>
               </div>
             </div>
           ) : (
-            <div style={{ padding: '10px', color: '#475569', fontSize: '13px', background: 'rgba(13,18,32,0.5)', border: '1px solid #1E2A3E', borderRadius: '8px' }}>
+            <div style={{ padding: '10px', color: '#475569', fontSize: '11px', background: 'rgba(13,18,32,0.5)', border: '1px solid #1E2A3E', borderRadius: '8px' }}>
               Chanakya is building your brand framework — check back shortly.
             </div>
           )}
@@ -263,8 +263,8 @@ export default function SessionRecap({
                       borderRadius: '7px',
                     }}>
                       <div style={{ fontSize: '9px', color: col, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '2px' }}>PILLAR {String(i + 1).padStart(2, '0')}</div>
-                      <div style={{ fontSize: '12px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: desc ? '3px' : 0 }}>{title}</div>
-                      {desc && <div style={{ fontSize: '11px', color: '#475569', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{desc}</div>}
+                      <div style={{ fontSize: '10px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: desc ? '3px' : 0 }}>{title}</div>
+                      {desc && <div style={{ fontSize: '9px', color: '#475569', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{desc}</div>}
                     </div>
                   )
                 })}
@@ -288,7 +288,7 @@ export default function SessionRecap({
                   <div style={{ fontSize: '9px', fontWeight: '700', letterSpacing: '1px', textTransform: 'uppercase', color: cat.color, fontFamily: "'JetBrains Mono', monospace", marginBottom: '3px' }}>
                     {cat.label}
                   </div>
-                  <div style={{ fontSize: '11px', color: '#94A3B8', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+                  <div style={{ fontSize: '9px', color: '#94A3B8', lineHeight: 1.5, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                     {inference}
                   </div>
                 </div>
@@ -300,16 +300,16 @@ export default function SessionRecap({
 
       {/* ── Error ── */}
       {error && (
-        <div style={{ flexShrink: 0, padding: '6px 12px', marginTop: '4px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px', color: '#fca5a5', fontSize: '12px' }}>
-          ⚠ {error}{' '}<button onClick={onDismissError} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '12px', textDecoration: 'underline' }}>dismiss</button>
+        <div style={{ flexShrink: 0, padding: '6px 12px', marginTop: '4px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '7px', color: '#fca5a5', fontSize: '10px' }}>
+          ⚠ {error}{' '}<button onClick={onDismissError} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '10px', textDecoration: 'underline' }}>dismiss</button>
         </div>
       )}
 
       {/* ── Footer CTA ── */}
       <div className="sr-footer">
         <div>
-          <div style={{ fontSize: '13px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '1px' }}>Want to revisit or adjust?</div>
-          <div style={{ fontSize: '11px', color: '#475569' }}>Vox will summarise your decisions and ask what you'd like to change.</div>
+          <div style={{ fontSize: '11px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '1px' }}>Want to revisit or adjust?</div>
+          <div style={{ fontSize: '9px', color: '#475569' }}>Vox will summarise your decisions and ask what you'd like to change.</div>
         </div>
         <button
           onClick={onFollowUp}
@@ -319,7 +319,7 @@ export default function SessionRecap({
             background: thinking ? 'rgba(99,102,241,0.1)' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
             border: thinking ? '1px solid rgba(99,102,241,0.2)' : 'none',
             borderRadius: '8px', color: thinking ? '#64748B' : '#fff',
-            fontSize: '13px', fontWeight: '600', cursor: thinking ? 'default' : 'pointer',
+            fontSize: '11px', fontWeight: '600', cursor: thinking ? 'default' : 'pointer',
             fontFamily: "'Inter', sans-serif",
             boxShadow: thinking ? 'none' : '0 4px 14px rgba(99,102,241,0.35)',
             transition: 'all 0.2s', whiteSpace: 'nowrap',
