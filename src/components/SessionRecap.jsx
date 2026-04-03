@@ -163,19 +163,19 @@ export default function SessionRecap({
           border-radius: 10px;
           overflow: hidden;
           border: 1px solid rgba(99,102,241,0.25);
-          margin-bottom: 10px;
+          margin-bottom: 7px;
         }
         .sr-archetype-top {
           background: linear-gradient(135deg,rgba(99,102,241,0.18) 0%,rgba(139,92,246,0.12) 60%,rgba(200,169,110,0.05) 100%);
           border-bottom: 1px solid rgba(99,102,241,0.12);
-          padding: 14px 18px;
+          padding: 10px 14px;
           display: flex;
           align-items: flex-start;
-          gap: 14px;
+          gap: 12px;
         }
         .sr-pillars-grid {
           display: grid;
-          grid-template-columns: repeat(auto-fill, minmax(165px,1fr));
+          grid-template-columns: repeat(auto-fill, minmax(140px,1fr));
           gap: 8px;
         }
 
@@ -270,23 +270,24 @@ export default function SessionRecap({
               <div className="sr-archetype-card">
                 <div className="sr-archetype-top">
                   <div style={{
-                    width: '52px', height: '52px', borderRadius: '12px', flexShrink: 0,
+                    width: '42px', height: '42px', borderRadius: '10px', flexShrink: 0,
                     background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.3)',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '26px',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px',
                   }}>
                     {archetypeApproach.icon}
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: '11px', color: '#6366f1', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '4px' }}>YOUR ARCHETYPE</div>
-                    <div style={{ fontSize: '18px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: '6px' }}>
+                    <div style={{ fontSize: '16px', fontWeight: '800', color: '#E0E7FF', fontFamily: "'Outfit', sans-serif", lineHeight: 1.2, marginBottom: '6px' }}>
                       {framework.archetype}
                     </div>
-                    <div style={{ fontSize: '14px', color: '#64748B', lineHeight: 1.6, fontFamily: "'Inter', sans-serif" }}>
+                    <div style={{ fontSize: '13px', color: '#64748B', lineHeight: 1.5, fontFamily: "'Inter', sans-serif",
+                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
                       {archetypeApproach.description}
                     </div>
                   </div>
                 </div>
-                <div style={{ padding: '10px 18px', background: 'rgba(8,10,20,0.7)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <div style={{ padding: '7px 14px', background: 'rgba(8,10,20,0.7)', display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
                   <span style={{ color: '#6366f1', fontSize: '14px', flexShrink: 0, marginTop: '1px' }}>▶</span>
                   <div>
                     <span style={{ fontSize: '11px', color: '#6366f1', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1.5px', textTransform: 'uppercase', marginRight: '8px' }}>Content Mandate</span>
@@ -301,16 +302,16 @@ export default function SessionRecap({
             {/* Content Pillars */}
             {framework?.content_pillars?.length > 0 && (
               <div>
-                <div style={{ fontSize: '12px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '8px' }}>Content Pillars</div>
+                <div style={{ fontSize: '11px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '6px' }}>Content Pillars</div>
                 <div className="sr-pillars-grid">
                   {framework.content_pillars.map((p, i) => {
                     const title = typeof p === 'object' ? p.title : p
                     const desc  = typeof p === 'object' ? (p.description || p.desc || '') : ''
                     const col   = PILLAR_COLORS[i % PILLAR_COLORS.length]
                     return (
-                      <div key={i} style={{ padding: '12px 14px', background: 'rgba(13,18,32,0.7)', border: `1px solid ${col}28`, borderTop: `3px solid ${col}`, borderRadius: '10px' }}>
-                        <div style={{ fontSize: '11px', color: col, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '5px' }}>PILLAR {String(i + 1).padStart(2, '0')}</div>
-                        <div style={{ fontSize: '15px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.3, marginBottom: desc ? '5px' : 0 }}>{title}</div>
+                      <div key={i} style={{ padding: '9px 11px', background: 'rgba(13,18,32,0.7)', border: `1px solid ${col}28`, borderTop: `3px solid ${col}`, borderRadius: '10px' }}>
+                        <div style={{ fontSize: '10px', color: col, fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px', marginBottom: '3px' }}>PILLAR {String(i + 1).padStart(2, '0')}</div>
+                        <div style={{ fontSize: '14px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", lineHeight: 1.25, marginBottom: desc ? '4px' : 0 }}>{title}</div>
                         {desc && <div style={{ fontSize: '13px', color: '#475569', fontFamily: "'Inter', sans-serif", lineHeight: 1.5 }}>{desc}</div>}
                       </div>
                     )
