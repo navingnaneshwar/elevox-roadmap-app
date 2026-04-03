@@ -144,10 +144,10 @@ serve(async (req) => {
 
     console.log(`[Machiavelli] Schedule mode — job ${job_id} for draft ${draft_id}`);
 
-    // 1. Fetch Draft and Framework Data
+    // 1. Fetch Draft and Framework Data — explicitly include calendar_event_id
     const { data: draft, error: draftError } = await supabase
       .from('content_drafts')
-      .select('*, brand_frameworks(*)')
+      .select('id, user_id, status, calendar_event_id, platform, brand_frameworks(*)')
       .eq('id', draft_id)
       .single();
 
@@ -156,9 +156,13 @@ serve(async (req) => {
     const framework = draft.brand_frameworks;
     const userId = draft.user_id;
 
-    if (draft.status !== 'approved') {
-        throw new Error(`Draft ${draft_id} is not approved for scheduling.`);
+    // If a schedule_post job exists in the queue, Aristotle already approved it.
+    // Machiavelli's job is WHEN and WHERE — not WHETHER.
+    // Only hard-block on explicitly rejected status.
+    if (draft.status === 'rejected') {
+        throw new Error(`Draft ${draft_id} was rejected — cannot schedule.`);
     }
+
 
     // 3. Update the pre-reserved calendar slot → confirmed/scheduled
     // NOTE: slot was reserved by Machiavelli in reserve mode — UPDATE, do not INSERT
