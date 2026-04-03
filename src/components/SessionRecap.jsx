@@ -258,7 +258,7 @@ export default function SessionRecap({
         {/* ═══ SUMMARY TAB ═══ */}
         {activeTab === 'summary' && (
           <div className="sr-summary-text">
-            {summaryText || 'Vox's strategic summary will appear here once the session is finalised.'}
+            {summaryText || "Vox's strategic summary will appear here once the session is finalised."}
           </div>
         )}
 
