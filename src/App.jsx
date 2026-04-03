@@ -26,6 +26,7 @@ import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
 import ApprovalPage    from './pages/ApprovalPage'
 import SubmitPostPage  from './pages/SubmitPostPage'
+import ClarificationPage from './pages/ClarificationPage'
 
 import Roadmap           from './components/Roadmap'
 import ContentCalendar     from './components/ContentCalendar'
@@ -83,6 +84,11 @@ export default function App() {
 
           <Route path="/submit-post" element={
             <ProtectedRoute><SubmitPostPage /></ProtectedRoute>
+          } />
+
+          {/* S5-04: Chanakya Stage 1 clarification flow */}
+          <Route path="/clarification" element={
+            <ProtectedRoute><ClarificationPage /></ProtectedRoute>
           } />
 
           <Route path="/website" element={

@@ -77,9 +77,163 @@ serve(async (req) => {
     const supabase = createClient(supabaseUrl, supabaseKey);
 
     // =====================================================================
+    // MODE A(0): INDUSTRY SWEEP — broadest market intel, feeds Stage 1 Chanakya
+    // Triggered by onboarding completion for new users (S5-02)
+    // =====================================================================
+    if (job_type === 'sweep_industry') {
+        if (!user_id) throw new Error('Missing user_id for sweep_industry');
+        console.log(`[Analyst] Starting INDUSTRY SWEEP job ${job_id} for user ${user_id}`);
+
+        const { data: profile, error: profileErr } = await supabase
+            .from('profiles')
+            .select('industry, full_name, current_title, primary_goal, topics_owned')
+            .eq('id', user_id)
+            .single();
+
+        if (profileErr || !profile) throw new Error(`Failed to fetch profile: ${profileErr?.message}`);
+
+        const ind = profile.industry ?? 'Executive Leadership';
+
+        // Run 3 parallel Tavily searches with different angles
+        const searchAngles = [
+            `breaking news trends ${ind} executive leadership this week`,
+            `${ind} industry disruption innovation C-suite strategy 2026`,
+            `${ind} thought leadership topics emerging issues executives`,
+        ];
+
+        console.log(`[Analyst] Running ${searchAngles.length} parallel Tavily searches for ${ind}`);
+
+        const searchResults = await Promise.all(
+            searchAngles.map(async (query) => {
+                const res = await fetch('https://api.tavily.com/search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        api_key: tavilyKey,
+                        query,
+                        search_depth: 'advanced',
+                        include_images: false,
+                        max_results: 4,
+                    }),
+                });
+                if (!res.ok) return { query, results: [] };
+                const data = await res.json();
+                return { query, results: data.results ?? [] };
+            })
+        );
+
+        // Deduplicate and format signals
+        const seen = new Set<string>();
+        const signals = searchResults
+            .flatMap(({ results }) => results)
+            .filter((r: any) => !seen.has(r.url) && seen.add(r.url))
+            .slice(0, 10)
+            .map((r: any) => ({
+                title: r.title,
+                url: r.url,
+                summary: r.content?.slice(0, 200) ?? '',
+                relevance_score: 1,
+            }));
+
+        // Ask Claude to extract themes and opportunity gaps
+        const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!;
+        const themePrompt = `
+You are an elite industry analyst.
+
+Executive profile:
+- Name: ${profile.full_name}, ${profile.current_title}
+- Industry: ${ind}
+- Primary goal: ${profile.primary_goal ?? 'Establish thought leadership'}
+- Topics they want to own: ${profile.topics_owned ?? 'Not specified'}
+
+Here are today's top industry news signals:
+${signals.map((s: any, i: number) => `${i + 1}. "${s.title}" — ${s.summary}`).join('\n')}
+
+Extract:
+1. 4-6 dominant themes in these signals (1 sentence each)
+2. 3-4 opportunity gaps: where is there noise in the market but no clear executive voice owning a position?
+
+Return ONLY valid JSON:
+{
+  "themes": ["Theme 1", "Theme 2", ...],
+  "opportunity_gaps": ["Gap 1", "Gap 2", ...]
+}`;
+
+        const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: {
+                'x-api-key': anthropicKey,
+                'anthropic-version': '2023-06-01',
+                'content-type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5',
+                max_tokens: 600,
+                messages: [{ role: 'user', content: themePrompt }],
+            }),
+        });
+
+        let themes = [];
+        let opportunity_gaps = [];
+        if (anthropicRes.ok) {
+            const aData = await anthropicRes.json();
+            try {
+                const parsed = JSON.parse(
+                    aData.content[0].text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
+                );
+                themes = parsed.themes ?? [];
+                opportunity_gaps = parsed.opportunity_gaps ?? [];
+            } catch {
+                console.warn('[Analyst] Theme extraction parse failed — saving raw signals only');
+            }
+        }
+
+        // Save to industry_signals
+        const { data: signalRow, error: sigErr } = await supabase
+            .from('industry_signals')
+            .insert({
+                user_id,
+                industry: ind,
+                sweep_query: searchAngles.join(' | '),
+                signals,
+                themes,
+                opportunity_gaps,
+            })
+            .select()
+            .single();
+
+        if (sigErr) throw new Error(`industry_signals insert failed: ${sigErr.message}`);
+
+        // Audit log
+        await supabase.from('agent_audit_logs').insert({
+            user_id,
+            agent_role: 'agent-analyst',
+            event_type: 'industry_sweep_completed',
+            trigger_entity_id: signalRow.id,
+            prompt_context: { queries: searchAngles },
+            response_output: JSON.stringify({ signals, themes, opportunity_gaps }),
+        });
+
+        // Queue Chanakya Stage 1 (gather_intelligence) — NOT build_framework yet
+        await supabase.from('agent_jobs').insert({
+            user_id,
+            job_type: 'gather_intelligence',
+            payload: { signal_id: signalRow.id },
+        });
+
+        console.log(`[Analyst] Industry sweep ${signalRow.id} complete — ${signals.length} signals, ${themes.length} themes → queued Chanakya Stage 1`);
+
+        return new Response(JSON.stringify({ success: true, signal: signalRow }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+    }
+
+    // =====================================================================
     // MODE A: PRE-FRAMEWORK DISCOVERY SWEEP
     // =====================================================================
     if (job_type === 'run_discovery_sweep') {
+
         if (!user_id) throw new Error('Missing user_id for run_discovery_sweep');
         console.log(`[Analyst] Starting PRE-SWEEP job ${job_id} for user ${user_id}`);
 

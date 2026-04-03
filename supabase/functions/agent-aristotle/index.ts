@@ -80,7 +80,7 @@ Return ONLY valid JSON — no markdown, no commentary:
 {
   "verdict": "approved" | "needs_revision" | "escalate_to_human",
   "cx_score": 0,
-  "credibility_score": 0,
+  "editorial_credibility_score": 0,
   "composite_score": 0,
   "cx_assessment": "1-2 sentences on customer experience quality",
   "credibility_assessment": "1-2 sentences on credibility quality",
@@ -114,9 +114,9 @@ Return ONLY valid JSON — no markdown, no commentary:
 }
 
 SCORING (each 0-100):
-cx_score:           Customer experience quality
-credibility_score:  Credibility architecture quality  
-composite_score:    (cx_score + credibility_score) / 2
+cx_score:                    Customer experience quality
+editorial_credibility_score: Editorial credibility architecture quality  
+composite_score:             (cx_score + editorial_credibility_score) / 2
 
 VERDICT RULES:
 • composite_score >= 75 AND no hard rejection criteria → "approved"
@@ -478,7 +478,7 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
       .trim();
     const evaluation     = JSON.parse(cleaned);
 
-    console.log(`[Aristotle] Verdict: ${evaluation.verdict} | CX: ${evaluation.cx_score} | Credibility: ${evaluation.credibility_score} | Composite: ${evaluation.composite_score}`);
+    console.log(`[Aristotle] Verdict: ${evaluation.verdict} | CX: ${evaluation.cx_score} | Editorial Credibility: ${evaluation.editorial_credibility_score} | Composite: ${evaluation.composite_score}`);
 
     // ── STEP 5: Map verdict to draft status ──────────────────
     const statusMap: Record<string, string> = {
@@ -495,7 +495,7 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
         status:                      newStatus,
         approved_for_publish:        evaluation.approved_for_publish,
         aristotle_cx_score:          evaluation.cx_score,
-        aristotle_credibility_score: evaluation.credibility_score,
+        editorial_credibility_score: evaluation.editorial_credibility_score,
         aristotle_composite_score:   evaluation.composite_score,
         aristotle_evaluation:        evaluation,
       })
@@ -608,8 +608,8 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
       // If we've already revised once and credibility is still structurally low,
       // looping Shakespeare again won't help — the profile data is missing.
       // Break the loop, alert the user with specific questions to fill the gap.
-      if (revisionCount >= 1 && evaluation.credibility_score < 60) {
-        console.warn(`[Aristotle] Credibility gap detected (score: ${evaluation.credibility_score}, cycle: ${revisionCount + 1}) — generating coaching alert`);
+      if (revisionCount >= 1 && evaluation.editorial_credibility_score < 60) {
+        console.warn(`[Aristotle] Credibility gap detected (score: ${evaluation.editorial_credibility_score}, cycle: ${revisionCount + 1}) — generating coaching alert`);
 
         const coachingAlert = await generateCredibilityCoachingAlert(
           supabase,
@@ -648,7 +648,7 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
           agent_role:        'agent-aristotle',
           event_type:        'credibility_gap_alert',
           trigger_entity_id: draft_id,
-          prompt_context:    { credibility_score: evaluation.credibility_score, revision_count: revisionCount },
+          prompt_context:    { editorial_credibility_score: evaluation.editorial_credibility_score, revision_count: revisionCount },
           response_output:   JSON.stringify(coachingAlert),
         });
 
@@ -699,7 +699,7 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
         success:           true,
         verdict:           evaluation.verdict,
         cx_score:          evaluation.cx_score,
-        credibility_score: evaluation.credibility_score,
+        editorial_credibility_score: evaluation.editorial_credibility_score,
         composite_score:   evaluation.composite_score,
         revision_brief:    evaluation.revision_brief,
       }),

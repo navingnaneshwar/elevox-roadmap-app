@@ -15,13 +15,15 @@ const BATCH_SIZE = 3;
 // STEP 1 — Plan access map
 // ─────────────────────────────────────────────────────────────
 const JOB_PLAN_REQUIREMENTS: Record<string, string> = {
+  sweep_industry:      'starter',   // Analyst    → pre-Chanakya market intel (S5-02)
   run_discovery_sweep: 'starter',
-  build_framework: 'starter',    // Strategist → Phase 1 (Brand Audit)
-  run_news_sweep:  'authority',  // Analyst    → Phase 3 (Content Engine)
-  reserve_slot:    'authority',  // Machiavelli → Phase 3 (pre-slot)
-  generate_drafts: 'authority',  // Shakespeare → Phase 3 (Content Engine)
-  review_draft:    'authority',  // Aristotle   → Phase 3 (Content Engine)
-  schedule_post:   'authority',  // Machiavelli → Phase 4 (Visibility)
+  gather_intelligence: 'starter',   // Chanakya Stage 1 — clarification questions (S5-03)
+  build_framework:     'starter',   // Chanakya Stage 2 — full framework
+  run_news_sweep:      'authority', // Analyst    → Phase 3 (Content Engine)
+  reserve_slot:        'authority', // Machiavelli → Phase 3 (pre-slot)
+  generate_drafts:     'authority', // Shakespeare → Phase 3 (Content Engine)
+  review_draft:        'authority', // Aristotle   → Phase 3 (Content Engine)
+  schedule_post:       'authority', // Machiavelli → Phase 4 (Visibility)
 }
 
 const PLAN_RANK: Record<string, number> = {
@@ -160,13 +162,15 @@ serve(async (req) => {
     // 4. Define Routing Logic
     const routeInitialJob = (state: any) => {
         const typeMap: Record<string, string> = {
+            'sweep_industry':      'analyst',      // S5-02: pre-Chanakya industry sweep
             'run_discovery_sweep': 'analyst',
-            'build_framework': 'strategist',
-            'run_news_sweep': 'analyst',
-            'reserve_slot':   'machiavelli',
-            'generate_drafts': 'shakespeare',
-            'review_draft': 'aristotle',
-            'schedule_post': 'machiavelli'
+            'gather_intelligence': 'strategist',   // S5-03: Chanakya Stage 1 clarification
+            'build_framework':     'strategist',
+            'run_news_sweep':      'analyst',
+            'reserve_slot':        'machiavelli',
+            'generate_drafts':     'shakespeare',
+            'review_draft':        'aristotle',
+            'schedule_post':       'machiavelli'
         };
         const route = typeMap[state.job_type] || END;
         console.log(`[Orchestrator] job_type: ${state.job_type} → routing to: ${route}`);
