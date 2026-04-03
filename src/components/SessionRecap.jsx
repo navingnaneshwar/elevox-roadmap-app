@@ -63,11 +63,19 @@ export default function SessionRecap({
     : voxMsgs[voxMsgs.length - 1]
   const summaryText = summaryMsg?.content || ''
 
-  // Derive voxInferences: user messages that provide substantive answers
-  const userMsgs = (messages || []).filter(m => m.role === 'user')
-  const voxInferences = userMsgs
-    .map(m => m.content?.trim())
-    .filter(c => c && c.length > 8 && c.toLowerCase() !== 'yes' && c.toLowerCase() !== 'no')
+  // Derive voxInferences: Vox's analytical statements from the session
+  // Use early Vox messages (Q1–Q5) which contain Vox's framing of each topic,
+  // rather than raw user answers.
+  const voxInferences = voxMsgs
+    .slice(0, -2) // exclude the last 2 (summary + handoff)
+    .map(m => {
+      // Extract the opening sentence of each Vox message (the framing/assertion)
+      const content = m.content?.trim() || ''
+      const firstSentence = content.match(/[^.!?]+[.!?]+/)?.[0]?.trim()
+      return firstSentence && firstSentence.length > 20 ? firstSentence : null
+    })
+    .filter(Boolean)
+    .slice(0, 6) // max 6 inferences
 
   // Summary: first 5 sentences (Vox writes single paragraphs)
   const sentenceRegex = /[^.!?]+[.!?]+/g
@@ -262,7 +270,7 @@ export default function SessionRecap({
           <div className="sr-summary-box">
             <div
               className="sr-summary-text"
-              style={{ WebkitLineClamp: summaryExpanded ? 'unset' : 18 }}
+              style={{ WebkitLineClamp: summaryExpanded ? 'unset' : 6 }}
             >
               {summaryText || 'Summary will appear here once Vox finalises the strategy.'}
             </div>
