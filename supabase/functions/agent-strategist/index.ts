@@ -94,18 +94,149 @@ serve(async (req) => {
   }
 
   try {
-    const { job_id, user_id, linkedin, resume, industry, live_signals } = await req.json();
+    const { job_id, job_type, user_id, linkedin, resume, industry, live_signals, signal_id, session_id } = await req.json();
 
     if (!user_id || !job_id) {
       throw new Error('Missing job_id or user_id in payload');
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    // Initialise clients once — used by ALL modes below
+    const supabaseUrl  = Deno.env.get('SUPABASE_URL')!;
+    const supabaseKey  = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const anthropicKey = Deno.env.get('ANTHROPIC_API_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseKey);
 
-    console.log(`[Strategist] Starting job ${job_id} for user ${user_id}`);
+    // ── S5-03: Stage 1 — gather_intelligence ──────────────────────────────
+    // Chanakya reads industry signals and generates targeted clarification
+    // questions for the exec. The frontend ClarificationPage.jsx renders these
+    // and POSTs answers back. Once answered, Stage 2 (build_framework) runs.
+    // ─────────────────────────────────────────────────────────────────────────
+    if (job_type === 'gather_intelligence') {
+      console.log(`[Chanakya] Stage 1: gather_intelligence job ${job_id} for user ${user_id}`);
+
+      // 1. Fetch profile
+      const { data: profile, error: profileErr } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user_id)
+        .single();
+      if (profileErr || !profile) throw new Error(`Profile fetch failed: ${profileErr?.message}`);
+
+      // 2. Fetch industry signals if available
+      let signals: any[] = [];
+      let themes: string[] = [];
+      let opportunity_gaps: string[] = [];
+      if (signal_id) {
+        const { data: sigRow } = await supabase
+          .from('industry_signals')
+          .select('signals, themes, opportunity_gaps')
+          .eq('id', signal_id)
+          .single();
+        if (sigRow) {
+          signals = sigRow.signals ?? [];
+          themes = sigRow.themes ?? [];
+          opportunity_gaps = sigRow.opportunity_gaps ?? [];
+        }
+      }
+
+      // 3. Ask Claude Haiku to generate 5-7 targeted clarification questions
+      const questionPrompt = `
+You are Chanakya — executive brand strategist for ${profile.full_name}, ${profile.current_title} at ${profile.company}.
+
+Before building their brand framework, you need to collect specific, real career facts that will make the framework precise and authentic.
+
+WHAT YOU KNOW SO FAR:
+- Industry: ${profile.industry}
+- Primary goal: ${profile.primary_goal ?? 'Not specified'}
+- Their differentiator: ${profile.differentiator ?? 'Not specified'}
+- Topics they want to own: ${profile.topics_owned ?? 'Not specified'}
+- Today's market themes: ${themes.join('; ') || 'None available'}
+- Opportunity gaps in the market: ${opportunity_gaps.join('; ') || 'None identified'}
+
+WHAT YOU NEED:
+Generate exactly 6 clarification questions that will unlock specific, citable career facts for their brand framework. These questions must:
+1. Be conversational and warm — not clinical or form-like
+2. Target concrete outcomes: numbers, decisions, failures, turnarounds, team sizes
+3. Map to a category so the UI can group them well
+4. Have a priority: high = needed for framework core, medium = useful enrichment
+
+CATEGORIES: career_anchors | contrarian_view | audience_definition | platform_strategy | voice_tone | mission_legacy
+
+Return ONLY valid JSON:
+{
+  "intro_message": "A warm 2-sentence welcome from Chanakya that sets the context before the questions.",
+  "questions": [
+    {
+      "id": "q1",
+      "question": "Full conversational question text",
+      "category": "career_anchors",
+      "priority": "high",
+      "placeholder": "e.g. I led a team of 120 across 8 markets and reduced churn by 40% within 18 months",
+      "why_we_ask": "One sentence explaining why this matters for their brand"
+    }
+  ]
+}`;
+
+      const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': anthropicKey,
+          'anthropic-version': '2023-06-01',
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5',
+          max_tokens: 2000,
+          messages: [{ role: 'user', content: questionPrompt }],
+        }),
+      });
+
+      if (!anthropicRes.ok) throw new Error(`Anthropic error: ${await anthropicRes.text()}`);
+
+      const aData = await anthropicRes.json();
+      const raw = aData.content[0].text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      const parsed = JSON.parse(raw);
+
+      // 4. Save to clarification_sessions
+      const { data: sessionRow, error: sessErr } = await supabase
+        .from('clarification_sessions')
+        .insert({
+          user_id,
+          signal_id: signal_id ?? null,
+          status: 'active',
+          questions: parsed.questions ?? [],
+          answers: {},
+          ready_for_framework: false,
+        })
+        .select()
+        .single();
+
+      if (sessErr) throw new Error(`clarification_sessions insert failed: ${sessErr.message}`);
+
+      // 5. Audit log
+      await supabase.from('agent_audit_logs').insert({
+        user_id,
+        agent_role: 'agent-strategist',
+        event_type: 'clarification_questions_generated',
+        trigger_entity_id: sessionRow.id,
+        prompt_context: { signal_id, themes, opportunity_gaps },
+        response_output: raw,
+      });
+
+      console.log(`[Chanakya] Stage 1 complete — session ${sessionRow.id}: ${parsed.questions.length} questions → waiting for user answers`);
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          session_id: sessionRow.id,
+          intro_message: parsed.intro_message,
+          questions: parsed.questions,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      );
+    }
+    // ── Stage 2: build_framework (existing Chanakya logic) ────────────────
+    console.log(`[Strategist] Starting build_framework job ${job_id} for user ${user_id}`);
 
     // 1. Fetch Profile Data
     const { data: profile, error: profileError } = await supabase
