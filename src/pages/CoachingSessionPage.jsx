@@ -5,7 +5,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { supabase, getMentorSessions, upsertMentorSession } from '../lib/supabase'
+import { supabase, getMentorSessions, upsertMentorSession, getBrandFramework } from '../lib/supabase'
 import Logo from '../components/Logo'
 
 /* ─── Phase/Component metadata ──────────────────────────────── */
@@ -95,7 +95,194 @@ function getPhaseComponent(phaseId, componentId) {
   return { phase, component }
 }
 
+/* ─── Session Recap (shown when session = completed) ────────── */
+function SessionRecap({ messages, framework, phase, component, onFollowUp, thinking, error, onDismissError }) {
+  // The last Vox message is the handoff summary
+  const lastVoxMsg = [...messages].reverse().find(m => m.role === 'assistant')
+  const lastVoxText = lastVoxMsg
+    ? (typeof lastVoxMsg.content === 'string' ? lastVoxMsg.content : lastVoxMsg.content?.reply || '')
+    : ''
+
+  // Key user exchanges — pick up to 3 user messages as highlights
+  const userHighlights = messages
+    .filter(m => m.role === 'user')
+    .slice(-3)
+    .map(m => typeof m.content === 'string' ? m.content : m.content?.reply || '')
+    .filter(Boolean)
+
+  const sessionDate = lastVoxMsg?.ts
+    ? new Date(lastVoxMsg.ts).toLocaleDateString('en-US', { day: 'numeric', month: 'short', year: 'numeric' })
+    : null
+
+  return (
+    <div style={{ animation: 'msg-in 0.4s ease both' }}>
+
+      {/* ── Completion Badge ── */}
+      <div style={{
+        display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px',
+        padding: '16px 20px',
+        background: `linear-gradient(135deg, ${phase.color}10, ${phase.color}05)`,
+        border: `1px solid ${phase.color}30`,
+        borderRadius: '14px',
+      }}>
+        <div style={{
+          width: '40px', height: '40px', borderRadius: '50%', flexShrink: 0,
+          background: `${phase.color}20`, border: `1px solid ${phase.color}40`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '18px',
+        }}>✓</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '11px', color: phase.color, letterSpacing: '2px', fontWeight: '600', fontFamily: "'Inter', sans-serif", marginBottom: '3px' }}>
+            SESSION COMPLETE {sessionDate ? `· ${sessionDate}` : ''}
+          </div>
+          <div style={{ fontSize: '15px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif" }}>
+            {component.title}
+          </div>
+        </div>
+        <div style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", textAlign: 'right' }}>
+          {messages.length} exchanges<br />recorded
+        </div>
+      </div>
+
+      {/* ── What Vox Captured ── */}
+      {lastVoxText && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
+            What Vox Captured
+          </div>
+          <div style={{
+            padding: '20px 24px',
+            background: 'rgba(13,18,32,0.8)',
+            border: '1px solid #1E2A3E',
+            borderLeft: `3px solid ${phase.color}`,
+            borderRadius: '12px',
+            fontSize: '14px',
+            color: '#D1D5DB',
+            lineHeight: '1.75',
+            fontFamily: "'Inter', sans-serif",
+            whiteSpace: 'pre-wrap',
+          }}>
+            {lastVoxText}
+          </div>
+        </div>
+      )}
+
+      {/* ── Brand Framework (if Chanakya has already built it) ── */}
+      {framework && (
+        <div style={{ marginBottom: '24px' }}>
+          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
+            Your Brand Framework — Built by Chanakya
+          </div>
+          <div style={{
+            padding: '20px 24px',
+            background: 'rgba(99,102,241,0.04)',
+            border: '1px solid rgba(99,102,241,0.15)',
+            borderRadius: '12px',
+          }}>
+            {framework.archetype && (
+              <div style={{ marginBottom: '16px' }}>
+                <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '6px' }}>Archetype</div>
+                <div style={{ fontSize: '15px', fontWeight: '700', color: '#a5b4fc', fontFamily: "'Outfit', sans-serif" }}>{framework.archetype}</div>
+              </div>
+            )}
+            {framework.content_pillars?.length > 0 && (
+              <div>
+                <div style={{ fontSize: '10px', color: '#6366f1', letterSpacing: '1.5px', textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace", marginBottom: '10px' }}>Content Pillars</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                  {framework.content_pillars.map((p, i) => (
+                    <span key={i} style={{
+                      fontSize: '12px', padding: '5px 12px',
+                      background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)',
+                      borderRadius: '100px', color: '#a5b4fc',
+                      fontFamily: "'Inter', sans-serif",
+                    }}>
+                      {typeof p === 'object' ? p.title : p}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Key Exchanges ── */}
+      {userHighlights.length > 0 && (
+        <div style={{ marginBottom: '28px' }}>
+          <div style={{ fontSize: '10px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase', fontFamily: "'Inter', sans-serif", marginBottom: '12px' }}>
+            Key Points You Shared
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {userHighlights.map((highlight, i) => (
+              <div key={i} style={{
+                display: 'flex', gap: '12px', alignItems: 'flex-start',
+                padding: '12px 16px',
+                background: 'rgba(255,255,255,0.02)',
+                border: '1px solid #1E2A3E',
+                borderRadius: '8px',
+              }}>
+                <span style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace", flexShrink: 0, marginTop: '2px' }}>0{i + 1}</span>
+                <span style={{ fontSize: '13px', color: '#94A3B8', fontFamily: "'Inter', sans-serif", lineHeight: '1.6' }}>
+                  {highlight.length > 200 ? highlight.slice(0, 200) + '…' : highlight}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Error ── */}
+      {error && (
+        <div style={{ margin: '12px 0', padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#fca5a5', fontSize: '13px' }}>
+          ⚠ {error} — <button onClick={onDismissError} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>dismiss</button>
+        </div>
+      )}
+
+      {/* ── Follow-up CTA ── */}
+      <div style={{
+        padding: '24px 28px',
+        background: 'rgba(13,18,32,0.6)',
+        border: '1px solid #1E2A3E',
+        borderRadius: '14px',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '20px', flexWrap: 'wrap',
+      }}>
+        <div>
+          <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '4px' }}>
+            Want to revisit or adjust?
+          </div>
+          <div style={{ fontSize: '12px', color: '#64748B', fontFamily: "'Inter', sans-serif" }}>
+            Request a follow-up — Vox will summarise your decisions and ask what you'd like to change.
+          </div>
+        </div>
+        <button
+          onClick={onFollowUp}
+          disabled={thinking}
+          style={{
+            padding: '11px 24px',
+            background: thinking ? 'rgba(99,102,241,0.1)' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+            border: thinking ? '1px solid rgba(99,102,241,0.2)' : 'none',
+            borderRadius: '10px',
+            color: thinking ? '#64748B' : '#fff',
+            fontSize: '13px',
+            fontWeight: '600',
+            cursor: thinking ? 'default' : 'pointer',
+            fontFamily: "'Inter', sans-serif",
+            boxShadow: thinking ? 'none' : '0 4px 20px rgba(99,102,241,0.3)',
+            transition: 'all 0.2s',
+            whiteSpace: 'nowrap',
+            flexShrink: 0,
+          }}
+        >
+          {thinking ? 'Loading…' : 'Request Follow-up →'}
+        </button>
+      </div>
+
+    </div>
+  )
+}
+
 /* ─── Digital Persona (Animated Avatar) ───────────────────────── */
+
 function VoxAvatar({ state }) {
   // state: 'idle' | 'listening' | 'thinking' | 'speaking'
   const isSpeaking = state === 'speaking'
@@ -256,6 +443,7 @@ export default function CoachingSessionPage() {
   const [isMuted,     setIsMuted]     = useState(false)
   const [sessionStatus,setSessionStatus] = useState('active')
   const [sessionId,   setSessionId]   = useState(null)
+  const [framework,   setFramework]   = useState(null)
 
   const bottomRef      = useRef(null)
   const inputRef       = useRef(null)
@@ -304,11 +492,18 @@ export default function CoachingSessionPage() {
         const existing = data?.find(s => String(s.component_id) === String(componentId))
         if (existing) {
           setSessionId(existing.id)
-          setSessionStatus(existing.status || 'active')
+          const status = existing.status || 'active'
+          setSessionStatus(status)
           if (existing.messages?.length) {
             setMessages(existing.messages)
           } else {
             await sendFirstMessage()
+          }
+          // If session is complete, try loading the brand framework for the recap
+          if (status === 'completed') {
+            getBrandFramework(user.id).then(({ data: fw }) => {
+              if (fw) setFramework(fw)
+            })
           }
         } else {
           await sendFirstMessage()
@@ -552,6 +747,8 @@ export default function CoachingSessionPage() {
             component_title: meta.component.title,
           }
         })
+        // Try loading the framework (may not be ready immediately — non-blocking)
+        getBrandFramework(user.id).then(({ data: fw }) => { if (fw) setFramework(fw) })
       }
       // playAudioForText(aiReply) — TTS disabled
     } catch (err) {
@@ -707,13 +904,26 @@ export default function CoachingSessionPage() {
             </div>
           )}
 
-          {loaded && messages.map((msg, i) => (
-            <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
-          ))}
+          {/* ── Completed: show Session Recap instead of raw chat ── */}
+          {loaded && sessionStatus === 'completed'
+            ? <SessionRecap
+                messages={messages}
+                framework={framework}
+                phase={phase}
+                component={component}
+                onFollowUp={handleRequestFollowUp}
+                thinking={thinking}
+                error={error}
+                onDismissError={() => setError(null)}
+              />
+            : loaded && messages.map((msg, i) => (
+                <Message key={i} msg={msg} isLatest={i === messages.length - 1} isPlaying={isPlaying} />
+              ))
+          }
 
-          {thinking && <TypingIndicator />}
+          {thinking && sessionStatus !== 'completed' && <TypingIndicator />}
 
-          {error && (
+          {error && sessionStatus !== 'completed' && (
             <div style={{
               margin: '12px 0', padding: '12px 16px',
               background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
@@ -794,31 +1004,10 @@ export default function CoachingSessionPage() {
         position: 'relative', zIndex: 2,
       }}>
         {sessionStatus === 'completed' ? (
-          <div style={{ maxWidth: '760px', margin: '0 auto', textAlign: 'center', padding: '16px 0' }}>
-            <div style={{ fontSize: '16px', fontWeight: '600', color: '#94A3B8', marginBottom: '8px', fontFamily: "'Outfit', sans-serif" }}>
-              🔒 This session is locked marked as complete.
-            </div>
-            <p style={{ fontSize: '13px', color: '#64748B', marginBottom: '20px' }}>
-              The strategic plan for this topic has been finalized. You can request a follow-up session to adjust your decisions.
-            </p>
-            <button
-              onClick={handleRequestFollowUp}
-              disabled={thinking}
-              style={{
-                padding: '10px 24px',
-                background: 'linear-gradient(135deg, #1E2A3E, #0f1524)',
-                border: '1px solid #334155',
-                borderRadius: '8px',
-                color: '#fff',
-                fontSize: '12px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                fontFamily: "'Inter', sans-serif",
-                transition: 'all 0.2s',
-              }}
-            >
-              {thinking ? 'Analyzing past decisions...' : 'Request Follow-up Session →'}
-            </button>
+          <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '8px 0' }}>
+            <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>SESSION COMPLETE</span>
+            <span style={{ color: '#1E2A3E', fontSize: '11px' }}>·</span>
+            <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>Review your recap above</span>
           </div>
         ) : (
           <div style={{ maxWidth: '760px', margin: '0 auto', display: 'flex', gap: '12px', alignItems: 'flex-end' }}>

@@ -130,6 +130,17 @@ export async function getBrandBrief(userId) {
   return supabase.from('brand_briefs').select('*').eq('user_id', userId).order('generated_at', { ascending: false }).limit(1).single()
 }
 
+export async function getBrandFramework(userId) {
+  return supabase
+    .from('brand_frameworks')
+    .select('archetype, mentor_memo, voice_traits, content_pillars, mentor_insights, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+}
+
+
 export async function saveBrandBrief(userId, brief) {
   return supabase.from('brand_briefs').insert({ user_id: userId, ...brief }).select().single()
 }
