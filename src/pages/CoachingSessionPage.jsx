@@ -703,7 +703,7 @@ export default function CoachingSessionPage() {
 
       {/* ── Session Header ── */}
       <div style={{
-        padding: '20px 40px 16px',
+        padding: loaded && sessionStatus === 'completed' ? '8px 24px 8px' : '20px 40px 16px',
         borderBottom: '1px solid #1E2A3E',
         background: 'rgba(13,18,32,0.4)',
         backdropFilter: 'blur(8px)',
@@ -711,22 +711,28 @@ export default function CoachingSessionPage() {
         position: 'relative', zIndex: 1,
       }}>
         {/* Full-width when recap, centred at 760px when chatting */}
-        <div style={{ maxWidth: loaded && sessionStatus === 'completed' ? 'none' : '760px', margin: '0 auto' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '6px' }}>
-            <div style={{
-              width: '28px', height: '28px', borderRadius: '50%',
-              background: `${phase.color}20`, border: `1px solid ${phase.color}40`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: '15px', color: phase.color,
-            }}>{phase.icon}</div>
-            <span style={{ fontSize: '13px', color: phase.color, letterSpacing: '2px', fontWeight: '600' }}>PHASE {phase.label} · SESSION {String(compIdx + 1).padStart(2, '0')}</span>
+        <div style={{ maxWidth: loaded && sessionStatus === 'completed' ? 'none' : '760px', margin: '0 auto', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: loaded && sessionStatus === 'completed' ? '22px' : '28px',
+            height: loaded && sessionStatus === 'completed' ? '22px' : '28px',
+            borderRadius: '50%', flexShrink: 0,
+            background: `${phase.color}20`, border: `1px solid ${phase.color}40`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '13px', color: phase.color,
+          }}>{phase.icon}</div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '11px', color: phase.color, letterSpacing: '2px', fontWeight: '600' }}>PHASE {phase.label} · SESSION {String(compIdx + 1).padStart(2, '0')}</span>
+            </div>
+            <h1 style={{ fontSize: loaded && sessionStatus === 'completed' ? '16px' : '20px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: 0, letterSpacing: '-0.3px' }}>
+              {component.title}
+            </h1>
+            {sessionStatus !== 'completed' && (
+              <p style={{ fontSize: '15px', color: '#334155', margin: '4px 0 0' }}>
+                Session with <strong style={{ color: '#6366f1' }}>Vox</strong> — your Executive Brand Strategist · Dictation enabled · Auto-saved
+              </p>
+            )}
           </div>
-          <h1 style={{ fontSize: '20px', fontWeight: '700', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: 0, letterSpacing: '-0.3px' }}>
-            {component.title}
-          </h1>
-          <p style={{ fontSize: '15px', color: '#334155', margin: '4px 0 0' }}>
-            Session with <strong style={{ color: '#6366f1' }}>Vox</strong> — your Executive Brand Strategist · Dictation enabled · Auto-saved
-          </p>
         </div>
       </div>
 
