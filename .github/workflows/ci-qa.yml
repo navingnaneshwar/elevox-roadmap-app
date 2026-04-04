@@ -1,0 +1,43 @@
+name: CI — QA Deploy
+
+on:
+  push:
+    branches: [qa]
+
+jobs:
+  build-and-deploy:
+    name: Build & Deploy to QA
+    runs-on: ubuntu-latest
+
+    env:
+      VITE_SUPABASE_URL: ${{ secrets.QA_SUPABASE_URL }}
+      VITE_SUPABASE_ANON_KEY: ${{ secrets.QA_SUPABASE_ANON_KEY }}
+      VITE_ENV: qa
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint --if-present
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Vercel (QA)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--env VITE_SUPABASE_URL=${{ secrets.QA_SUPABASE_URL }} --env VITE_SUPABASE_ANON_KEY=${{ secrets.QA_SUPABASE_ANON_KEY }} --env VITE_ENV=qa'
+          alias-domains: qa.elevox.com

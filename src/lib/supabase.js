@@ -28,18 +28,22 @@ export const supabase = CONFIGURED
   : createStubClient()
 
 function createStubClient() {
-  const noop = () => Promise.resolve({ data: null, error: null })
-  const queryBuilder = { select: () => queryBuilder, eq: () => queryBuilder, order: () => queryBuilder, limit: () => queryBuilder, single: noop, then: noop }
+  const noopData = () => Promise.resolve({ data: null, error: null })
+  const noopAuth = () => Promise.resolve({
+    data: null,
+    error: { message: '⚠️ Supabase not configured — add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to your .env file.' },
+  })
+  const queryBuilder = { select: () => queryBuilder, eq: () => queryBuilder, order: () => queryBuilder, limit: () => queryBuilder, single: noopData, then: noopData }
   return {
     auth: {
-      getSession:        () => Promise.resolve({ data: { session: null } }),
-      getUser:           () => Promise.resolve({ data: { user: null }, error: null }),
-      signInWithPassword: noop,
-      signUp:            noop,
-      signOut:           noop,
-      signInWithOAuth:   noop,
-      resetPasswordForEmail: noop,
-      onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+      getSession:           () => Promise.resolve({ data: { session: null } }),
+      getUser:              () => Promise.resolve({ data: { user: null }, error: null }),
+      signInWithPassword:   noopAuth,
+      signUp:               noopAuth,
+      signOut:              noopData,
+      signInWithOAuth:      noopAuth,
+      resetPasswordForEmail: noopAuth,
+      onAuthStateChange:    () => ({ data: { subscription: { unsubscribe: () => {} } } }),
     },
     from: () => ({ select: () => queryBuilder, insert: () => queryBuilder, update: () => queryBuilder, upsert: () => queryBuilder, delete: () => queryBuilder }),
   }

@@ -1,0 +1,37 @@
+name: DB Migrations
+
+on:
+  push:
+    branches: [qa, main]
+    paths:
+      - 'supabase/migrations/**'
+
+jobs:
+  migrate:
+    name: Run DB migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Run migrations — QA
+        if: github.ref == 'refs/heads/qa'
+        run: |
+          supabase db push \
+            --db-url "postgresql://postgres:${{ secrets.QA_DB_PASSWORD }}@${{ secrets.QA_DB_HOST }}:5432/postgres"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+
+      - name: Run migrations — Production
+        if: github.ref == 'refs/heads/main'
+        run: |
+          supabase db push \
+            --db-url "postgresql://postgres:${{ secrets.PROD_DB_PASSWORD }}@${{ secrets.PROD_DB_HOST }}:5432/postgres"
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}

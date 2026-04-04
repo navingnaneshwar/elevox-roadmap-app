@@ -4,6 +4,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
+const SUPABASE_CONFIGURED = !!(import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY)
+
 export default function LoginPage() {
   const navigate  = useNavigate()
   const location  = useLocation()
@@ -36,6 +38,7 @@ export default function LoginPage() {
   // ── LinkedIn OAuth ───────────────────────────────────────
   async function handleLinkedIn() {
     setLoading(true)
+    setError(null)
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'linkedin_oidc',
       options: {
@@ -43,6 +46,7 @@ export default function LoginPage() {
       },
     })
     if (error) { setError(error.message); setLoading(false) }
+    // If no error, browser redirects to LinkedIn — loading stays true intentionally
   }
 
   // ── Forgot Password ──────────────────────────────────────
@@ -104,6 +108,24 @@ export default function LoginPage() {
           padding: '36px',
           backdropFilter: 'blur(16px)',
         }}>
+
+          {/* Dev warning banner */}
+          {!SUPABASE_CONFIGURED && (
+            <div style={{
+              marginBottom: '20px',
+              padding: '12px 16px',
+              background: 'rgba(245,158,11,0.08)',
+              border: '1px solid rgba(245,158,11,0.3)',
+              borderRadius: '8px',
+              fontSize: '12px',
+              color: '#fcd34d',
+              lineHeight: '1.6',
+            }}>
+              <strong>⚠️ Local dev mode</strong> — Supabase not connected.<br />
+              Add <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '3px' }}>VITE_SUPABASE_URL</code> and <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '3px' }}>VITE_SUPABASE_ANON_KEY</code> to <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: '3px' }}>.env</code> to enable login.
+            </div>
+          )}
+
           {mode === 'forgot' ? (
             <>
               <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 6px' }}>Reset password</h2>
