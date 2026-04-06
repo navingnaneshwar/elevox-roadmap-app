@@ -15,19 +15,33 @@ import { useAuth } from '../context/AuthContext'
 export default function ClarificationPage() {
   const navigate    = useNavigate()
   const { user }    = useAuth()
-  const [session,   setSession]   = useState(null)
-  const [answers,   setAnswers]   = useState({})
-  const [loading,   setLoading]   = useState(true)
-  const [submitting,setSubmitting]= useState(false)
-  const [error,     setError]     = useState(null)
+  const [session,    setSession]   = useState(null)
+  const [answers,    setAnswers]   = useState({})
+  const [loading,    setLoading]   = useState(true)
+  const [isPolling,  setIsPolling] = useState(false)
+  const [submitting, setSubmitting]= useState(false)
+  const [error,      setError]     = useState(null)
+  const [pollDots,   setPollDots]  = useState('.')
+
+  // Animated dots for the waiting state
+  useEffect(() => {
+    if (!isPolling) return
+    const t = setInterval(() => setPollDots(d => d.length >= 3 ? '.' : d + '.'), 600)
+    return () => clearInterval(t)
+  }, [isPolling])
 
   useEffect(() => {
     if (!user) return
     loadPendingSession()
   }, [user])
 
-  async function loadPendingSession() {
-    setLoading(true)
+  async function loadPendingSession(attempt = 0) {
+    const MAX_ATTEMPTS = 18  // 18 × 2.5s = 45s max wait
+    const POLL_INTERVAL = 2500
+
+    if (attempt === 0) { setLoading(true); setIsPolling(false) }
+    if (attempt > 0)   { setIsPolling(true) }
+
     const { data, error } = await supabase
       .from('clarification_sessions')
       .select('*')
@@ -37,18 +51,26 @@ export default function ClarificationPage() {
       .limit(1)
       .single()
 
-    if (error || !data) {
-      // No pending session — either not generated yet or already answered
-      navigate('/dashboard')
+    if (data && !error) {
+      // Session ready
+      setSession(data)
+      const initial = {}
+      ;(data.questions || []).forEach((_, i) => { initial[i] = '' })
+      setAnswers(initial)
+      setLoading(false)
+      setIsPolling(false)
       return
     }
 
-    setSession(data)
-    // Pre-fill empty answers
-    const initial = {}
-    ;(data.questions || []).forEach((_, i) => { initial[i] = '' })
-    setAnswers(initial)
-    setLoading(false)
+    // Not ready yet — retry
+    if (attempt < MAX_ATTEMPTS) {
+      setTimeout(() => loadPendingSession(attempt + 1), POLL_INTERVAL)
+      return
+    }
+
+    // Timed out — fall back to dashboard
+    console.warn('[Clarification] No session found after 45s — redirecting to dashboard')
+    navigate('/dashboard')
   }
 
   async function handleSubmit(e) {
@@ -108,10 +130,61 @@ export default function ClarificationPage() {
   }
 
   if (loading) {
+    const steps = [
+      'Reading your profile',
+      'Identifying strategic gaps',
+      'Formulating targeted questions',
+      'Preparing your personal read',
+    ]
     return (
       <div style={styles.page}>
-        <div style={styles.spinner} />
-        <p style={styles.loadingText}>Chanakya is reviewing your profile…</p>
+        <div style={{
+          display: 'flex', flexDirection: 'column', alignItems: 'center',
+          gap: '32px', maxWidth: '480px', textAlign: 'center', paddingTop: '60px'
+        }}>
+          {/* Chanakya badge */}
+          <div style={styles.chanakyaBadge}>
+            <span style={styles.chanakyaIcon}>⚡</span>
+            <span style={styles.chanakyaLabel}>Chanakya</span>
+          </div>
+
+          {/* Heading */}
+          <div>
+            <h1 style={{ fontSize: '28px', fontWeight: 700, color: '#F1F5F9', marginBottom: '12px', lineHeight: 1.3 }}>
+              Reviewing your profile{pollDots}
+            </h1>
+            <p style={{ fontSize: '15px', color: '#64748B', lineHeight: 1.6, margin: 0 }}>
+              Chanakya is reading everything you shared and identifying the
+              questions that will make the biggest difference to your brand strategy.
+            </p>
+          </div>
+
+          {/* Step list */}
+          <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {steps.map((step, i) => (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: '12px',
+                background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: '10px', padding: '12px 16px',
+              }}>
+                <div style={{
+                  width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+                  background: isPolling ? 'linear-gradient(135deg,#C8A96E,#A07840)' : '#1E2A3E',
+                  boxShadow: isPolling ? '0 0 8px rgba(200,169,110,0.5)' : 'none',
+                  transition: 'all 0.4s',
+                  animationDelay: `${i * 0.15}s`,
+                }} />
+                <span style={{ fontSize: '14px', color: isPolling ? '#94A3B8' : '#1E2A3E', transition: 'color 0.4s' }}>
+                  {step}
+                </span>
+              </div>
+            ))}
+          </div>
+
+          <p style={{ fontSize: '12px', color: '#1E2A3E', margin: 0 }}>
+            Usually takes 10–20 seconds
+          </p>
+        </div>
       </div>
     )
   }

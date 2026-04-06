@@ -20,54 +20,67 @@ export default function OnboardingPage() {
     const { error } = await finishOnboarding(formData)
     if (error) {
       console.error('Failed to save onboarding:', error)
+      // Non-fatal — still proceed so user isn't stuck
     }
 
-    // Get the session once — reused for both calls below
     const { data: { session } } = await supabase.auth.getSession()
 
-    // Immediately kick the orchestrator so the Vox pipeline starts now
-    // rather than waiting for the pg_cron 2-minute cycle.
+    // ─── S5-03: Two-Stage Chanakya — queue gather_intelligence ───
+    // Instead of immediately building the framework, Chanakya first
+    // reads the profile, identifies gaps, and formulates 3-5 targeted
+    // questions specific to THIS executive. The user then answers
+    // them on /clarification before Stage 2 (build_framework) runs.
     if (session) {
       try {
+        const { error: jobError } = await supabase
+          .from('agent_jobs')
+          .insert({
+            user_id:  session.user.id,
+            job_type: 'gather_intelligence',
+            payload:  {},
+          })
+
+        if (jobError) throw jobError
+
+        // Immediately kick the orchestrator to process the job now
+        // (rather than waiting for the 2-min pg_cron cycle)
         await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
           {
-            method: 'POST',
+            method:  'POST',
             headers: {
               'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
+              'Content-Type':  'application/json',
             },
             body: JSON.stringify({}),
           }
         )
-        console.log('[Elevox] Orchestrator triggered — Vox pipeline starting')
-      } catch (orchErr) {
-        // Non-fatal — pg_cron will pick it up within 2 minutes
-        console.warn('[Elevox] Orchestrator immediate trigger failed (will retry via cron):', orchErr.message)
+        console.log('[Elevox] gather_intelligence job queued — Chanakya reviewing profile')
+      } catch (jobErr) {
+        // Non-fatal — pg_cron will pick it up within 2 min
+        console.warn('[Elevox] gather_intelligence queue failed (will retry via cron):', jobErr.message)
       }
     }
 
-    // Send welcome email via send-notification Edge Function
-    try {
-      if (session) {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ type: 'welcome' }),
-          }
-        )
-      }
-    } catch (emailErr) {
-      // Non-fatal — don't block navigation if email fails
-      console.warn('Welcome email failed (non-fatal):', emailErr.message)
+    // ─── Send welcome email (non-blocking) ───────────────────────
+    if (session) {
+      fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
+        {
+          method:  'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type':  'application/json',
+          },
+          body: JSON.stringify({ type: 'welcome' }),
+        }
+      ).catch(e => console.warn('Welcome email failed (non-fatal):', e.message))
     }
 
-    navigate('/dashboard', { replace: true })
+    // ─── Redirect to clarification page ──────────────────────────
+    // Chanakya's questions will be ready within a few seconds.
+    // ClarificationPage polls for the pending clarification_session.
+    navigate('/clarification', { replace: true })
   }
 
 
@@ -173,6 +186,33 @@ export function dbToFormData(profile) {
     budget:               profile.budget,
     plan:                 profile.plan,
     additionalContext:    profile.additional_context,
+
+    // S5-06 Sprint 5 fields
+    roleTenure:           profile.role_tenure,
+    boardRoles:           profile.board_roles,
+    companyStage:         profile.company_stage,
+    credibilityInventory: profile.credibility_inventory,
+    builtFromScratch:     profile.built_from_scratch,
+    firstOfAKind:         profile.first_of_a_kind,
+    recognition:          profile.recognition,
+    originMoment:         profile.origin_moment,
+    targetPersona:        profile.target_persona,
+    desiredAction:        profile.desired_action,
+    audienceOnline:       profile.audience_online,
+    warmRelationships:    profile.warm_relationships,
+    vulnerabilityComfort: profile.vulnerability_comfort,
+    nervousTopics:        profile.nervous_topics,
+    instantDeleteTriggers:profile.instant_delete_triggers,
+    contrarianThesis:     profile.contrarian_thesis,
+    platformPreferences:  profile.platform_preferences,
+    platformsToAvoid:     profile.platforms_to_avoid,
+    videoComfort:         profile.video_comfort,
+    writingStyle:         profile.writing_style,
+    competitiveWhitespace:profile.competitive_whitespace,
+    contentDislike:       profile.content_dislike,
+    earlySignal:          profile.early_signal,
+    linkedinFollowing:    profile.linkedin_following,
+    currentEngagement:    profile.current_engagement,
   }
 }
 

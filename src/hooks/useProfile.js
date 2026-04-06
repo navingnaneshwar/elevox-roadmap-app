@@ -73,6 +73,33 @@ const FIELD_MAP = {
   previousAttempts:     'previous_attempts',
   budget:               'budget',
   additionalContext:    'additional_context',
+
+  // S5-06: New Sprint 5 fields
+  roleTenure:           'role_tenure',
+  boardRoles:           'board_roles',
+  companyStage:         'company_stage',
+  credibilityInventory: 'credibility_inventory',
+  builtFromScratch:     'built_from_scratch',
+  firstOfAKind:         'first_of_a_kind',
+  recognition:          'recognition',
+  originMoment:         'origin_moment',
+  targetPersona:        'target_persona',
+  desiredAction:        'desired_action',
+  audienceOnline:       'audience_online',
+  warmRelationships:    'warm_relationships',
+  vulnerabilityComfort: 'vulnerability_comfort',
+  nervousTopics:        'nervous_topics',
+  instantDeleteTriggers:'instant_delete_triggers',
+  contrarianThesis:     'contrarian_thesis',
+  platformPreferences:  'platform_preferences',
+  platformsToAvoid:     'platforms_to_avoid',
+  videoComfort:         'video_comfort',
+  writingStyle:         'writing_style',
+  competitiveWhitespace:'competitive_whitespace',
+  contentDislike:       'content_dislike',
+  earlySignal:          'early_signal',
+  linkedinFollowing:    'linkedin_following',
+  currentEngagement:    'current_engagement',
 }
 
 function mapFormToDb(formData) {
