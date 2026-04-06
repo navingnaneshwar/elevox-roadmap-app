@@ -2,9 +2,13 @@
 // ─────────────────────────────────────────────────────────────
 // Handles redirect after:
 //  - Email confirmation (signup)
-//  - LinkedIn / Google OAuth
+//  - LinkedIn / Google OAuth (PKCE flow)
 //  - Password reset magic link
-// Supabase automatically exchanges the URL tokens here.
+//
+// PKCE flow: Supabase exchanges the auth code asynchronously.
+// onAuthStateChange fires INITIAL_SESSION immediately (session=null),
+// then SIGNED_IN once the code exchange completes.
+// We use a `handled` guard so only the first resolution fires.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -14,22 +18,30 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // onAuthStateChange fires INITIAL_SESSION immediately (session=null while
-    // tokens are still being exchanged), then SIGNED_IN once exchange completes.
-    // We only act when session is present, or on an explicit SIGNED_OUT.
+    let handled = false
+
+    const go = (path) => {
+      if (handled) return
+      handled = true
+      navigate(path, { replace: true })
+    }
+
+    // Primary: wait for SIGNED_IN (fires after PKCE code exchange completes)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (session) {
-        navigate('/dashboard', { replace: true })
+      if (event === 'SIGNED_IN' && session) {
+        go('/dashboard')
       } else if (event === 'SIGNED_OUT') {
-        navigate('/login?error=auth_failed', { replace: true })
+        go('/login?error=auth_failed')
       }
-      // INITIAL_SESSION with no session = exchange still in progress, wait
+      // INITIAL_SESSION with null session = code exchange still in progress, wait
     })
 
-    // Safety fallback: if SIGNED_IN never fires within 10s something went wrong
-    const timeout = setTimeout(() => {
-      navigate('/login?error=auth_failed', { replace: true })
-    }, 10000)
+    // Safety timeout: LinkedIn PKCE can take up to 20-30s on slow connections.
+    // Do a final getSession() check — if session exists by then, go to dashboard.
+    const timeout = setTimeout(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      go(session ? '/dashboard' : '/login?error=auth_failed')
+    }, 30000)
 
     return () => {
       subscription.unsubscribe()
