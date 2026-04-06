@@ -502,9 +502,11 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
       .eq('id', draft_id);
 
     if (updateError) {
-      console.error(`[Aristotle] DB update failed:`, updateError);
+      // S5-08: Must throw — pipeline must not route to Machiavelli if the score
+      // and approval state weren't persisted. A silent log was causing timing issues.
+      throw new Error(`[Aristotle] DB update failed for draft ${draft_id}: ${updateError.message}`);
     } else {
-      console.log(`[Aristotle] DB updated — approved_for_publish: ${evaluation.approved_for_publish}`);
+      console.log(`[Aristotle] DB updated — editorial_credibility_score: ${evaluation.credibility_score} | status: ${newStatus}`);
     }
 
     // ── STEP 7: Audit log ─────────────────────────────────────

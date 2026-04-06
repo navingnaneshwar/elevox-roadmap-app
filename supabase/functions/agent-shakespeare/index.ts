@@ -216,10 +216,21 @@ of these approved posts. The executive has already signed off on this voice.
 
 
     // ── STEP 4: Fetch the executive's 90-day goal ─────────────
-    // Goal alignment is checked in strategic_rationale.
-    const ninetyDayGoal = profile.primary_goal ?? 
+    const ninetyDayGoal = profile.primary_goal ??
       framework.mentor_insights?.find((i: any) => i.priority === 'high')?.action ??
       'Establish thought leadership and visibility in their industry';
+
+    // S5-09: Build verified anchors context (hallucination prevention)
+    const verifiedAnchors = (framework.verified_career_anchors as any[] ?? []);
+    const anchorsContext = verifiedAnchors.length > 0
+      ? `VERIFIED CAREER ANCHORS (from Chanakya — ONLY source of statistics you may use):
+${verifiedAnchors.map((a: any, i: number) => `${i + 1}. ${a.fact} [source: ${a.source}]`).join('\n')}
+
+⚠️ HALLUCINATION RULE: You are ONLY permitted to reference facts and statistics from the list above.
+If a specific number, outcome, or achievement is not listed here, you MUST NOT invent it.
+If you cannot write the post with the available anchors, say so in self_credibility_score_reasoning.`
+      : `CAREER CREDIBILITY ANCHORS (draw from these for the post):
+${profile.career_highlights ?? profile.differentiator ?? profile.credibility_inventory ?? 'Use career history from the profile to identify specific, owned experiences.'}`;
 
 
     // ── STEP 5: Build the full prompt ─────────────────────────
@@ -239,8 +250,7 @@ Active Platforms: ${JSON.stringify(framework.social_platforms ?? [])}
 Content Calendar Cadence: ${JSON.stringify(framework.content_calendar_cadence ?? [])}
 Strict Ghostwriting Rules: ${JSON.stringify(framework.ghostwriting_rules ?? [])}
 
-CAREER CREDIBILITY ANCHORS (draw from these for the post):
-${profile.career_highlights ?? profile.differentiator ?? 'Use career history from the profile to identify specific, owned experiences.'}
+${anchorsContext}
 
 MENTOR INSIGHTS (strategic context from Chanakya):
 ${JSON.stringify(framework.mentor_insights ?? [])}
