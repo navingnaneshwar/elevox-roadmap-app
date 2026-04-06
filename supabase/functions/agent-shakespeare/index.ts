@@ -88,8 +88,8 @@ You must return ONLY valid JSON matching this exact structure — no markdown, n
     "why_now": "Why this topic is strategically timed — tied to news, industry moment, or the 90-day plan",
     "pillar_alignment": "Which content pillar this serves and exactly how",
     "goal_alignment": "How this post moves the executive closer to their stated 90-day brand goal",
-    "credibility_score": 0,
-    "credibility_score_reasoning": "Why this score was given — what makes this post credible or where it falls short"
+    "self_credibility_score": 0,
+    "self_credibility_score_reasoning": "Why this score was given — what makes this post credible or where it falls short"
   }
 }
 
@@ -253,8 +253,8 @@ ${briefingContext}
 ${voiceMemory}
 
 Now write the LinkedIn post. Return only the JSON structure defined in your system prompt.
-Remember: credibility_score must be 50 or above. If you cannot reach 50, explain why 
-in credibility_score_reasoning and flag what profile data is missing.
+Remember: self_credibility_score must be 50 or above. If you cannot reach 50, explain why 
+in self_credibility_score_reasoning and flag what profile data is missing.
     `.trim();
 
 
@@ -296,8 +296,8 @@ in credibility_score_reasoning and flag what profile data is missing.
     // This enforces the quality floor before anything reaches the Editor.
     let finalParsed = parsed;
 
-    if (parsed.strategic_rationale?.credibility_score < 50) {
-      console.warn(`[Shakespeare] Draft scored ${parsed.strategic_rationale.credibility_score} — below threshold. Re-prompting once.`);
+    if (parsed.strategic_rationale?.self_credibility_score < 50) {
+      console.warn(`[Shakespeare] Draft scored ${parsed.strategic_rationale.self_credibility_score} — below threshold. Re-prompting once.`);
 
       const retryResponse = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
@@ -315,10 +315,10 @@ in credibility_score_reasoning and flag what profile data is missing.
             { role: 'assistant', content: rawOutput },
             {
               role: 'user',
-              content: `Your credibility score was ${parsed.strategic_rationale.credibility_score}. 
+              content: `Your credibility score was ${parsed.strategic_rationale.self_credibility_score}. 
 This is below the minimum threshold of 50. 
 
-Reason you gave: ${parsed.strategic_rationale.credibility_score_reasoning}
+Reason you gave: ${parsed.strategic_rationale.self_credibility_score_reasoning}
 
 Rewrite the post. This time:
 1. Anchor it in a specific career moment or decision from the executive's history
@@ -335,7 +335,7 @@ Return the same JSON structure with an improved draft.`,
         const retryData = await retryResponse.json();
         try {
           finalParsed = JSON.parse(retryData.content[0].text);
-          console.log(`[Shakespeare] Retry scored ${finalParsed.strategic_rationale?.credibility_score}`);
+          console.log(`[Shakespeare] Retry scored ${finalParsed.strategic_rationale?.self_credibility_score}`);
         } catch {
           // If retry JSON parse fails, use original
           console.warn(`[Shakespeare] Retry parse failed — using original draft`);
@@ -359,7 +359,7 @@ Return the same JSON structure with an improved draft.`,
         credibility_anchor:   finalParsed.credibility_anchor,
         contrarian_tension:   finalParsed.contrarian_tension,
         strategic_rationale:  finalParsed.strategic_rationale,   // JSONB column
-        credibility_score:    finalParsed.strategic_rationale?.credibility_score ?? null,
+        self_credibility_score:    finalParsed.strategic_rationale?.self_credibility_score ?? null,
         status:               'draft',
         agent_version:        'shakespeare-v2',
       })
@@ -377,7 +377,7 @@ Return the same JSON structure with an improved draft.`,
       trigger_entity_id: draftRow.id,
       prompt_context:    { system: SHAKESPEARE_SYSTEM_PROMPT, user: userPrompt },
       response_output:   rawOutput,
-      credibility_score: finalParsed.strategic_rationale?.credibility_score ?? null,
+      self_credibility_score: finalParsed.strategic_rationale?.self_credibility_score ?? null,
     });
 
 
@@ -388,7 +388,7 @@ Return the same JSON structure with an improved draft.`,
       payload:  { draft_id: draftRow.id },
     });
 
-    console.log(`[Shakespeare] Draft ${draftRow.id} scored ${finalParsed.strategic_rationale?.credibility_score} — routed to Editor`);
+    console.log(`[Shakespeare] Draft ${draftRow.id} scored ${finalParsed.strategic_rationale?.self_credibility_score} — routed to Editor`);
 
     return new Response(
       JSON.stringify({ success: true, draft: draftRow }),

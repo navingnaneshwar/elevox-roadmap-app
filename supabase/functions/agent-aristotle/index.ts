@@ -495,7 +495,7 @@ If Shakespeare's credibility anchor is vague or generic, reject on that basis al
         status:                      newStatus,
         approved_for_publish:        evaluation.approved_for_publish,
         aristotle_cx_score:          evaluation.cx_score,
-        aristotle_credibility_score: evaluation.credibility_score,
+        editorial_credibility_score: evaluation.credibility_score,
         aristotle_composite_score:   evaluation.composite_score,
         aristotle_evaluation:        evaluation,
       })

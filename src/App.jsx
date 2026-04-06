@@ -26,6 +26,7 @@ import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
 import ApprovalPage    from './pages/ApprovalPage'
 import SubmitPostPage  from './pages/SubmitPostPage'
+import ClarificationPage from './pages/ClarificationPage'
 
 import Roadmap           from './components/Roadmap'
 import ContentCalendar     from './components/ContentCalendar'
@@ -45,6 +46,11 @@ export default function App() {
           {/* ── Protected ───────────────────────────────── */}
           <Route path="/dashboard" element={
             <ProtectedRoute><DashboardPage /></ProtectedRoute>
+          } />
+
+          {/* S5-04: Two-Stage Chanakya — advisor clarification dialogue */}
+          <Route path="/clarification" element={
+            <ProtectedRoute skipOnboardingCheck><ClarificationPage /></ProtectedRoute>
           } />
 
           {/* skipOnboardingCheck — avoids redirect loop on the onboarding page itself */}

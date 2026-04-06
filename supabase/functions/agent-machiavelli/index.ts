@@ -156,9 +156,9 @@ serve(async (req) => {
     const framework = draft.brand_frameworks;
     const userId = draft.user_id;
 
-    if (draft.status !== 'approved') {
-        throw new Error(`Draft ${draft_id} is not approved for scheduling.`);
-    }
+    // S5-00: Removed approved_for_publish check — Aristotle is the gate.
+    // If a schedule_post job exists in the queue, Aristotle already approved it.
+    // Machiavelli's sole responsibility is WHEN and WHERE, not WHETHER.
 
     // 3. Update the pre-reserved calendar slot → confirmed/scheduled
     // NOTE: slot was reserved by Machiavelli in reserve mode — UPDATE, do not INSERT
