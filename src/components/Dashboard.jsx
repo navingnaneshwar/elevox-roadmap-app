@@ -9,9 +9,10 @@
 //   - Sessions driven from Supabase via getMentorSessions (with mock fallback)
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
-import { getMentorSessions } from "../lib/supabase";
+import { getMentorSessions, getPendingApprovals, getPendingCoachingAlerts } from "../lib/supabase";
 import { useAuth } from "../context/AuthContext";
 import Logo from "./Logo";
+import CredibilityAlertCard from "./CredibilityAlertCard";
 
 /* ─── Phase Data ─────────────────────────────────────────────── */
 const PHASES = [
@@ -59,6 +60,10 @@ const PLAN_PHASES = {
   starter:   [1, 2],
 };
 
+// ⚠️ BETA: All testers are granted 'authority' — mirrors completeOnboarding() override.
+// TODO: Revert to 'starter' before commercial launch.
+const DEFAULT_BETA_PLAN = 'authority';
+
 /* ─── Helpers ────────────────────────────────────────────────── */
 function derivePlan(profileData) {
   // Prefer the DB plan field (mapped by dbToFormData)
@@ -67,7 +72,9 @@ function derivePlan(profileData) {
   const b = (profileData?.budget || "").toLowerCase();
   if (b.includes("legacy"))    return "legacy";
   if (b.includes("authority")) return "authority";
-  return "starter";
+  // ⚠️ BETA: Default to authority instead of starter so testers don't see a
+  // locked-out dashboard when profile.plan hasn't persisted yet.
+  return DEFAULT_BETA_PLAN;
 }
 
 /* ─── Stat Card ──────────────────────────────────────────────── */
@@ -89,98 +96,166 @@ function StatCard({ value, label, color, icon }) {
   );
 }
 
+/* ─── Phase State Helper ────────────────────────────────────── */
+// Returns: 'locked' | 'not_started' | 'in_progress' | 'completed'
+function getPhaseState(phase, sessions, unlockedPhases) {
+  if (!unlockedPhases.includes(phase.id)) return 'locked';
+  const phaseData = sessions[String(phase.id)]; // { compId: status }
+  if (!phaseData || Object.keys(phaseData).length === 0) return 'not_started';
+  const statuses = phase.components.map((_, i) => phaseData[String(i)] || null);
+  const completedCount = statuses.filter(s => s === 'completed').length;
+  if (completedCount === phase.components.length) return 'completed';
+  return 'in_progress';
+}
+
 /* ─── Phase Card ─────────────────────────────────────────────── */
-function PhaseCard({ phase, unlocked, sessionsStarted, onClick }) {
+function PhaseCard({ phase, state, sessions, onClick }) {
   const [hovered, setHovered] = useState(false);
-  const progress = (sessionsStarted / phase.components.length) * 100;
+
+  const phaseData   = sessions[String(phase.id)] || {};
+  const doneCount   = phase.components.filter((_, i) => phaseData[String(i)] === 'completed').length;
+  const totalCount  = phase.components.length;
+  const progress    = (doneCount / totalCount) * 100;
+
+  // Visual config per state
+  const cfg = {
+    locked: {
+      opacity: 0.22, cursor: 'default', border: '#1E2A3E',
+      bg: 'rgba(255,255,255,0.01)', glow: 'none', labelColor: '#334155',
+      badge: null,
+    },
+    not_started: {
+      opacity: 0.55, cursor: 'pointer', border: '#1E2A3E',
+      bg: 'rgba(255,255,255,0.015)', glow: 'none', labelColor: '#64748B',
+      badge: { text: 'Not started', color: '#334155', bg: 'rgba(255,255,255,0.03)' },
+    },
+    in_progress: {
+      opacity: 1, cursor: 'pointer', border: phase.color + '60',
+      bg: `linear-gradient(135deg, ${phase.color}08, ${phase.color}03)`,
+      glow: `0 0 0 1px ${phase.color}30, 0 4px 24px ${phase.color}18`,
+      labelColor: phase.color,
+      badge: { text: 'In progress — action needed', color: phase.color, bg: phase.color + '15' },
+    },
+    completed: {
+      opacity: 0.45, cursor: 'pointer', border: '#1E2A3E',
+      bg: 'rgba(255,255,255,0.015)', glow: 'none', labelColor: '#334155',
+      badge: { text: 'Complete', color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
+    },
+  }[state];
+
+  const isClickable = state !== 'locked';
 
   return (
     <div
-      onClick={() => unlocked && onClick(phase)}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onClick={() => isClickable && onClick(phase)}
+      onMouseEnter={() => isClickable && setHovered(true)}
+      onMouseLeave={() => isClickable && setHovered(false)}
       style={{
-        background: hovered && unlocked
-          ? `linear-gradient(135deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02))`
-          : "rgba(255,255,255,0.02)",
-        border: `1px solid ${hovered && unlocked ? phase.color + "50" : "#1E2A3E"}`,
-        borderRadius: "14px",
-        padding: "24px",
-        cursor: unlocked ? "pointer" : "default",
-        opacity: unlocked ? 1 : 0.35,
-        transition: "all 0.2s ease",
-        transform: hovered && unlocked ? "translateY(-2px)" : "none",
-        position: "relative",
-        overflow: "hidden",
+        background: hovered && isClickable ? (state === 'in_progress' ? `linear-gradient(135deg, ${phase.color}12, ${phase.color}06)` : 'rgba(255,255,255,0.03)') : cfg.bg,
+        border: `1px solid ${hovered && isClickable ? (state === 'in_progress' ? phase.color + '80' : '#334155') : cfg.border}`,
+        borderRadius: '14px',
+        padding: '22px',
+        cursor: cfg.cursor,
+        opacity: cfg.opacity,
+        transition: 'all 0.2s ease',
+        transform: hovered && isClickable ? 'translateY(-2px)' : 'none',
+        boxShadow: state === 'in_progress' ? cfg.glow : 'none',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
       {/* Ghost number */}
       <div style={{
-        position: "absolute", top: 12, right: 16,
-        fontSize: "64px", fontWeight: "800",
+        position: 'absolute', top: 10, right: 14,
+        fontSize: '56px', fontWeight: '800',
         fontFamily: "'Outfit', sans-serif",
-        color: `${phase.color}08`,
-        lineHeight: 1, userSelect: "none",
-      }}>
-        {phase.label}
-      </div>
+        color: state === 'in_progress' ? `${phase.color}12` : 'rgba(255,255,255,0.03)',
+        lineHeight: 1, userSelect: 'none', pointerEvents: 'none',
+      }}>{phase.label}</div>
 
-      {!unlocked && (
-        <div style={{ position: "absolute", top: 14, right: 16, fontSize: "16px", opacity: 0.4 }}>🔒</div>
+      {/* Status badge */}
+      {cfg.badge && (
+        <div style={{
+          display: 'inline-flex', alignItems: 'center', gap: '5px',
+          fontSize: '9px', fontWeight: '700', letterSpacing: '1.5px',
+          textTransform: 'uppercase', fontFamily: "'JetBrains Mono', monospace",
+          color: cfg.badge.color, background: cfg.badge.bg,
+          border: `1px solid ${cfg.badge.color}30`,
+          borderRadius: '100px', padding: '3px 8px',
+          marginBottom: '14px',
+        }}>
+          {state === 'in_progress' && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: phase.color, display: 'inline-block', animation: 'badge-pulse 1.8s ease-in-out infinite' }} />}
+          {state === 'completed' && '✓ '}
+          {cfg.badge.text}
+        </div>
+      )}
+      {state === 'locked' && (
+        <div style={{ fontSize: '11px', color: '#334155', marginBottom: '14px', fontFamily: "'JetBrains Mono', monospace", letterSpacing: '1px' }}>🔒 PLAN LOCKED</div>
       )}
 
-      <div style={{ marginBottom: "14px" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+      {/* Phase header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+        <div style={{
+          width: '34px', height: '34px', borderRadius: '50%', flexShrink: 0,
+          background: state === 'in_progress' ? `${phase.color}22` : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${state === 'in_progress' ? phase.color + '50' : '#1E2A3E'}`,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: '14px',
+          color: state === 'in_progress' ? phase.color : '#334155',
+        }}>{phase.icon}</div>
+        <div>
+          <div style={{ fontSize: '10px', color: cfg.labelColor, letterSpacing: '1.5px', fontFamily: "'Inter', sans-serif", fontWeight: '600', marginBottom: '2px' }}>
+            PHASE {phase.label} · {phase.duration}
+          </div>
           <div style={{
-            width: "36px", height: "36px", borderRadius: "50%",
-            background: `linear-gradient(135deg, ${phase.color}25, ${phase.color}08)`,
-            border: `1px solid ${phase.color}40`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: "16px", color: phase.color, flexShrink: 0,
-          }}>
-            {phase.icon}
-          </div>
-          <div>
-            <div style={{ fontSize: "10px", color: phase.color, letterSpacing: "2px", fontFamily: "'Inter', sans-serif", fontWeight: "600" }}>
-              PHASE {phase.label} · {phase.duration}
-            </div>
-            <div style={{ fontSize: "16px", fontWeight: "600", color: "#F1F5F9", fontFamily: "'Outfit', sans-serif" }}>
-              {phase.title}
-            </div>
-          </div>
+            fontSize: '15px', fontWeight: '600',
+            color: state === 'in_progress' ? '#F1F5F9' : state === 'locked' ? '#1E2A3E' : '#64748B',
+            fontFamily: "'Outfit', sans-serif"
+          }}>{phase.title}</div>
         </div>
-        <div style={{ fontSize: "11px", color: "#64748B", fontFamily: "'Inter', sans-serif" }}>
-          {phase.pillars.join(" · ")}
-        </div>
+      </div>
+
+      <div style={{ fontSize: '11px', color: state === 'in_progress' ? '#64748B' : '#1E2A3E', fontFamily: "'Inter', sans-serif", marginBottom: '14px' }}>
+        {phase.pillars.join(' · ')}
       </div>
 
       {/* Progress bar */}
-      <div style={{ height: "3px", background: "#1E2A3E", borderRadius: "2px", marginBottom: "12px", overflow: "hidden" }}>
+      <div style={{ height: '2px', background: '#0f1524', borderRadius: '1px', marginBottom: '10px', overflow: 'hidden' }}>
         <div style={{
-          width: `${progress}%`, height: "100%",
-          background: `linear-gradient(90deg, ${phase.color}, ${phase.color}99)`,
-          borderRadius: "2px", transition: "width 0.5s ease",
+          width: `${progress}%`, height: '100%',
+          background: state === 'completed' ? '#334155' : `linear-gradient(90deg, ${phase.color}, ${phase.color}80)`,
+          borderRadius: '1px', transition: 'width 0.5s ease',
         }} />
       </div>
 
-      {/* Session dots */}
-      <div style={{ display: "flex", gap: "5px", marginBottom: "10px" }}>
-        {phase.components.map((_, i) => (
-          <div key={i} style={{
-            width: "6px", height: "6px", borderRadius: "50%",
-            background: i < sessionsStarted ? phase.color : "#1E2A3E",
-            transition: "background 0.3s ease",
-          }} />
-        ))}
+      {/* Component dots */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '10px' }}>
+        {phase.components.map((_, i) => {
+          const compStatus = phaseData[String(i)];
+          return (
+            <div key={i} style={{
+              width: '5px', height: '5px', borderRadius: '50%',
+              background: compStatus === 'completed' ? (state === 'completed' ? '#334155' : phase.color)
+                        : compStatus ? phase.color + '55'
+                        : '#1E2A3E',
+              transition: 'background 0.3s ease',
+            }} />
+          );
+        })}
       </div>
 
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: "11px", color: "#64748B" }}>
-          {sessionsStarted}/{phase.components.length} sessions
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span style={{ fontSize: '10px', color: '#1E2A3E', fontFamily: "'JetBrains Mono', monospace" }}>
+          {doneCount}/{totalCount} complete
         </span>
-        {unlocked && (
-          <span style={{ fontSize: "11px", color: phase.color, fontFamily: "'Inter', sans-serif" }}>
-            {sessionsStarted === 0 ? "Begin →" : sessionsStarted === phase.components.length ? "Complete ✓" : "Continue →"}
+        {state === 'in_progress' && (
+          <span style={{ fontSize: '11px', color: phase.color, fontFamily: "'Inter', sans-serif", fontWeight: '600' }}>
+            Continue →
+          </span>
+        )}
+        {state === 'not_started' && (
+          <span style={{ fontSize: '11px', color: '#334155', fontFamily: "'Inter', sans-serif" }}>
+            Begin →
           </span>
         )}
       </div>
@@ -219,32 +294,53 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const [selectedPhase, setSelectedPhase]   = useState(null);
-  const [sessions,      setSessions]        = useState({});
-  const [upgradeBanner, setUpgradeBanner]   = useState(() => new URLSearchParams(location.search).get('upgraded') === 'true');
+  const [selectedPhase,    setSelectedPhase]   = useState(null);
+  const [sessions,         setSessions]        = useState({});
+  const [approvalCount,    setApprovalCount]   = useState(0);
+  const [coachingAlerts,   setCoachingAlerts]  = useState([]);
 
   // Derive plan correctly (fixes dbPlan undefined crash)
   const dbPlan       = derivePlan(profileData);
-  const unlockedPhases = PLAN_PHASES[dbPlan] || PLAN_PHASES.starter;
+  const unlockedPhases = PLAN_PHASES[dbPlan] || PLAN_PHASES[DEFAULT_BETA_PLAN];
 
   // Load real session data from Supabase
+  // sessions = { phaseId: { componentId: status } }
   useEffect(() => {
     if (!user) return;
     getMentorSessions(user.id).then(({ data }) => {
       if (!data) return;
       const map = {};
       data.forEach(s => {
-        const key = String(s.phase_id);
-        map[key] = (map[key] || 0) + 1;
+        const pid = String(s.phase_id);
+        const cid = String(s.component_id);
+        if (!map[pid]) map[pid] = {};
+        map[pid][cid] = s.status || 'active';
       });
       setSessions(map);
     });
+    // Load approval badge count
+    getPendingApprovals(user.id).then(({ data }) => {
+      setApprovalCount(data?.length ?? 0);
+    });
+    // Load coaching alerts
+    getPendingCoachingAlerts(user.id).then(({ data }) => {
+      setCoachingAlerts(data ?? []);
+    });
   }, [user]);
 
-  const totalComponents    = PHASES.reduce((a, p) => a + p.components.length, 0);
-  const completedSessions  = Object.values(sessions).reduce((a, b) => a + b, 0);
-  const unlockedCount      = unlockedPhases.length;
-  const progressPct        = Math.round((completedSessions / totalComponents) * 100);
+  const totalComponents   = PHASES.reduce((a, p) => a + p.components.length, 0);
+  const completedSessions = Object.values(sessions).reduce((phaseAcc, compMap) =>
+    phaseAcc + Object.values(compMap).filter(s => s === 'completed').length, 0);
+  const unlockedCount     = unlockedPhases.length;
+  const progressPct       = Math.round((completedSessions / totalComponents) * 100);
+
+  // Phase states
+  const phaseStates = Object.fromEntries(
+    PHASES.map(p => [p.id, getPhaseState(p, sessions, unlockedPhases)])
+  );
+  // First phase where user action is needed
+  const activePhase = PHASES.find(p => phaseStates[p.id] === 'in_progress');
+  const nextUnstartedPhase = !activePhase && PHASES.find(p => phaseStates[p.id] === 'not_started');
 
   const firstName = profileData?.fullName?.split(" ")[0] || "there";
   const hour      = new Date().getHours();
@@ -273,22 +369,7 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
       <div style={{ position: "fixed", bottom: "0", right: "-100px", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.05) 0%, transparent 70%)", pointerEvents: "none", zIndex: 0 }} />
       <div style={{ position: "fixed", inset: 0, backgroundImage: "linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none", zIndex: 0 }} />
 
-      {/* ── Upgrade success banner ── */}
-      {upgradeBanner && (
-        <div style={{ position: "relative", zIndex: 60, background: "linear-gradient(135deg, rgba(74,158,122,0.15), rgba(74,158,122,0.08))", borderBottom: "1px solid rgba(74,158,122,0.3)", padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "16px" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <span style={{ fontSize: "18px" }}>🎉</span>
-            <div>
-              <span style={{ fontSize: "14px", fontWeight: "600", color: "#4A9E7A" }}>Plan upgraded successfully! </span>
-              <span style={{ fontSize: "13px", color: "#64748B" }}>Your new phases are now unlocked. Dive in below.</span>
-            </div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: "16px", flexShrink: 0 }}>
-            <Link to="/billing" style={{ fontSize: "12px", color: "#4A9E7A", textDecoration: "none", fontWeight: "600" }}>View billing →</Link>
-            <button onClick={() => setUpgradeBanner(false)} style={{ background: "none", border: "none", color: "#64748B", cursor: "pointer", fontSize: "18px", lineHeight: 1, padding: "0 4px" }}>×</button>
-          </div>
-        </div>
-      )}
+
 
       {/* ── Top Nav ── */}
       <nav style={{
@@ -313,7 +394,36 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           <NavLink label="Brand Brief" onClick={() => handleNav("brand-brief")} />
           <NavLink label="Calendar"   onClick={() => handleNav("calendar")} />
           <NavLink label="Billing"    onClick={() => navigate("/billing")} />
-          <NavLink label="Upgrade"    onClick={() => handleNav("upgrade")} />
+          {/* Approvals nav with badge */}
+          <button
+            onClick={() => navigate("/approvals")}
+            style={{
+              position: "relative",
+              padding: "7px 14px",
+              background: approvalCount > 0 ? "rgba(16,185,129,0.08)" : "transparent",
+              border: approvalCount > 0 ? "1px solid rgba(16,185,129,0.25)" : "1px solid transparent",
+              borderRadius: "7px",
+              color: approvalCount > 0 ? "#10b981" : "#64748B",
+              fontSize: "12px", fontWeight: "500",
+              cursor: "pointer",
+              fontFamily: "'Inter', sans-serif",
+              transition: "all 0.15s",
+            }}
+          >
+            Approvals
+            {approvalCount > 0 && (
+              <span style={{
+                position: "absolute", top: "-4px", right: "-4px",
+                background: "#10b981", color: "#fff",
+                fontSize: "9px", fontWeight: "700",
+                borderRadius: "100px", padding: "1px 5px",
+                fontFamily: "'JetBrains Mono', monospace",
+                minWidth: "16px", textAlign: "center",
+              }}>
+                {approvalCount}
+              </span>
+            )}
+          </button>
         </div>
 
         {/* Right: profile + sign out */}
@@ -407,13 +517,14 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
         {/* Quick Actions */}
         <div style={{ display: "flex", gap: "10px", marginBottom: "48px", flexWrap: "wrap" }}>
           {[
-            { label: "✦ Brand Brief", color: "#6366f1", screen: "brand-brief" },
-            { label: "◈ Roadmap",     color: "#C8A96E", screen: "roadmap" },
-            { label: "◉ Calendar",    color: "#8B6DAA", screen: "calendar" },
-          ].map(({ label, color, screen }) => (
+            { label: "✦ Brand Brief", color: "#6366f1", action: () => handleNav("brand-brief") },
+            { label: "◈ Roadmap",     color: "#C8A96E", action: () => handleNav("roadmap") },
+            { label: "◉ Calendar",    color: "#8B6DAA", action: () => handleNav("calendar") },
+            { label: "✎ Submit Post", color: "#10b981", action: () => navigate("/submit-post") },
+          ].map(({ label, color, action }) => (
             <button
-              key={screen}
-              onClick={() => handleNav(screen)}
+              key={label}
+              onClick={action}
               style={{
                 padding: "9px 20px",
                 background: `${color}10`,
@@ -434,31 +545,78 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           ))}
         </div>
 
+        {/* Coaching Alerts — surface when Aristotle stalled the pipeline */}
+        {coachingAlerts.length > 0 && (
+          <div style={{ marginBottom: "32px" }}>
+            {coachingAlerts.map(alert => (
+              <CredibilityAlertCard
+                key={alert.id}
+                alert={alert}
+                onDismiss={(id) => setCoachingAlerts(prev => prev.filter(a => a.id !== id))}
+              />
+            ))}
+          </div>
+        )}
+
         {/* Phase Grid */}
-        <div style={{ marginBottom: "48px" }}>
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "20px" }}>
-            <div style={{ fontSize: "11px", color: "#334155", letterSpacing: "2px", textTransform: "uppercase" }}>
-              Your Roadmap
-            </div>
-            <button
-              onClick={() => handleNav("roadmap")}
-              style={{ fontSize: "11px", color: "#6366f1", background: "none", border: "none", cursor: "pointer", fontFamily: "'Inter', sans-serif" }}
-            >
+        <div style={{ marginBottom: '48px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+            <div style={{ fontSize: '11px', color: '#334155', letterSpacing: '2px', textTransform: 'uppercase' }}>Your Roadmap</div>
+            <button onClick={() => handleNav('roadmap')} style={{ fontSize: '11px', color: '#6366f1', background: 'none', border: 'none', cursor: 'pointer', fontFamily: "'Inter', sans-serif" }}>
               View full roadmap →
             </button>
           </div>
 
+          {/* ── Next Step Banner ── */}
+          {(activePhase || nextUnstartedPhase) && (() => {
+            const focus = activePhase || nextUnstartedPhase;
+            const isActive = !!activePhase;
+            return (
+              <div
+                onClick={() => setSelectedPhase(focus)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '16px',
+                  padding: '14px 20px', marginBottom: '20px',
+                  background: isActive ? `linear-gradient(135deg, ${focus.color}14, ${focus.color}06)` : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${isActive ? focus.color + '50' : '#1E2A3E'}`,
+                  borderRadius: '12px', cursor: 'pointer',
+                  boxShadow: isActive ? `0 0 0 1px ${focus.color}20, 0 4px 20px ${focus.color}12` : 'none',
+                  transition: 'all 0.2s',
+                }}
+              >
+                <div style={{
+                  width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
+                  background: isActive ? `${focus.color}25` : 'rgba(255,255,255,0.04)',
+                  border: `1px solid ${isActive ? focus.color + '60' : '#1E2A3E'}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '14px', color: isActive ? focus.color : '#334155',
+                }}>{focus.icon}</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '10px', color: isActive ? focus.color : '#334155', letterSpacing: '2px', fontWeight: '700', fontFamily: "'Inter', sans-serif", marginBottom: '3px' }}>
+                    {isActive ? '▶ YOUR NEXT ACTION' : '→ START HERE'}
+                  </div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: isActive ? '#F1F5F9' : '#64748B', fontFamily: "'Outfit', sans-serif" }}>
+                    {focus.title}
+                  </div>
+                </div>
+                <span style={{ fontSize: '12px', color: isActive ? focus.color : '#334155', fontFamily: "'Inter', sans-serif", fontWeight: '600', flexShrink: 0 }}>
+                  {isActive ? 'Continue →' : 'Begin →'}
+                </span>
+              </div>
+            );
+          })()}
+
           <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(310px, 1fr))",
-            gap: "14px",
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
+            gap: '12px',
           }}>
             {PHASES.map((phase, idx) => (
               <div key={phase.id} style={{ animation: `ob-field-in 0.4s ${0.05 + idx * 0.06}s ease both`, opacity: 0 }}>
                 <PhaseCard
                   phase={phase}
-                  unlocked={unlockedPhases.includes(phase.id)}
-                  sessionsStarted={sessions[String(phase.id)] || 0}
+                  state={phaseStates[phase.id]}
+                  sessions={sessions}
                   onClick={(p) => setSelectedPhase(p)}
                 />
               </div>
@@ -466,51 +624,6 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
           </div>
         </div>
 
-        {/* Upgrade Banner — only if not on Legacy */}
-        {dbPlan !== "legacy" && (
-          <div style={{
-            background: "linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.05))",
-            border: "1px solid rgba(99,102,241,0.2)",
-            borderRadius: "14px",
-            padding: "28px 32px",
-            display: "flex",
-            justifyContent: "space-between",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: "20px",
-            animation: "ob-field-in 0.4s 0.4s ease both",
-            opacity: 0,
-          }}>
-            <div>
-              <div style={{ fontSize: "10px", color: "#6366f1", letterSpacing: "2px", fontFamily: "'Inter', sans-serif", fontWeight: "600", marginBottom: "6px" }}>
-                UNLOCK YOUR FULL POTENTIAL
-              </div>
-              <div style={{ fontSize: "18px", fontWeight: "600", color: "#F1F5F9", fontFamily: "'Outfit', sans-serif" }}>
-                {dbPlan !== "authority"
-                  ? "Upgrade to Authority — unlock Phase 03 & 04"
-                  : "Upgrade to Legacy — unlock all 6 phases"}
-              </div>
-            </div>
-            <button
-              onClick={() => handleNav("upgrade")}
-              style={{
-                padding: "12px 28px",
-                background: "linear-gradient(135deg, #6366f1, #8b5cf6)",
-                border: "none",
-                borderRadius: "10px",
-                color: "#fff",
-                fontSize: "12px",
-                fontWeight: "600",
-                fontFamily: "'Inter', sans-serif",
-                letterSpacing: "0.5px",
-                cursor: "pointer",
-                boxShadow: "0 4px 20px rgba(99,102,241,0.3)",
-              }}
-            >
-              Upgrade Plan →
-            </button>
-          </div>
-        )}
       </div>
 
       {/* ── Phase Detail Drawer ── */}
@@ -622,6 +735,10 @@ export default function Dashboard({ profileData, onSwitchTo, onSignOut }) {
         @keyframes drawer-in {
           from { transform: translateY(100%); }
           to   { transform: translateY(0); }
+        }
+        @keyframes badge-pulse {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.5; transform: scale(0.8); }
         }
       `}</style>
     </div>

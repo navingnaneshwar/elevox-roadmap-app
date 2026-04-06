@@ -1,12 +1,12 @@
 // src/pages/AuthCallbackPage.jsx
 // ─────────────────────────────────────────────────────────────
-// Handles redirect after:
-//  - Email confirmation (signup)
-//  - LinkedIn / Google OAuth (PKCE flow)
-//  - Password reset magic link
-// With PKCE, Supabase exchanges the auth code asynchronously.
-// We MUST wait for onAuthStateChange rather than calling getSession()
-// immediately, which would fire before the code exchange completes.
+// Handles redirect after LinkedIn / Google OAuth, email confirm,
+// and password reset.
+//
+// IMPLICIT FLOW: Supabase processes #access_token from the URL hash
+// immediately on client init — BEFORE this component mounts.
+// So onAuthStateChange fires INITIAL_SESSION (not SIGNED_IN) with
+// the session already set. We must handle BOTH events.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -18,39 +18,28 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     let handled = false
 
-    // Primary: listen for auth state change (works for PKCE + implicit)
+    const go = (path) => {
+      if (handled) return
+      handled = true
+      navigate(path, { replace: true })
+    }
+
+    // Handle both INITIAL_SESSION (implicit flow — tokens already parsed from hash)
+    // and SIGNED_IN (PKCE flow — fires after async code exchange)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (handled) return
-      if (event === 'SIGNED_IN' && session) {
-        handled = true
-        navigate('/dashboard', { replace: true })
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        go('/dashboard')
       } else if (event === 'SIGNED_OUT') {
-        handled = true
-        navigate('/login?error=auth_failed', { replace: true })
+        go('/login?error=auth_failed')
       }
+      // INITIAL_SESSION with session=null = still exchanging, wait
     })
 
-    // Fallback: if session already exists (e.g. implicit flow resolved first)
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (handled) return
-      if (session) {
-        handled = true
-        navigate('/dashboard', { replace: true })
-      }
-    })
-
-    // Safety timeout: if nothing resolves in 12s, redirect to login
-    const timeout = setTimeout(() => {
-      if (handled) return
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        handled = true
-        if (session) {
-          navigate('/dashboard', { replace: true })
-        } else {
-          navigate('/login?error=auth_failed', { replace: true })
-        }
-      })
-    }, 12000)
+    // Safety net: after 30s do a final check
+    const timeout = setTimeout(async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      go(session ? '/dashboard' : '/login?error=auth_failed')
+    }, 30000)
 
     return () => {
       subscription.unsubscribe()

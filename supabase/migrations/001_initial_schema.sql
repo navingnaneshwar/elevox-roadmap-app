@@ -20,7 +20,7 @@ $$ LANGUAGE plpgsql;
 -- TABLE: profiles
 -- One row per authenticated user. Mirrors Supabase auth.users.
 -- ============================================================
-CREATE TABLE public.profiles (
+CREATE TABLE IF NOT EXISTS public.profiles (
   id                      UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   email                   TEXT UNIQUE NOT NULL,
 
@@ -125,7 +125,7 @@ CREATE POLICY "profiles_update_own" ON public.profiles
 -- TABLE: brand_briefs
 -- AI-generated brand brief. One per user, versioned.
 -- ============================================================
-CREATE TABLE public.brand_briefs (
+CREATE TABLE IF NOT EXISTS public.brand_briefs (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id               UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   executive_summary     TEXT,
@@ -149,7 +149,7 @@ CREATE POLICY "briefs_own" ON public.brand_briefs
 -- TABLE: mentor_sessions
 -- AI coaching sessions — one per phase/component pair.
 -- ============================================================
-CREATE TABLE public.mentor_sessions (
+CREATE TABLE IF NOT EXISTS public.mentor_sessions (
   id                    UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id               UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   phase_id              SMALLINT NOT NULL CHECK (phase_id BETWEEN 1 AND 6),
@@ -172,7 +172,7 @@ CREATE POLICY "sessions_own" ON public.mentor_sessions
 -- TABLE: deliverables
 -- Extracted outputs from mentor sessions.
 -- ============================================================
-CREATE TABLE public.deliverables (
+CREATE TABLE IF NOT EXISTS public.deliverables (
   id             UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id        UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   session_id     UUID REFERENCES public.mentor_sessions(id),
@@ -194,7 +194,7 @@ CREATE POLICY "deliverables_own" ON public.deliverables
 -- TABLE: anchor_events
 -- Milestone events that generate content clusters.
 -- ============================================================
-CREATE TABLE public.anchor_events (
+CREATE TABLE IF NOT EXISTS public.anchor_events (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   type            TEXT NOT NULL,
@@ -218,7 +218,7 @@ CREATE POLICY "anchor_events_own" ON public.anchor_events
 -- TABLE: content_calendar
 -- Every piece of content in the pipeline.
 -- ============================================================
-CREATE TABLE public.content_calendar (
+CREATE TABLE IF NOT EXISTS public.content_calendar (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id           UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   anchor_event_id   UUID REFERENCES public.anchor_events(id),
@@ -246,7 +246,7 @@ CREATE POLICY "calendar_own" ON public.content_calendar
 -- TABLE: content_drafts
 -- Multiple AI-generated draft versions per calendar event.
 -- ============================================================
-CREATE TABLE public.content_drafts (
+CREATE TABLE IF NOT EXISTS public.content_drafts (
   id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   calendar_event_id   UUID NOT NULL REFERENCES public.content_calendar(id) ON DELETE CASCADE,
   user_id             UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -266,7 +266,7 @@ CREATE POLICY "drafts_own" ON public.content_drafts
 -- TABLE: calendar_settings
 -- Per-user calendar configuration.
 -- ============================================================
-CREATE TABLE public.calendar_settings (
+CREATE TABLE IF NOT EXISTS public.calendar_settings (
   id                   UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id              UUID NOT NULL UNIQUE REFERENCES public.profiles(id) ON DELETE CASCADE,
   posting_frequency    TEXT DEFAULT '3x',
@@ -293,7 +293,7 @@ CREATE POLICY "cal_settings_own" ON public.calendar_settings
 -- TABLE: approvals
 -- Content approval tracking with SLA.
 -- ============================================================
-CREATE TABLE public.approvals (
+CREATE TABLE IF NOT EXISTS public.approvals (
   id                UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   calendar_event_id UUID NOT NULL REFERENCES public.content_calendar(id) ON DELETE CASCADE,
   user_id           UUID NOT NULL REFERENCES public.profiles(id),
@@ -323,7 +323,7 @@ CREATE POLICY "approvals_update_approver" ON public.approvals
 -- TABLE: analytics_snapshots
 -- Daily analytics pulls from social platforms.
 -- ============================================================
-CREATE TABLE public.analytics_snapshots (
+CREATE TABLE IF NOT EXISTS public.analytics_snapshots (
   id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   user_id         UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
   platform        TEXT NOT NULL,

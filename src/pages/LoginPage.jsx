@@ -1,5 +1,5 @@
 // src/pages/LoginPage.jsx
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
@@ -17,6 +17,12 @@ export default function LoginPage() {
   const [error,    setError]    = useState(null)
   const [mode,     setMode]     = useState('login') // 'login' | 'forgot'
   const [sent,     setSent]     = useState(false)
+  
+  // Staggered entry animations classes
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   // ── Email + Password Login ───────────────────────────────
   async function handleLogin(e) {
@@ -64,19 +70,62 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  // ── Styles ───────────────────────────────────────────────
+  // ── Shared Styles ───────────────────────────────────────
+  const inputContainerStyle = {
+    position: 'relative',
+    transition: 'all 0.3s ease',
+  }
+
   const inputStyle = {
     width: '100%',
-    padding: '13px 16px',
-    background: '#0D1220',
-    border: '1px solid #1E2A3E',
-    borderRadius: '8px',
+    padding: '14px 18px',
+    background: 'rgba(13, 18, 32, 0.6)',
+    border: '1px solid rgba(30, 42, 62, 0.8)',
+    borderRadius: '10px',
     color: '#F1F5F9',
     fontSize: '14px',
     fontFamily: "'Inter', sans-serif",
     outline: 'none',
     boxSizing: 'border-box',
-    transition: 'border-color 0.15s',
+    transition: 'all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1)',
+    backdropFilter: 'blur(8px)',
+  }
+
+  const inputFocusStyle = {
+    borderColor: '#6366f1',
+    background: 'rgba(13, 18, 32, 0.9)',
+    boxShadow: '0 0 0 4px rgba(99, 102, 241, 0.1)',
+  }
+
+  const labelStyle = {
+    fontSize: '11px',
+    color: '#94A3B8',
+    letterSpacing: '1.5px',
+    display: 'block',
+    marginBottom: '8px',
+    fontWeight: '500',
+    fontFamily: "'Outfit', sans-serif",
+    textTransform: 'uppercase',
+  }
+
+  const primaryBtnStyle = {
+    padding: '14px',
+    background: loading ? 'rgba(30, 42, 62, 0.5)' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+    border: loading ? '1px solid #1E2A3E' : 'none',
+    borderRadius: '10px',
+    color: loading ? '#64748B' : '#ffffff',
+    fontSize: '14px',
+    fontWeight: '600',
+    cursor: loading ? 'not-allowed' : 'pointer',
+    boxShadow: loading ? 'none' : '0 8px 24px rgba(99, 102, 241, 0.25)',
+    transition: 'all 0.3s ease',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    fontFamily: "'Inter', sans-serif",
+    position: 'relative',
+    overflow: 'hidden',
   }
 
   return (
@@ -88,25 +137,28 @@ export default function LoginPage() {
       justifyContent: 'center',
       fontFamily: "'Inter', sans-serif",
       position: 'relative',
+      overflow: 'hidden',
     }}>
-      {/* Grid bg */}
+      {/* Dynamic Backgrounds */}
       <div style={{ position: 'fixed', inset: 0, backgroundImage: 'linear-gradient(rgba(99,102,241,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.03) 1px, transparent 1px)', backgroundSize: '60px 60px', pointerEvents: 'none' }} />
-      {/* Glow */}
-      <div style={{ position: 'fixed', top: '-100px', right: '-100px', width: '500px', height: '500px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%)', pointerEvents: 'none' }} />
+      <div style={{ position: 'fixed', top: '-15%', left: '-10%', width: '60vw', height: '60vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.08) 0%, transparent 60%)', pointerEvents: 'none', filter: 'blur(40px)', mixBlendMode: 'screen' }} />
+      <div style={{ position: 'fixed', bottom: '-20%', right: '-10%', width: '50vw', height: '50vw', borderRadius: '50%', background: 'radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 60%)', pointerEvents: 'none', filter: 'blur(40px)', mixBlendMode: 'screen' }} />
 
-      <div style={{ width: '100%', maxWidth: '420px', padding: '0 24px', position: 'relative', zIndex: 1 }}>
-
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+      <div style={{ width: '100%', maxWidth: '440px', padding: '0 24px', position: 'relative', zIndex: 1, ...(!mounted ? { opacity: 0 } : {}), transition: 'opacity 0.6s ease' }}>
+        
+        {/* Logo Container with floating animation */}
+        <div style={{ textAlign: 'center', marginBottom: '48px', animation: mounted ? 'ob-slide-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) both' : 'none' }}>
           <Logo size="lg" theme="dark" />
         </div>
 
         <div style={{
-          background: 'rgba(13,18,32,0.8)',
-          border: '1px solid #1E2A3E',
-          borderRadius: '16px',
-          padding: '36px',
-          backdropFilter: 'blur(16px)',
+          background: 'rgba(13, 18, 32, 0.6)',
+          border: '1px solid rgba(255, 255, 255, 0.05)',
+          borderRadius: '24px',
+          padding: '40px',
+          backdropFilter: 'blur(20px)',
+          boxShadow: '0 24px 64px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
+          animation: mounted ? 'ob-slide-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both' : 'none',
         }}>
 
           {/* Dev warning banner */}
@@ -127,107 +179,151 @@ export default function LoginPage() {
           )}
 
           {mode === 'forgot' ? (
-            <>
-              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 6px' }}>Reset password</h2>
-              <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 28px', lineHeight: '1.6' }}>
-                Enter your email and we'll send a reset link.
+            <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.2s' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: '500', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 8px', letterSpacing: '-0.5px' }}>Reset password</h2>
+              <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 32px', lineHeight: '1.6' }}>
+                Enter your email address to receive a secure reset link.
               </p>
 
               {sent ? (
-                <div style={{ padding: '16px', background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '8px', color: '#6ee7b7', fontSize: '13px', lineHeight: '1.6' }}>
-                  ✓ Reset link sent to {email}. Check your inbox.
+                <div style={{ padding: '16px 20px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: '12px', color: '#34d399', fontSize: '14px', lineHeight: '1.6', display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                  <span style={{ fontSize: '18px', lineHeight: 1 }}>✓</span>
+                  <div>Reset link successfully sent to <strong style={{ color: '#6ee7b7', fontWeight: '500' }}>{email}</strong>. Please check your inbox.</div>
                 </div>
               ) : (
-                <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  <div>
-                    <label style={{ fontSize: '11px', color: '#64748B', letterSpacing: '1px', display: 'block', marginBottom: '6px' }}>EMAIL</label>
-                    <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@company.com" style={inputStyle}
-                      onFocus={e => e.target.style.borderColor = '#6366f1'}
-                      onBlur={e  => e.target.style.borderColor = '#1E2A3E'} />
+                <form onSubmit={handleForgot} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                  <div style={inputContainerStyle}>
+                    <label style={labelStyle}>Work Email</label>
+                    <input 
+                      type="email" 
+                      value={email} 
+                      onChange={e => setEmail(e.target.value)} 
+                      required 
+                      placeholder="you@company.com" 
+                      style={inputStyle}
+                      onFocus={e => Object.assign(e.target.style, inputFocusStyle)}
+                      onBlur={e  => Object.assign(e.target.style, inputStyle)} 
+                    />
                   </div>
-                  {error && <p style={{ color: '#ef4444', fontSize: '12px', margin: 0 }}>{error}</p>}
-                  <button type="submit" disabled={loading} style={{ padding: '13px', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}>
-                    {loading ? 'Sending…' : 'Send reset link'}
+                  {error && <p style={{ color: '#ef4444', fontSize: '13px', margin: 0 }}>{error}</p>}
+                  
+                  <button type="submit" disabled={loading} style={{ ...primaryBtnStyle, marginTop: '8px' }}>
+                    {loading ? (
+                       <><div style={{ width: '14px', height: '14px', border: '2px solid rgba(255,255,255,0.2)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Sending link...</>
+                    ) : 'Send reset link'}
                   </button>
                 </form>
               )}
 
-              <button onClick={() => { setMode('login'); setError(null); setSent(false) }} style={{ marginTop: '20px', background: 'none', border: 'none', color: '#6366f1', fontSize: '13px', cursor: 'pointer', padding: 0 }}>
+              <button 
+                onClick={() => { setMode('login'); setError(null); setSent(false) }} 
+                style={{ marginTop: '24px', background: 'none', border: 'none', color: '#64748B', fontSize: '13px', cursor: 'pointer', padding: 0, display: 'inline-flex', alignItems: 'center', gap: '6px', transition: 'color 0.2s' }}
+                onMouseEnter={e => e.target.style.color = '#F1F5F9'}
+                onMouseLeave={e => e.target.style.color = '#64748B'}
+              >
                 ← Back to sign in
               </button>
-            </>
+            </div>
           ) : (
             <>
-              <h2 style={{ fontSize: '20px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 6px' }}>Welcome back</h2>
-              <p style={{ fontSize: '13px', color: '#64748B', margin: '0 0 28px' }}>Sign in to your Elevox account</p>
-
-              {/* LinkedIn OAuth */}
-              <button onClick={handleLinkedIn} disabled={loading} style={{
-                width: '100%', padding: '13px', marginBottom: '20px',
-                background: '#0A66C2', border: 'none', borderRadius: '8px',
-                color: '#fff', fontSize: '13px', fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-              }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
-                Continue with LinkedIn
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
-                <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
-                <span style={{ fontSize: '11px', color: '#334155' }}>or email</span>
-                <div style={{ flex: 1, height: '1px', background: '#1E2A3E' }} />
+              <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.15s' }}>
+                <h2 style={{ fontSize: '26px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 8px', letterSpacing: '-0.5px' }}>Welcome back</h2>
+                <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 32px' }}>Sign in to continue to your dashboard</p>
               </div>
 
-              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                <div>
-                  <label style={{ fontSize: '11px', color: '#64748B', letterSpacing: '1px', display: 'block', marginBottom: '6px' }}>EMAIL</label>
+              {/* LinkedIn OAuth */}
+              <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.2s' }}>
+                <button 
+                  type="button"
+                  onClick={handleLinkedIn} 
+                  disabled={loading} 
+                  style={{
+                    width: '100%', padding: '14px', marginBottom: '24px',
+                    background: 'rgba(10, 102, 194, 0.1)', 
+                    border: '1px solid rgba(10, 102, 194, 0.3)', 
+                    borderRadius: '10px',
+                    color: '#F1F5F9', fontSize: '14px', fontWeight: '500',
+                    cursor: loading ? 'not-allowed' : 'pointer', 
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onMouseEnter={e => { if(!loading) { e.currentTarget.style.background = '#0A66C2'; e.currentTarget.style.borderColor = '#0A66C2'; e.currentTarget.style.boxShadow = '0 8px 24px rgba(10, 102, 194, 0.3)'; } }}
+                  onMouseLeave={e => { if(!loading) { e.currentTarget.style.background = 'rgba(10, 102, 194, 0.1)'; e.currentTarget.style.borderColor = 'rgba(10, 102, 194, 0.3)'; e.currentTarget.style.boxShadow = 'none'; } }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+                  Continue with LinkedIn
+                </button>
+              </div>
+
+              <div className={mounted ? "ob-field-enter" : ""} style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px', animationDelay: '0.25s' }}>
+                <div style={{ flex: 1, height: '1px', background: 'linear-gradient(90deg, transparent, rgba(255,255,255,0.1))' }} />
+                <span style={{ fontSize: '11px', color: '#64748B', textTransform: 'uppercase', letterSpacing: '1px' }}>or with email</span>
+                <div style={{ flex: 1, height: '1px', background: 'linear-gradient(270deg, transparent, rgba(255,255,255,0.1))' }} />
+              </div>
+
+              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.3s' }}>
+                  <label style={labelStyle}>Email Address</label>
                   <input type="email" value={email} onChange={e => setEmail(e.target.value)} required placeholder="you@company.com" style={inputStyle}
-                    onFocus={e => e.target.style.borderColor = '#6366f1'}
-                    onBlur={e  => e.target.style.borderColor = '#1E2A3E'} />
+                    onFocus={e => Object.assign(e.target.style, inputFocusStyle)}
+                    onBlur={e  => Object.assign(e.target.style, inputStyle)} />
                 </div>
 
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
-                    <label style={{ fontSize: '11px', color: '#64748B', letterSpacing: '1px' }}>PASSWORD</label>
-                    <button type="button" onClick={() => setMode('forgot')} style={{ background: 'none', border: 'none', color: '#6366f1', fontSize: '11px', cursor: 'pointer', padding: 0 }}>
+                <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.35s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+                    <button type="button" onClick={() => setMode('forgot')} style={{ background: 'none', border: 'none', color: '#a5b4fc', fontSize: '12px', cursor: 'pointer', padding: 0, fontWeight: '500', transition: 'color 0.2s' }}
+                      onMouseEnter={e => e.target.style.color = '#c7d2fe'}
+                      onMouseLeave={e => e.target.style.color = '#a5b4fc'}
+                    >
                       Forgot?
                     </button>
                   </div>
                   <input type="password" value={password} onChange={e => setPassword(e.target.value)} required placeholder="••••••••" style={inputStyle}
-                    onFocus={e => e.target.style.borderColor = '#6366f1'}
-                    onBlur={e  => e.target.style.borderColor = '#1E2A3E'} />
+                    onFocus={e => Object.assign(e.target.style, inputFocusStyle)}
+                    onBlur={e  => Object.assign(e.target.style, inputStyle)} />
                 </div>
 
                 {error && (
-                  <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '6px', color: '#fca5a5', fontSize: '12px' }}>
+                  <div className={mounted ? "ob-field-enter" : ""} style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px', animationDelay: '0.4s' }}>
                     {error}
                   </div>
                 )}
 
-                <button type="submit" disabled={loading} style={{
-                  padding: '13px',
-                  background: loading ? '#0D1220' : 'linear-gradient(135deg,#6366f1,#8b5cf6)',
-                  border: loading ? '1px solid #1E2A3E' : 'none',
-                  borderRadius: '8px', color: loading ? '#334155' : '#fff',
-                  fontSize: '13px', fontWeight: '600',
-                  cursor: loading ? 'not-allowed' : 'pointer',
-                  boxShadow: loading ? 'none' : '0 4px 20px rgba(99,102,241,0.3)',
-                  transition: 'all 0.15s',
-                }}>
-                  {loading ? 'Signing in…' : 'Sign in →'}
-                </button>
+                <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.4s', marginTop: '4px' }}>
+                  <button 
+                    type="submit" 
+                    disabled={loading} 
+                    style={primaryBtnStyle}
+                    onMouseEnter={e => { if(!loading) { e.target.style.background = 'linear-gradient(135deg, #4f46e5, #7c3aed)'; e.target.style.boxShadow = '0 12px 28px rgba(99, 102, 241, 0.4)'; e.target.style.transform = 'translateY(-1px)' } }}
+                    onMouseLeave={e => { if(!loading) { e.target.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)'; e.target.style.boxShadow = '0 8px 24px rgba(99, 102, 241, 0.25)'; e.target.style.transform = 'translateY(0)' } }}
+                  >
+                    {loading ? (
+                      <><div style={{ width: '16px', height: '16px', border: '2px solid rgba(255,255,255,0.2)', borderTop: '2px solid white', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Authenticating...</>
+                    ) : (
+                      <>Sign into Elevox <span style={{ marginLeft: '4px', fontSize: '16px' }}>→</span></>
+                    )}
+                  </button>
+                </div>
               </form>
 
-              <p style={{ textAlign: 'center', marginTop: '24px', fontSize: '13px', color: '#334155' }}>
-                No account?{' '}
-                <Link to="/signup" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: '500' }}>
-                  Create one →
+              <div className={mounted ? "ob-field-enter" : ""} style={{ textAlign: 'center', marginTop: '28px', fontSize: '14px', color: '#64748B', animationDelay: '0.45s' }}>
+                Don't have an account?{' '}
+                <Link to="/signup" style={{ color: '#a5b4fc', textDecoration: 'none', fontWeight: '500', transition: 'color 0.2s' }}
+                  onMouseEnter={e => e.target.style.color = '#c7d2fe'}
+                  onMouseLeave={e => e.target.style.color = '#a5b4fc'}
+                >
+                  Apply for access
                 </Link>
-              </p>
+              </div>
             </>
           )}
         </div>
       </div>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   )
 }
+

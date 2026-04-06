@@ -106,7 +106,6 @@ export default function ApprovalWorkflow() {
 
   useEffect(() => {
     if (tab === "sim") {
-      setSimStep(0);
       const t = setInterval(() => setSimStep(s => s < 6 ? s + 1 : 0), 1200);
       return () => clearInterval(t);
     }
@@ -147,9 +146,9 @@ export default function ApprovalWorkflow() {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "#F8FAFC",
+      background: "rgba(13, 18, 32, 0.8)",
       fontFamily: "'SF Mono', 'Fira Code', 'Cascadia Code', monospace",
-      color: "#1E293B",
+      color: "#F1F5F9",
     }}>
       <style>{`
         @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(1)} 50%{opacity:0.7;transform:scale(1.04)} }
@@ -184,7 +183,7 @@ export default function ApprovalWorkflow() {
           { id: "sim",    label: "Simulation" },
           { id: "sla",    label: "SLA & Escalation" },
         ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} style={{
+          <button key={t.id} onClick={() => { setTab(t.id); if (t.id === "sim") setSimStep(0); }} style={{
             padding: "14px 24px",
             background: "transparent", border: "none",
             borderBottom: `2px solid ${tab === t.id ? "#4A9EFF" : "transparent"}`,

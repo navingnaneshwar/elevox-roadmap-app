@@ -1,7 +1,16 @@
 // src/App.jsx — React Router root. All routes defined here.
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import { AuthProvider } from './context/AuthContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
 import ProtectedRoute from './components/ProtectedRoute'
+
+// Smart root redirect — checks auth + onboarding state
+function RootRedirect() {
+  const { user, profile, loading } = useAuth()
+  if (loading) return null  // show nothing while session loads
+  if (!user)   return <Navigate to="/login" replace />
+  if (profile && !profile.onboarding_complete) return <Navigate to="/onboarding" replace />
+  return <Navigate to="/dashboard" replace />
+}
 
 // Public pages
 import LoginPage        from './pages/LoginPage'
@@ -12,13 +21,15 @@ import AuthCallbackPage from './pages/AuthCallbackPage'
 import DashboardPage   from './pages/DashboardPage'
 import OnboardingPage  from './pages/OnboardingPage'
 import ProfilePage     from './pages/ProfilePage'
-import UpgradePage     from './pages/UpgradePage'
-import BrandBriefPage  from './pages/BrandBriefPage'
+import BrandBriefPage       from './pages/BrandBriefPage'
+import CoachingSessionPage  from './pages/CoachingSessionPage'
 import BillingPage     from './pages/BillingPage'
+import ApprovalPage    from './pages/ApprovalPage'
+import SubmitPostPage  from './pages/SubmitPostPage'
 
-// Feature components used as full pages
 import Roadmap           from './components/Roadmap'
-import CalendarLogistics from './components/CalendarLogistics'
+import ContentCalendar     from './components/ContentCalendar'
+import LandingPage         from './pages/LandingPage'
 
 export default function App() {
   return (
@@ -50,12 +61,12 @@ export default function App() {
           } />
 
           <Route path="/calendar" element={
-            <ProtectedRoute><CalendarLogistics /></ProtectedRoute>
+            <ProtectedRoute><ContentCalendar /></ProtectedRoute>
           } />
 
           {/* Coaching session — phase + component driven */}
           <Route path="/coach/:phaseId/:componentId" element={
-            <ProtectedRoute><DashboardPage /></ProtectedRoute>
+            <ProtectedRoute><CoachingSessionPage /></ProtectedRoute>
           } />
 
           <Route path="/brand-brief" element={
@@ -66,13 +77,22 @@ export default function App() {
             <ProtectedRoute><BillingPage /></ProtectedRoute>
           } />
 
-          <Route path="/upgrade" element={
-            <ProtectedRoute><UpgradePage /></ProtectedRoute>
+          <Route path="/approvals" element={
+            <ProtectedRoute><ApprovalPage /></ProtectedRoute>
           } />
 
-          {/* Root → dashboard (ProtectedRoute redirects to /login if needed) */}
-          <Route path="/"  element={<Navigate to="/dashboard" replace />} />
-          <Route path="*"  element={<Navigate to="/dashboard" replace />} />
+          <Route path="/submit-post" element={
+            <ProtectedRoute><SubmitPostPage /></ProtectedRoute>
+          } />
+
+          <Route path="/website" element={
+            <ProtectedRoute><LandingPage /></ProtectedRoute>
+          } />
+
+          {/* Root — smart redirect based on auth + onboarding state */}
+          <Route path="/"  element={<RootRedirect />} />
+          <Route path="*"  element={<RootRedirect />} />
+
 
         </Routes>
       </AuthProvider>

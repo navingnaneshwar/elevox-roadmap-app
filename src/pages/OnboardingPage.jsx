@@ -1,4 +1,5 @@
 // src/pages/OnboardingPage.jsx
+/* eslint-disable react-refresh/only-export-components */
 // ─────────────────────────────────────────────────────────────
 // Wraps the existing OnboardingForm, wiring:
 //  - onComplete → saves to Supabase + navigates to /dashboard
@@ -13,7 +14,7 @@ import OnboardingForm from '../components/OnboardingForm'
 export default function OnboardingPage() {
   const navigate = useNavigate()
   const { profile } = useAuth()
-  const { finishOnboarding } = useProfile()
+  const { finishOnboarding, saveStep } = useProfile()
 
   async function handleComplete(formData) {
     const { error } = await finishOnboarding(formData)
@@ -21,9 +22,33 @@ export default function OnboardingPage() {
       console.error('Failed to save onboarding:', error)
     }
 
+    // Get the session once — reused for both calls below
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // Immediately kick the orchestrator so the Vox pipeline starts now
+    // rather than waiting for the pg_cron 2-minute cycle.
+    if (session) {
+      try {
+        await fetch(
+          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${session.access_token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({}),
+          }
+        )
+        console.log('[Elevox] Orchestrator triggered — Vox pipeline starting')
+      } catch (orchErr) {
+        // Non-fatal — pg_cron will pick it up within 2 minutes
+        console.warn('[Elevox] Orchestrator immediate trigger failed (will retry via cron):', orchErr.message)
+      }
+    }
+
     // Send welcome email via send-notification Edge Function
     try {
-      const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         await fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
@@ -45,6 +70,7 @@ export default function OnboardingPage() {
     navigate('/dashboard', { replace: true })
   }
 
+
   // Convert profile DB row → form camelCase keys for pre-fill
   const initialData = profile ? dbToFormData(profile) : null
 
@@ -52,6 +78,11 @@ export default function OnboardingPage() {
     <OnboardingForm
       onComplete={handleComplete}
       initialData={initialData}
+      onSaveProgress={saveStep}
+      onSaveAndExit={async (formData) => {
+        await saveStep(formData)
+        navigate('/dashboard', { replace: true })
+      }}
     />
   )
 }

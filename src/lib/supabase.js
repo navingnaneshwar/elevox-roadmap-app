@@ -60,10 +60,37 @@ export async function upsertProfile(userId, fields) {
 }
 
 export async function completeOnboarding(userId, budget) {
-  const plan = (budget || '').toLowerCase().includes('legacy')    ? 'legacy'
-             : (budget || '').toLowerCase().includes('authority') ? 'authority'
-             : 'starter'
-  return supabase.from('profiles').update({ onboarding_complete: true, plan, updated_at: new Date().toISOString() }).eq('id', userId)
+  // ⚠️ BETA OVERRIDE: All testers get 'authority' plan to unlock the full pipeline.
+  // TODO: Revert to budget-derived plan logic before commercial launch.
+  // Original: 'legacy' | 'authority' | 'starter' based on budget field
+  const plan = 'authority'
+
+  const { error } = await supabase.from('profiles').update({
+    onboarding_complete: true,
+    plan,
+    plan_status: 'trialing',   // grant AI mentor access on signup
+    updated_at: new Date().toISOString()
+  }).eq('id', userId)
+
+  if (error) return { error }
+
+  // Kick off the Vox agent pipeline:
+  // Analyst (discovery sweep) → Strategist (brand framework) → Analyst (news sweep)
+  // → Machiavelli (reserve slot) → Shakespeare (draft) → Aristotle (edit) → Machiavelli (schedule)
+  const { error: jobError } = await supabase.from('agent_jobs').insert({
+    user_id:  userId,
+    job_type: 'run_discovery_sweep',
+    status:   'pending',
+    payload:  {},
+  })
+
+  if (jobError) {
+    console.error('[Elevox] Failed to queue Vox pipeline after onboarding:', jobError)
+    // Non-fatal — profile is saved, but agent won't auto-run
+    // User can manually trigger from dashboard
+  }
+
+  return { error: null }
 }
 
 export async function getCalendarSettings(userId) {
@@ -107,6 +134,17 @@ export async function getBrandBrief(userId) {
   return supabase.from('brand_briefs').select('*').eq('user_id', userId).order('generated_at', { ascending: false }).limit(1).single()
 }
 
+export async function getBrandFramework(userId) {
+  return supabase
+    .from('brand_frameworks')
+    .select('archetype, mentor_memo, voice_traits, content_pillars, mentor_insights, created_at')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+}
+
+
 export async function saveBrandBrief(userId, brief) {
   return supabase.from('brand_briefs').insert({ user_id: userId, ...brief }).select().single()
 }
@@ -118,3 +156,102 @@ export async function getDeliverables(userId) {
 export async function getCalendarEvents(userId) {
   return supabase.from('content_calendar').select('*').eq('user_id', userId).order('created_at', { ascending: false })
 }
+
+export async function saveContentDraft(userId, draftData) {
+  return supabase.from('content_drafts').insert({
+    user_id: userId,
+    status: 'approved',
+    hook_text: draftData.angle || 'AI Draft',
+    body_text: draftData.body,
+    platform: draftData.platform || 'LinkedIn',
+    framework_id: draftData.framework_id || 'ghostwriter',
+    briefing_id: draftData.anchor_event_id || null
+  }).select().single()
+}
+
+// ── Sprint 4: Human Approval Queue ────────────────────────────
+
+export async function getPendingApprovals(userId) {
+  return supabase
+    .from('content_drafts')
+    .select('*, brand_frameworks(archetype, voice_traits, content_pillars)')
+    .eq('user_id', userId)
+    .eq('approved_for_publish', true)
+    .is('human_approved_at', null)
+    .is('human_rejected_at', null)
+    .eq('status', 'approved')
+    .order('created_at', { ascending: false })
+}
+
+export async function approveContentDraft(draftId, userId, editedBody = null) {
+  const updates = {
+    human_approved_at: new Date().toISOString(),
+    human_approved_by: userId,
+    status: 'human_approved',
+  }
+  if (editedBody !== null) updates.body_text = editedBody
+  return supabase.from('content_drafts').update(updates).eq('id', draftId)
+}
+
+export async function rejectContentDraft(draftId, note) {
+  return supabase.from('content_drafts').update({
+    human_rejected_at: new Date().toISOString(),
+    rejection_note: note,
+    status: 'rejected',
+  }).eq('id', draftId)
+}
+
+export async function saveEditToDraft(draftId, bodyText) {
+  return supabase.from('content_drafts').update({ body_text: bodyText }).eq('id', draftId)
+}
+
+// ── Sprint 4: Coaching Alerts ───────────────────────────────
+
+export async function getPendingCoachingAlerts(userId) {
+  return supabase
+    .from('coaching_alerts')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('status', 'pending')
+    .order('created_at', { ascending: false })
+}
+
+export async function acknowledgeCoachingAlert(alertId) {
+  return supabase.from('coaching_alerts').update({ status: 'acknowledged' }).eq('id', alertId)
+}
+
+// ── Sprint 4: Voice Examples (voice learning) ────────────────
+
+export async function getVoiceExamples(userId, limit = 5) {
+  return supabase
+    .from('voice_examples')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(limit)
+}
+
+export async function saveVoiceExample(userId, { source, originalText, finalText, editDelta, contentPillar }) {
+  return supabase.from('voice_examples').insert({
+    user_id:       userId,
+    source,
+    original_text: originalText ?? null,
+    final_text:    finalText,
+    edit_delta:    editDelta ?? null,
+    content_pillar: contentPillar ?? null,
+  }).select().single()
+}
+
+// ── Sprint 4: User-submitted drafts ─────────────────────────
+
+export async function saveUserSubmittedDraft(userId, { bodyText, frameworkId }) {
+  return supabase.from('content_drafts').insert({
+    user_id:     userId,
+    body_text:   bodyText,
+    status:      'user_submitted',
+    source:      'user_submitted',
+    framework_id: frameworkId ?? null,
+    platform:    'linkedin',
+  }).select().single()
+}
+

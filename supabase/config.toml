@@ -1,0 +1,67 @@
+
+[functions.mentor-chat]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/mentor-chat/index.ts"
+
+[functions.generate-speech]
+enabled = true
+verify_jwt = true
+import_map = "./functions/generate-speech/deno.json"
+entrypoint = "./functions/generate-speech/index.ts"
+
+
+[functions.agent-orchestrator]
+enabled = true
+verify_jwt = true
+import_map = "./functions/agent-orchestrator/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/agent-orchestrator/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/agent-orchestrator/*.html" ]
+
+[functions.agent-strategist]
+enabled = true
+verify_jwt = true
+import_map = "./functions/agent-strategist/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/agent-strategist/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/agent-strategist/*.html" ]
+
+[functions.agent-analyst]
+enabled = true
+verify_jwt = true
+import_map = "./functions/agent-analyst/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/agent-analyst/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/agent-analyst/*.html" ]
+
+[functions.agent-ghostwriter]
+enabled = true
+verify_jwt = true
+import_map = "./functions/agent-ghostwriter/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/agent-ghostwriter/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/agent-ghostwriter/*.html" ]
+
+[functions.agent-editor]
+enabled = true
+verify_jwt = true
+import_map = "./functions/agent-editor/deno.json"
+# Uncomment to specify a custom file path to the entrypoint.
+# Supported file extensions are: .ts, .js, .mjs, .jsx, .tsx
+entrypoint = "./functions/agent-editor/index.ts"
+# Specifies static files to be bundled with the function. Supports glob patterns.
+# For example, if you want to serve static HTML pages in your function:
+# static_files = [ "./functions/agent-editor/*.html" ]

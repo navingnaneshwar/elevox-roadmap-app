@@ -92,28 +92,28 @@ const PLAN_PHASES = {
   authority: [1, 2, 3, 4],
   legacy:    [1, 2, 3, 4, 5, 6],
 }
+// ⚠️ BETA: mirrors completeOnboarding() override. Revert to 'starter' at launch.
+const DEFAULT_BETA_PLAN = 'authority'
 
-function ComponentRow({ comp, phaseColor, unlocked }) {
-  const [expanded, setExpanded] = useState(false)
+function ComponentRow({ comp, phaseId, compId, phaseColor, unlocked }) {
+  const [isHovered, setIsHovered] = useState(false)
+  const navigate = useNavigate()
+
   return (
     <div style={{ borderTop: '1px solid #1E2A3E' }}>
       <button
-        onClick={() => unlocked && setExpanded(!expanded)}
-        style={{ width: '100%', padding: '14px 20px', background: 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '12px', cursor: unlocked ? 'pointer' : 'default', textAlign: 'left' }}
+        onClick={() => unlocked && navigate(`/coach/${phaseId}/${compId}`)}
+        onMouseEnter={() => unlocked && setIsHovered(true)}
+        onMouseLeave={() => unlocked && setIsHovered(false)}
+        style={{ width: '100%', padding: '14px 20px', background: isHovered ? 'rgba(74, 158, 255, 0.05)' : 'none', border: 'none', display: 'flex', alignItems: 'center', gap: '12px', cursor: unlocked ? 'pointer' : 'default', textAlign: 'left', transition: 'all 0.2s' }}
       >
-        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: unlocked ? phaseColor : '#1E2A3E', flexShrink: 0 }} />
-        <span style={{ fontSize: '13px', color: unlocked ? '#94A3B8' : '#334155', flex: 1, fontFamily: "'Inter', sans-serif" }}>{comp.name}</span>
-        {unlocked && <span style={{ fontSize: '10px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>{expanded ? '↑' : '↓'}</span>}
-      </button>
-      {expanded && unlocked && (
-        <div style={{ padding: '0 20px 16px 38px' }}>
-          <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', margin: '0 0 10px', fontFamily: "'Inter', sans-serif" }}>{comp.desc}</p>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '4px 10px', background: `${phaseColor}12`, border: `1px solid ${phaseColor}25`, borderRadius: '6px' }}>
-            <span style={{ fontSize: '9px', color: phaseColor, letterSpacing: '1px', textTransform: 'uppercase' }}>Deliverable</span>
-            <span style={{ fontSize: '11px', color: phaseColor, fontFamily: "'Inter', sans-serif" }}>{comp.deliverable}</span>
-          </div>
+        <div style={{ width: '6px', height: '6px', borderRadius: '50%', background: unlocked ? (isHovered ? '#4A9EFF' : phaseColor) : '#1E2A3E', flexShrink: 0, transition: 'background 0.2s' }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: '13px', color: unlocked ? (isHovered ? '#4A9EFF' : '#F1F5F9') : '#334155', fontFamily: "'Outfit', sans-serif", transition: 'color 0.2s', marginBottom: '4px' }}>{comp.name}</div>
+          <div style={{ fontSize: '11px', color: unlocked ? '#64748B' : '#334155', fontFamily: "'Inter', sans-serif", lineHeight: 1.4 }}>{comp.desc}</div>
         </div>
-      )}
+        {unlocked && <span style={{ fontSize: '12px', color: isHovered ? '#4A9EFF' : '#334155', fontFamily: "'JetBrains Mono', monospace", transition: 'color 0.2s', transform: isHovered ? 'translateX(4px)' : 'none' }}>→</span>}
+      </button>
     </div>
   )
 }
@@ -163,8 +163,8 @@ function PhaseCard({ phase, unlocked, isExpanded, onToggle }) {
           </div>
 
           {/* Components */}
-          {phase.components.map(comp => (
-            <ComponentRow key={comp.name} comp={comp} phaseColor={phase.color} unlocked={unlocked} />
+          {phase.components.map((comp, idx) => (
+            <ComponentRow key={comp.name} comp={comp} phaseId={phase.id} compId={idx} phaseColor={phase.color} unlocked={unlocked} />
           ))}
 
           {/* Start Phase CTA */}
@@ -182,19 +182,19 @@ function PhaseCard({ phase, unlocked, isExpanded, onToggle }) {
   )
 }
 
-export default function Roadmap({ profileData, onSwitchTo, onSignOut }) {
+export default function Roadmap({ profileData }) {
   const navigate = useNavigate()
   const { profile: authProfile } = useAuth()
   const profile = profileData || authProfile
 
   const [expandedPhase, setExpandedPhase] = useState(1)
 
-  const plan = profile?.plan || profile?.budget?.toLowerCase().includes('legacy') ? 'legacy'
-             : profile?.budget?.toLowerCase().includes('authority') ? 'authority'
-             : 'starter'
+  const plan = profile?.plan
+             || (profile?.budget?.toLowerCase().includes('legacy') ? 'legacy'
+               : profile?.budget?.toLowerCase().includes('authority') ? 'authority'
+               : DEFAULT_BETA_PLAN)
 
-  const unlockedPhases = PLAN_PHASES[plan] || PLAN_PHASES.starter
-  const totalComponents = PHASES.reduce((sum, p) => sum + p.components.length, 0)
+  const unlockedPhases = PLAN_PHASES[plan] || PLAN_PHASES[DEFAULT_BETA_PLAN]
   const unlockedComponents = PHASES
     .filter(p => unlockedPhases.includes(p.id))
     .reduce((sum, p) => sum + p.components.length, 0)
@@ -252,7 +252,7 @@ export default function Roadmap({ profileData, onSwitchTo, onSignOut }) {
                 Upgrade to {plan === 'starter' ? 'Authority or Legacy' : 'Legacy'} to unlock all {6 - unlockedPhases.length} remaining phases.
               </div>
             </div>
-            <button onClick={() => navigate('/upgrade')} style={{ padding: '9px 20px', background: 'linear-gradient(135deg, #C8A96E, #C8A96Ecc)', border: 'none', borderRadius: '7px', color: '#070B14', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <button onClick={() => navigate('/billing')} style={{ padding: '9px 20px', background: 'linear-gradient(135deg, #C8A96E, #C8A96Ecc)', border: 'none', borderRadius: '7px', color: '#070B14', fontSize: '12px', fontWeight: '700', cursor: 'pointer', whiteSpace: 'nowrap' }}>
               Upgrade plan →
             </button>
           </div>

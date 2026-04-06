@@ -1,9 +1,7 @@
 // src/pages/BillingPage.jsx
 // Billing management — current plan, status, portal access, upgrade paths
-import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
-import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
 const PLAN_META = {
@@ -60,40 +58,11 @@ function StatCard({ label, value, sub, color }) {
 
 export default function BillingPage() {
   const { profile } = useAuth()
-  const navigate = useNavigate()
-  const [portalLoading, setPortalLoading] = useState(false)
-  const [portalError, setPortalError] = useState(null)
 
   const plan       = profile?.plan || null
   const planStatus = profile?.plan_status || (plan ? 'active' : 'inactive')
   const meta       = PLAN_META[plan] || null
   const statusCfg  = STATUS_CONFIG[planStatus] || STATUS_CONFIG.inactive
-
-  async function openPortal() {
-    setPortalLoading(true)
-    setPortalError(null)
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) { navigate('/login'); return }
-
-      const res = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-portal-session`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-        }
-      )
-      const { url, error: fnError } = await res.json()
-      if (fnError) throw new Error(fnError)
-      window.location.href = url
-    } catch (err) {
-      setPortalError(err.message)
-      setPortalLoading(false)
-    }
-  }
 
   return (
     <div style={{
@@ -158,12 +127,7 @@ export default function BillingPage() {
           )}
         </div>
 
-        {/* Error */}
-        {portalError && (
-          <div style={{ marginBottom: '24px', padding: '14px 20px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px' }}>
-            {portalError} — please try again or <a href="mailto:support@elevox.com" style={{ color: '#f87171' }}>contact support</a>.
-          </div>
-        )}
+        {/* Error - portalError removed */}
 
         {/* Past due warning */}
         {planStatus === 'past_due' && (
@@ -172,9 +136,9 @@ export default function BillingPage() {
             <div style={{ fontSize: '13px', color: '#94A3B8', lineHeight: '1.6' }}>
               Your last payment failed. Update your payment method to keep access to your coaching sessions and content engine.
             </div>
-            <button onClick={openPortal} disabled={portalLoading} style={{ marginTop: '14px', padding: '10px 20px', background: '#E8935A', border: 'none', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600', cursor: 'pointer' }}>
-              {portalLoading ? 'Opening…' : 'Update payment method →'}
-            </button>
+            <a href="mailto:support@elevox.com?subject=Payment%20update%20request" style={{ display: 'inline-block', marginTop: '14px', padding: '10px 20px', background: '#E8935A', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+              Contact support to update payment →
+            </a>
           </div>
         )}
 
@@ -203,81 +167,52 @@ export default function BillingPage() {
           </div>
         )}
 
-        {/* Manage / cancel — Stripe Portal */}
+        {/* Manage / cancel — Payment portal coming soon */}
         {plan && planStatus !== 'cancelled' && (
           <div style={{ padding: '24px', background: 'rgba(13,18,32,0.4)', border: '1px solid #1E2A3E', borderRadius: '12px', marginBottom: '24px' }}>
             <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', marginBottom: '6px' }}>
               Manage subscription
             </div>
             <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', marginBottom: '16px' }}>
-              Update your payment method, download invoices, or cancel your plan — all via the secure Stripe portal.
+              Self-service billing management (update payment method, invoices, cancellation)
+              is launching soon via our payment portal. For immediate changes, contact{' '}
+              <a href="mailto:support@elevox.com" style={{ color: '#6366f1', textDecoration: 'none' }}>support@elevox.com</a>.
             </div>
-            <button
-              onClick={openPortal}
-              disabled={portalLoading}
-              style={{
-                padding: '12px 24px',
-                background: portalLoading ? '#1E2A3E' : 'rgba(99,102,241,0.12)',
-                border: '1px solid rgba(99,102,241,0.25)',
-                borderRadius: '8px',
-                color: portalLoading ? '#64748B' : '#a5b4fc',
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: portalLoading ? 'default' : 'pointer',
-                display: 'flex', alignItems: 'center', gap: '8px',
-              }}
-            >
-              {portalLoading
-                ? <><div style={{ width: '14px', height: '14px', border: '2px solid #334155', borderTop: '2px solid #6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} /> Opening Stripe portal…</>
-                : '⚙ Manage billing via Stripe →'
-              }
-            </button>
+            <div style={{ padding: '10px 16px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: '8px', fontSize: '12px', color: '#64748B', fontFamily: 'monospace', letterSpacing: '0.5px' }}>
+              ⚡ PAYMENT PORTAL — LAUNCHING FINAL SPRINT
+            </div>
           </div>
         )}
 
-        {/* Upgrade nudge */}
-        {meta?.next && planStatus === 'active' && (
-          <div style={{ padding: '24px', background: 'rgba(13,18,32,0.4)', border: '1px solid #1E2A3E', borderRadius: '12px', marginBottom: '24px' }}>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', marginBottom: '6px' }}>
-              Ready to go further?
-            </div>
-            <div style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.6', marginBottom: '16px' }}>
-              Upgrade to <span style={{ color: PLAN_META[meta.next].color, fontWeight: '600' }}>{PLAN_META[meta.next].name}</span> to unlock {meta.next === 'authority' ? 'your Content Engine and Visibility phase' : 'all 6 phases including Book & IP Packaging and your 3-Year Vision'}.
-            </div>
-            <Link
-              to="/upgrade"
-              style={{
-                display: 'inline-block', padding: '12px 24px',
-                background: `linear-gradient(135deg, ${PLAN_META[meta.next].color}, ${PLAN_META[meta.next].color}cc)`,
-                borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600',
-                textDecoration: 'none', boxShadow: `0 4px 20px ${PLAN_META[meta.next].color}40`,
-              }}
-            >
-              Upgrade to {PLAN_META[meta.next].name} — {PLAN_META[meta.next].price}/mo →
-            </Link>
-          </div>
-        )}
+
 
         {/* No plan CTA */}
         {!plan && (
           <div style={{ padding: '40px', background: 'rgba(13,18,32,0.6)', border: '1px solid #1E2A3E', borderRadius: '14px', textAlign: 'center', marginBottom: '24px' }}>
             <div style={{ fontSize: '11px', letterSpacing: '4px', color: '#64748B', fontFamily: 'monospace', marginBottom: '16px' }}>GET STARTED</div>
             <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#F1F5F9', margin: '0 0 12px', fontFamily: "'Outfit', sans-serif" }}>
-              Choose your plan to begin
+              Choose your plan to get started
             </h2>
-            <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 28px', lineHeight: '1.6' }}>
-              Your executive brand is your most valuable asset. Start building it today.
+            <p style={{ fontSize: '14px', color: '#64748B', margin: '0 0 24px', lineHeight: '1.6', maxWidth: '400px', marginLeft: 'auto', marginRight: 'auto' }}>
+              Select the Elevox tier that best fits your brand's growth phase and begin the onboarding process.
             </p>
-            <Link
-              to="/upgrade"
+            <Link 
+              to="/upgrade" 
               style={{
-                display: 'inline-block', padding: '14px 32px',
-                background: 'linear-gradient(135deg, #C8A96E, #B8975A)',
-                borderRadius: '8px', color: '#fff', fontSize: '14px', fontWeight: '600',
-                textDecoration: 'none', boxShadow: '0 4px 20px rgba(200,169,110,0.3)',
+                display: 'inline-block',
+                padding: '14px 32px',
+                background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                borderRadius: '8px',
+                color: '#fff',
+                fontSize: '14px',
+                fontWeight: '600',
+                textDecoration: 'none',
+                transition: 'opacity 0.15s, transform 0.15s',
               }}
+              onMouseEnter={e => { e.currentTarget.style.opacity = '0.9'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+              onMouseLeave={e => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
             >
-              View plans →
+              View Plans →
             </Link>
           </div>
         )}
