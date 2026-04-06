@@ -1,14 +1,12 @@
 // src/pages/AuthCallbackPage.jsx
 // ─────────────────────────────────────────────────────────────
-// Handles redirect after:
-//  - Email confirmation (signup)
-//  - LinkedIn / Google OAuth (PKCE flow)
-//  - Password reset magic link
+// Handles redirect after LinkedIn / Google OAuth, email confirm,
+// and password reset.
 //
-// PKCE flow: Supabase exchanges the auth code asynchronously.
-// onAuthStateChange fires INITIAL_SESSION immediately (session=null),
-// then SIGNED_IN once the code exchange completes.
-// We use a `handled` guard so only the first resolution fires.
+// IMPLICIT FLOW: Supabase processes #access_token from the URL hash
+// immediately on client init — BEFORE this component mounts.
+// So onAuthStateChange fires INITIAL_SESSION (not SIGNED_IN) with
+// the session already set. We must handle BOTH events.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -26,18 +24,18 @@ export default function AuthCallbackPage() {
       navigate(path, { replace: true })
     }
 
-    // Primary: wait for SIGNED_IN (fires after PKCE code exchange completes)
+    // Handle both INITIAL_SESSION (implicit flow — tokens already parsed from hash)
+    // and SIGNED_IN (PKCE flow — fires after async code exchange)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_IN' && session) {
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
         go('/dashboard')
       } else if (event === 'SIGNED_OUT') {
         go('/login?error=auth_failed')
       }
-      // INITIAL_SESSION with null session = code exchange still in progress, wait
+      // INITIAL_SESSION with session=null = still exchanging, wait
     })
 
-    // Safety timeout: LinkedIn PKCE can take up to 20-30s on slow connections.
-    // Do a final getSession() check — if session exists by then, go to dashboard.
+    // Safety net: after 30s do a final check
     const timeout = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession()
       go(session ? '/dashboard' : '/login?error=auth_failed')
