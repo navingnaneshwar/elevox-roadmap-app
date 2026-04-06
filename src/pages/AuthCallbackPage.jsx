@@ -2,9 +2,11 @@
 // ─────────────────────────────────────────────────────────────
 // Handles redirect after:
 //  - Email confirmation (signup)
-//  - LinkedIn / Google OAuth
+//  - LinkedIn / Google OAuth (PKCE flow)
 //  - Password reset magic link
-// Supabase automatically exchanges the URL tokens here.
+// With PKCE, Supabase exchanges the auth code asynchronously.
+// We MUST wait for onAuthStateChange rather than calling getSession()
+// immediately, which would fire before the code exchange completes.
 // ─────────────────────────────────────────────────────────────
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -14,16 +16,46 @@ export default function AuthCallbackPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    // Supabase client picks up the tokens from the URL hash automatically.
-    // We just wait for the session to be established, then redirect.
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
+    let handled = false
+
+    // Primary: listen for auth state change (works for PKCE + implicit)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (handled) return
+      if (event === 'SIGNED_IN' && session) {
+        handled = true
         navigate('/dashboard', { replace: true })
-      } else {
-        // Something went wrong — send them back to login
+      } else if (event === 'SIGNED_OUT') {
+        handled = true
         navigate('/login?error=auth_failed', { replace: true })
       }
     })
+
+    // Fallback: if session already exists (e.g. implicit flow resolved first)
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (handled) return
+      if (session) {
+        handled = true
+        navigate('/dashboard', { replace: true })
+      }
+    })
+
+    // Safety timeout: if nothing resolves in 12s, redirect to login
+    const timeout = setTimeout(() => {
+      if (handled) return
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        handled = true
+        if (session) {
+          navigate('/dashboard', { replace: true })
+        } else {
+          navigate('/login?error=auth_failed', { replace: true })
+        }
+      })
+    }, 12000)
+
+    return () => {
+      subscription.unsubscribe()
+      clearTimeout(timeout)
+    }
   }, [navigate])
 
   return (
