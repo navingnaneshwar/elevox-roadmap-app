@@ -313,7 +313,11 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
     }
 
     // ── 7. Agentic Tool Loop ────────────────────────────────
-    const MAX_TOOL_ROUNDS = 3
+    // One round only: Anthropic decides to search → Tavily runs → Anthropic
+    // generates the final reply WITHOUT tools (see callAnthropic call below).
+    // 3 rounds × (Tavily + Anthropic) = up to 120s, which silently exceeds
+    // Supabase's platform timeout and terminates the function before responding.
+    const MAX_TOOL_ROUNDS = 1
     let toolRound = 0
 
     while (toolRound < MAX_TOOL_ROUNDS) {
@@ -362,7 +366,9 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       )
 
       messages.push({ role: 'user', content: toolResults })
-      anthropicData = await callAnthropic(messages, true)
+      // ↓ Pass withTools=false — after receiving search results Anthropic must
+      //   generate its final reply immediately; we never allow a second search.
+      anthropicData = await callAnthropic(messages, false)
     }
 
     const textBlock = anthropicData.content?.find((b: any) => b.type === 'text')
