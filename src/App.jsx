@@ -13,9 +13,10 @@ function RootRedirect() {
 }
 
 // Public pages
-import LoginPage        from './pages/LoginPage'
-import SignupPage       from './pages/SignupPage'
-import AuthCallbackPage from './pages/AuthCallbackPage'
+import LoginPage          from './pages/LoginPage'
+import SignupPage         from './pages/SignupPage'
+import AuthCallbackPage   from './pages/AuthCallbackPage'
+import ResetPasswordPage  from './pages/ResetPasswordPage'
 
 // Protected pages
 import DashboardPage   from './pages/DashboardPage'
@@ -39,9 +40,10 @@ export default function App() {
         <Routes>
 
           {/* ── Public ──────────────────────────────────── */}
-          <Route path="/login"         element={<LoginPage />} />
-          <Route path="/signup"        element={<SignupPage />} />
-          <Route path="/auth/callback" element={<AuthCallbackPage />} />
+          <Route path="/login"           element={<LoginPage />} />
+          <Route path="/signup"          element={<SignupPage />} />
+          <Route path="/auth/callback"   element={<AuthCallbackPage />} />
+          <Route path="/reset-password"  element={<ResetPasswordPage />} />
 
           {/* ── Protected ───────────────────────────────── */}
           <Route path="/dashboard" element={
