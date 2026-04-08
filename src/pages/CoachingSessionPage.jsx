@@ -257,6 +257,7 @@ export default function CoachingSessionPage() {
   const [isListening, setIsListening] = useState(false)
   const [isPlaying,   setIsPlaying]   = useState(false)
   const [isMuted,     setIsMuted]     = useState(false)
+  const [ttsAvailable, setTtsAvailable] = useState(false) // becomes true only if generate-speech returns audio
   const [sessionStatus,setSessionStatus] = useState('active')
   const [sessionId,   setSessionId]   = useState(null)
   const [framework,   setFramework]   = useState(null)
@@ -379,8 +380,9 @@ export default function CoachingSessionPage() {
         body: JSON.stringify({ text })
       })
       // TTS unavailable (no key configured) — degrade silently, coaching continues
-      if (res.status === 503) return
+      if (res.status === 503) { setTtsAvailable(false); return }
       if (!res.ok) throw new Error('Failed to fetch TTS audio')
+      setTtsAvailable(true)
 
 
       const blob = await res.blob()
@@ -476,23 +478,39 @@ export default function CoachingSessionPage() {
     const { data: { session } } = await supabase.auth.getSession()
     if (!session) throw new Error('Session expired — please log in again.')
 
-    const res = await fetch(
-      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mentor-chat`,
-      {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${session.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          session_prompt: sessionPrompt,
-          history: history.slice(-10),
-          message: userMessage,
-          phase_id: parseInt(phaseId),
-          continuation_flag: continuation_flag
-        }),
+    // 90-second abort controller — Vox web-search rounds can take 30–60s;
+    // without a timeout the fetch hangs forever showing a spinner.
+    const controller = new AbortController()
+    const timeoutId  = setTimeout(() => controller.abort(), 90_000)
+
+    let res
+    try {
+      res = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/mentor-chat`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            session_prompt: sessionPrompt,
+            history: history.slice(-10),
+            message: userMessage,
+            phase_id: parseInt(phaseId),
+            continuation_flag: continuation_flag
+          }),
+          signal: controller.signal,
+        }
+      )
+    } catch (fetchErr) {
+      if (fetchErr.name === 'AbortError') {
+        return { reply: "⚠️ Vox is taking longer than usual — likely running a live web search on your profile. Please send your message again.", auto_complete: false }
       }
-    )
+      throw fetchErr
+    } finally {
+      clearTimeout(timeoutId)
+    }
 
     if (!res.ok) {
       // Read the body ONCE — can't call both .json() and .text() on the same response
@@ -938,33 +956,35 @@ export default function CoachingSessionPage() {
             </svg>
           </button>
 
-          {/* ── Mute / Unmute Toggle ── */}
-          <button
-            onClick={() => {
-                if (audioRef.current && !isMuted) {
-                    audioRef.current.pause()
-                    setIsPlaying(false)
-                }
-                setIsMuted(!isMuted)
-            }}
-            title={isMuted ? "Unmute Vox" : "Mute Vox"}
-            disabled={!!planError}
-            style={{
-              width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0,
-              background: isMuted ? 'rgba(255,255,255,0.02)' : 'rgba(99,102,241,0.1)',
-              border: isMuted ? '1px solid #1E2A3E' : '1px solid rgba(99,102,241,0.3)',
-              color: isMuted ? '#64748B' : '#a5b4fc',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              cursor: planError ? 'not-allowed' : 'pointer',
-              transition: 'all 0.2s',
-            }}
-          >
-            {isMuted ? (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" x2="17" y1="9" y2="15"></line><line x1="17" x2="23" y1="9" y2="15"></line></svg>
-            ) : (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
-            )}
-          </button>
+          {/* ── Mute / Unmute Toggle — only shown when TTS is actually available ── */}
+          {ttsAvailable && (
+            <button
+              onClick={() => {
+                  if (audioRef.current && !isMuted) {
+                      audioRef.current.pause()
+                      setIsPlaying(false)
+                  }
+                  setIsMuted(!isMuted)
+              }}
+              title={isMuted ? "Unmute Vox" : "Mute Vox"}
+              disabled={!!planError}
+              style={{
+                width: '44px', height: '44px', borderRadius: '10px', flexShrink: 0,
+                background: isMuted ? 'rgba(255,255,255,0.02)' : 'rgba(99,102,241,0.1)',
+                border: isMuted ? '1px solid #1E2A3E' : '1px solid rgba(99,102,241,0.3)',
+                color: isMuted ? '#64748B' : '#a5b4fc',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                cursor: planError ? 'not-allowed' : 'pointer',
+                transition: 'all 0.2s',
+              }}
+            >
+              {isMuted ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><line x1="23" x2="17" y1="9" y2="15"></line><line x1="17" x2="23" y1="9" y2="15"></line></svg>
+              ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon><path d="M15.54 8.46a5 5 0 0 1 0 7.07"></path><path d="M19.07 4.93a10 10 0 0 1 0 14.14"></path></svg>
+              )}
+            </button>
+          )}
 
           <button
             onClick={handleSend}
