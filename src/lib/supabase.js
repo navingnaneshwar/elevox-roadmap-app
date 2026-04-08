@@ -52,7 +52,9 @@ export async function getProfile(userId) {
 }
 
 export async function upsertProfile(userId, fields) {
-  return supabase.from('profiles').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', userId)
+  return supabase
+    .from('profiles')
+    .upsert({ id: userId, ...fields, updated_at: new Date().toISOString() }, { onConflict: 'id' })
 }
 
 export async function completeOnboarding(userId, budget) {
