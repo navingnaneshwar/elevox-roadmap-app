@@ -142,21 +142,32 @@ function BriefSection({ section, content }) {
 export default function BrandBriefPage() {
   const { user, profile } = useAuth()
 
-  const [brief,     setBrief]     = useState(null)
-  const [loading,   setLoading]   = useState(true)
-  const [generating, setGenerating] = useState(false)
-  const [error,     setError]     = useState(null)
+  const [brief,        setBrief]        = useState(null)
+  const [loading,      setLoading]      = useState(true)
+  const [generating,   setGenerating]   = useState(false)
+  const [error,        setError]        = useState(null)
+  const [auditDone,    setAuditDone]    = useState(false)
 
-  // Load existing brief on mount
   useEffect(() => {
     if (!user) return
     async function loadBrief() {
       setLoading(true)
       try {
-        const { data } = await getBrandBrief(user.id)
-        setBrief(data || null)
+        const [briefResult, sessionResult] = await Promise.all([
+          getBrandBrief(user.id),
+          supabase
+            .from('mentor_sessions')
+            .select('id')
+            .eq('user_id', user.id)
+            .eq('phase_id', '1')
+            .eq('status', 'completed')
+            .limit(1)
+            .maybeSingle(),
+        ])
+        setBrief(briefResult.data || null)
+        setAuditDone(!!sessionResult.data)
       } catch {
-        // No brief yet — that's fine
+        // fine
       } finally {
         setLoading(false)
       }
@@ -230,118 +241,152 @@ export default function BrandBriefPage() {
           </p>
         </div>
 
-        {/* Generate / Regenerate CTA */}
-        <div style={{
-          marginBottom: '40px',
-          padding: '24px 28px',
-          background: brief ? 'rgba(255,255,255,0.01)' : 'rgba(99,102,241,0.05)',
-          border: `1px solid ${brief ? '#1E2A3E' : 'rgba(99,102,241,0.2)'}`,
-          borderRadius: '12px',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          gap: '20px', flexWrap: 'wrap',
-        }}>
-          <div>
-            <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '4px' }}>
-              {brief ? 'Regenerate your brief' : 'Generate your Brand Brief'}
-            </div>
-            <div style={{ fontSize: '12px', color: '#64748B' }}>
-              {brief
-                ? 'Updated your profile? Regenerate to reflect your latest answers.'
-                : 'Analyses your complete onboarding profile using Claude AI.'}
-            </div>
-          </div>
-          <button
-            onClick={generateBrief}
-            disabled={generating}
-            style={{
-              padding: '11px 28px',
-              background: generating ? 'transparent' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
-              border: generating ? '1px solid #1E2A3E' : 'none',
-              borderRadius: '8px',
-              color: generating ? '#334155' : '#fff',
-              fontSize: '13px', fontWeight: '600',
-              cursor: generating ? 'default' : 'pointer',
-              whiteSpace: 'nowrap',
-              boxShadow: generating ? 'none' : '0 4px 20px rgba(99,102,241,0.3)',
-              display: 'flex', alignItems: 'center', gap: '8px',
-              transition: 'all 0.2s',
-            }}
-          >
-            {generating ? (
-              <>
-                <div style={{ width: '14px', height: '14px', border: '2px solid #334155', borderTop: '2px solid #6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                Generating…
-              </>
-            ) : brief ? (
-              '↻ Regenerate brief'
-            ) : (
-              '✦ Generate my brief'
-            )}
-          </button>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div style={{ marginBottom: '24px', padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#fca5a5', fontSize: '13px' }}>
-            {error}
-          </div>
-        )}
-
-        {/* Loading skeleton */}
-        {loading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} style={{ height: '100px', background: 'rgba(255,255,255,0.02)', border: '1px solid #1E2A3E', borderRadius: '12px', animation: 'pulse 1.5s ease-in-out infinite' }} />
-            ))}
-          </div>
-        ) : generating ? (
-          // Generating state — show shimmer
-          <div style={{ textAlign: 'center', padding: '60px 0' }}>
-            <div style={{ fontSize: '40px', marginBottom: '16px', animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
-            <p style={{ fontSize: '14px', color: '#64748B' }}>
-              Analysing your profile and crafting your Brand Brief…
-            </p>
-            <p style={{ fontSize: '12px', color: '#334155', marginTop: '6px' }}>This takes about 15 seconds</p>
-          </div>
-        ) : brief ? (
-          // Brief sections
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {BRIEF_SECTIONS.map(section => (
-              <BriefSection
-                key={section.key}
-                section={section}
-                content={brief[section.key]}
-              />
-            ))}
-
-            {/* Footer metadata */}
-            <div style={{ marginTop: '8px', padding: '16px 20px', background: 'rgba(255,255,255,0.01)', border: '1px solid #1E2A3E', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-              <div style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
-                brief_v{brief.version || 1} · {new Date(brief.generated_at).toISOString().split('T')[0]}
-              </div>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <Link to="/dashboard" style={{ fontSize: '12px', color: '#6366f1', textDecoration: 'none' }}>
-                  Start Phase 01 →
+        {/* ── Locked state: Brand Audit not yet complete ── */}
+        {!loading && !auditDone ? (
+          <>
+            {/* Explanation banner */}
+            <div style={{
+              marginBottom: '40px', padding: '28px 32px',
+              background: 'rgba(200,169,110,0.05)',
+              border: '1px solid rgba(200,169,110,0.2)',
+              borderRadius: '14px',
+              display: 'flex', gap: '20px', alignItems: 'flex-start',
+            }}>
+              <div style={{ fontSize: '28px', flexShrink: 0, marginTop: '2px' }}>🔒</div>
+              <div>
+                <div style={{ fontSize: '15px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '8px' }}>
+                  Your Brand Brief unlocks after Brand Audit
+                </div>
+                <p style={{ fontSize: '13px', color: '#64748B', lineHeight: '1.7', margin: '0 0 16px' }}>
+                  Your Brand Brief is generated by Vox — your AI brand architect — after completing the <strong style={{ color: '#C8A96E' }}>Brand Audit</strong> and <strong style={{ color: '#C8A96E' }}>Foundation</strong> coaching sessions. This ensures your brief reflects genuine strategic insight, not just form fields.
+                </p>
+                <Link
+                  to="/dashboard"
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: '8px',
+                    padding: '10px 22px',
+                    background: 'linear-gradient(135deg, #C8A96E, #a8895e)',
+                    borderRadius: '8px', color: '#070B14',
+                    fontSize: '13px', fontWeight: '700',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 16px rgba(200,169,110,0.25)',
+                  }}
+                >
+                  Start Brand Audit →
                 </Link>
               </div>
             </div>
-          </div>
+
+            {/* Greyed-out section previews */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', opacity: 0.25, pointerEvents: 'none', filter: 'blur(2px)' }}>
+              {BRIEF_SECTIONS.map(section => (
+                <div
+                  key={section.key}
+                  style={{
+                    background: 'rgba(13,18,32,0.6)',
+                    border: '1px solid #1E2A3E',
+                    borderRadius: '12px', padding: '24px',
+                    position: 'relative', overflow: 'hidden',
+                  }}
+                >
+                  <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '3px', background: `linear-gradient(180deg, ${section.color}, ${section.color}40)`, borderRadius: '3px 0 0 3px' }} />
+                  <div style={{ paddingLeft: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+                      <span style={{ fontSize: '14px', color: section.color }}>{section.icon}</span>
+                      <span style={{ fontSize: '13px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif" }}>{section.label}</span>
+                    </div>
+                    <div style={{ height: '12px', background: '#1E2A3E', borderRadius: '4px', width: '80%', marginBottom: '8px' }} />
+                    <div style={{ height: '12px', background: '#1E2A3E', borderRadius: '4px', width: '60%' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
         ) : (
-          // Empty state
-          <div style={{ textAlign: 'center', padding: '80px 0' }}>
-            <div style={{ fontSize: '48px', marginBottom: '20px', opacity: 0.3 }}>✦</div>
-            <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 8px' }}>
-              No brief generated yet
-            </h3>
-            <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>
-              Click "Generate my brief" above to create your personalised Brand Brief.
-            </p>
-            {!profile?.onboarding_complete && (
-              <p style={{ fontSize: '12px', color: '#334155', marginTop: '12px' }}>
-                Complete your <Link to="/onboarding" style={{ color: '#6366f1', textDecoration: 'none' }}>onboarding profile</Link> first for the best results.
-              </p>
+          <>
+            {/* Generate / Regenerate CTA — only shown once audit is complete */}
+            {!loading && (
+              <div style={{
+                marginBottom: '40px', padding: '24px 28px',
+                background: brief ? 'rgba(255,255,255,0.01)' : 'rgba(99,102,241,0.05)',
+                border: `1px solid ${brief ? '#1E2A3E' : 'rgba(99,102,241,0.2)'}`,
+                borderRadius: '12px',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                gap: '20px', flexWrap: 'wrap',
+              }}>
+                <div>
+                  <div style={{ fontSize: '14px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", marginBottom: '4px' }}>
+                    {brief ? 'Regenerate your brief' : 'Generate your Brand Brief'}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#64748B' }}>
+                    {brief
+                      ? 'Updated your coaching answers? Regenerate to reflect your latest insights.'
+                      : 'Vox will now synthesise your Brand Audit insights into your brief.'}
+                  </div>
+                </div>
+                <button
+                  onClick={generateBrief}
+                  disabled={generating}
+                  style={{
+                    padding: '11px 28px',
+                    background: generating ? 'transparent' : 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+                    border: generating ? '1px solid #1E2A3E' : 'none',
+                    borderRadius: '8px', color: generating ? '#334155' : '#fff',
+                    fontSize: '13px', fontWeight: '600',
+                    cursor: generating ? 'default' : 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: generating ? 'none' : '0 4px 20px rgba(99,102,241,0.3)',
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    transition: 'all 0.2s',
+                  }}
+                >
+                  {generating ? (
+                    <><div style={{ width: '14px', height: '14px', border: '2px solid #334155', borderTop: '2px solid #6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />Generating…</>
+                  ) : brief ? '↻ Regenerate brief' : '✦ Generate my brief'}
+                </button>
+              </div>
             )}
-          </div>
+
+            {/* Error */}
+            {error && (
+              <div style={{ marginBottom: '24px', padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', color: '#fca5a5', fontSize: '13px' }}>
+                {error}
+              </div>
+            )}
+
+            {/* Loading skeleton */}
+            {loading ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {[...Array(5)].map((_, i) => (
+                  <div key={i} style={{ height: '100px', background: 'rgba(255,255,255,0.02)', border: '1px solid #1E2A3E', borderRadius: '12px', animation: 'pulse 1.5s ease-in-out infinite' }} />
+                ))}
+              </div>
+            ) : generating ? (
+              <div style={{ textAlign: 'center', padding: '60px 0' }}>
+                <div style={{ fontSize: '40px', marginBottom: '16px', animation: 'pulse 1.5s ease-in-out infinite' }}>✦</div>
+                <p style={{ fontSize: '14px', color: '#64748B' }}>Synthesising your Brand Audit insights…</p>
+                <p style={{ fontSize: '12px', color: '#334155', marginTop: '6px' }}>This takes about 15 seconds</p>
+              </div>
+            ) : brief ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {BRIEF_SECTIONS.map(section => (
+                  <BriefSection key={section.key} section={section} content={brief[section.key]} />
+                ))}
+                <div style={{ marginTop: '8px', padding: '16px 20px', background: 'rgba(255,255,255,0.01)', border: '1px solid #1E2A3E', borderRadius: '10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                  <div style={{ fontSize: '11px', color: '#334155', fontFamily: "'JetBrains Mono', monospace" }}>
+                    brief_v{brief.version || 1} · {new Date(brief.generated_at).toISOString().split('T')[0]}
+                  </div>
+                  <Link to="/dashboard" style={{ fontSize: '12px', color: '#6366f1', textDecoration: 'none' }}>Continue coaching →</Link>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '80px 0' }}>
+                <div style={{ fontSize: '48px', marginBottom: '20px', opacity: 0.3 }}>✦</div>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 8px' }}>Ready to generate</h3>
+                <p style={{ fontSize: '13px', color: '#64748B', margin: 0 }}>Click "Generate my brief" above to create your Brand Brief.</p>
+              </div>
+            )}
+          </>
         )}
       </div>
 
