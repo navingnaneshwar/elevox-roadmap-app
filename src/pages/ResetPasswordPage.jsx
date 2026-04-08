@@ -22,19 +22,46 @@ export default function ResetPasswordPage() {
   useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    // Supabase processes the token from the URL hash automatically.
-    // PASSWORD_RECOVERY fires when the recovery token is valid.
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
-      if (event === 'PASSWORD_RECOVERY') {
-        setReady(true)
+    let cancelled = false
+
+    async function detectRecoverySession() {
+      // ── Strategy 1: check the URL hash BEFORE Supabase clears it.
+      // Supabase password-reset links arrive as:
+      //   /reset-password#access_token=...&type=recovery
+      // We can read this synchronously right at mount.
+      const hash = window.location.hash
+      if (hash.includes('type=recovery')) {
+        if (!cancelled) setReady(true)
+        return
       }
-    })
-    // Safety fallback — if token is bad, redirect after 10s
-    const timeout = setTimeout(() => {
-      if (!ready) navigate('/login?error=auth_failed', { replace: true })
-    }, 10000)
-    return () => { subscription.unsubscribe(); clearTimeout(timeout) }
-  }, [navigate, ready])
+
+      // ── Strategy 2: if the hash is already gone, Supabase has already
+      // exchanged the token and there should be an active session.
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session && !cancelled) {
+        setReady(true)
+        return
+      }
+
+      // ── Strategy 3: listen for the event (catches slow token processing)
+      // Falls back to redirect if no recovery signal appears within 12s.
+      const timer = setTimeout(() => {
+        if (!cancelled) navigate('/login?error=auth_failed', { replace: true })
+      }, 12000)
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'PASSWORD_RECOVERY' && !cancelled) {
+          clearTimeout(timer)
+          setReady(true)
+        }
+      })
+
+      return () => { subscription.unsubscribe(); clearTimeout(timer) }
+    }
+
+    detectRecoverySession()
+    return () => { cancelled = true }
+  }, [navigate])
 
   async function handleSubmit(e) {
     e.preventDefault()
