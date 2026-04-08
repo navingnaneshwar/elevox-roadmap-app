@@ -1,16 +1,16 @@
 // src/pages/SignupPage.jsx
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Logo from '../components/Logo'
 
 export default function SignupPage() {
+  const navigate = useNavigate()
   const [fullName,  setFullName]  = useState('')
   const [email,     setEmail]     = useState('')
   const [password,  setPassword]  = useState('')
   const [loading,   setLoading]   = useState(false)
   const [error,     setError]     = useState(null)
-  const [confirmed, setConfirmed] = useState(false)
 
   // Staggered entry animations classes
   const [mounted, setMounted] = useState(false)
@@ -42,8 +42,10 @@ export default function SignupPage() {
       return
     }
 
-    setConfirmed(true)
-    setLoading(false)
+    // Email confirmation is OFF in Supabase — user is auto-confirmed.
+    // Redirect straight to onboarding instead of showing a misleading
+    // "Check your inbox" screen that never receives an email.
+    navigate('/onboarding', { replace: true })
   }
 
   async function handleLinkedIn() {
@@ -146,18 +148,7 @@ export default function SignupPage() {
           boxShadow: '0 24px 64px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
           animation: mounted ? 'ob-slide-in 0.8s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both' : 'none',
         }}>
-          {confirmed ? (
-            <div className={mounted ? "ob-field-enter" : ""} style={{ textAlign: 'center', animationDelay: '0.2s' }}>
-              <div style={{ fontSize: '56px', marginBottom: '24px', animation: 'ob-pulse-ring 2s infinite' }}>✉️</div>
-              <h2 style={{ fontSize: '26px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 16px', letterSpacing: '-0.5px' }}>
-                Check your inbox
-              </h2>
-              <p style={{ fontSize: '14px', color: '#94A3B8', lineHeight: '1.7', margin: 0 }}>
-                We sent a secure confirmation link to <strong style={{ color: '#a5b4fc', fontWeight: '500' }}>{email}</strong>.<br />
-                Click it to activate your Elevox account and begin onboarding.
-              </p>
-            </div>
-          ) : (
+          {(
             <>
               <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.15s' }}>
                 <h2 style={{ fontSize: '26px', fontWeight: '600', color: '#F1F5F9', fontFamily: "'Outfit', sans-serif", margin: '0 0 8px', letterSpacing: '-0.5px' }}>
