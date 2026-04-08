@@ -14,11 +14,21 @@ serve(async (req: Request) => {
   try {
     const { text, url } = await req.json()
 
-    let content = ''
-    if (text) content += text
-    if (url)  content += `\nLinkedIn Profile URL: ${url}`
+    // A LinkedIn URL alone cannot be scraped — Claude has no browser access.
+    // Require actual resume text. If only a URL was provided, return a clean
+    // error so the frontend can show a helpful message rather than crashing.
+    const hasResumeText = text && text.trim().length > 50
+    if (!hasResumeText) {
+      return new Response(
+        JSON.stringify({
+          error: 'Please upload your resume (PDF) to auto-fill the form. LinkedIn URL alone cannot be processed — we cannot access LinkedIn on your behalf.',
+        }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      )
+    }
 
-    if (!content.trim()) throw new Error('No text or URL provided')
+    let content = text
+    if (url) content += `\nLinkedIn Profile URL: ${url}`
 
     // Protect against massive files crashing the prompt
     const safeText = content.substring(0, 25000)
@@ -65,7 +75,14 @@ REQUIRED SCHEMA (JSON only):
     const data = await res.json()
     const raw = data.content[0].text
     const rawCleaned = raw.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim()
-    const parsedData = JSON.parse(rawCleaned)
+
+    let parsedData: Record<string, string>
+    try {
+      parsedData = JSON.parse(rawCleaned)
+    } catch {
+      console.error('Claude returned non-JSON:', rawCleaned.slice(0, 200))
+      throw new Error('Could not extract profile data. Please upload a resume PDF for best results.')
+    }
 
     // Append the linkedin URL if it was provided
     if (url) {
