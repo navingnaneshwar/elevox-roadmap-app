@@ -194,30 +194,27 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       ? 'Please introduce this coaching session and ask your first question.'
       : message
 
-    // Count how many user turns have happened (not counting __start__)
+    // ── 5b. Natural conclusion guidance ───────────────────
+    // No hard turn limit. Vox concludes when it has genuine strategic clarity,
+    // not after a fixed message count.
     const userTurnCount = history.filter((m: {role: string}) => m.role === 'user').length
 
-    // After 8 user messages, force Vox to wrap up.
-    // Two-phase: turn 8 → ask for validation, turn 9+ → immediately conclude.
-    const MAX_TURNS = 8
-    if (!isOpener && !continuation_flag && userTurnCount === MAX_TURNS) {
-      // Phase 1: first time hitting the limit — summarise and ask to confirm
+    if (!isOpener && !continuation_flag) {
       systemPrompt += `
 
-TURN LIMIT REACHED (${userTurnCount} user exchanges complete):
-You have gathered sufficient context. You MUST NOT ask any more questions.
-In this response you must:
-1. Briefly summarise the 3–4 key strategic insights you have captured.
-2. Ask the user ONE closing validation question: "Does this capture your direction accurately?"
-Do NOT ask anything else. Do NOT append [STAGE_COMPLETE] yet — wait for their confirmation.`
-    } else if (!isOpener && !continuation_flag && userTurnCount > MAX_TURNS) {
-      // Phase 2: user has already seen the summary and replied — conclude immediately
-      systemPrompt += `
+CONCLUSION GUIDANCE (read every turn, act only when the conversation is genuinely ready):
+Your goal is strategic clarity on four things:
+  1. The executive's positioning / Category of One
+  2. Primary audience and the key decision-makers they need to influence
+  3. Voice signature and content pillars they own
+  4. Recommended starting phase of the coaching journey
 
-SESSION CONCLUSION:
-The user has seen your summary and responded. Treat their response as confirmation.
-You MUST immediately initiate the Chanakya handoff in this response, and append [STAGE_COMPLETE] at the very end.
-Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handoff and close the session.`
+When you have clear, specific answers to all four AND the executive has agreed — THEN:
+- Summarise the 3-4 key decisions in 2-3 plain conversational sentences (no lists, no headers).
+- Ask ONE closing validation question: "Does this capture your direction accurately?"
+- Once they confirm, initiate the Chanakya handoff and append [STAGE_COMPLETE] at the very end of that message. Do NOT append [STAGE_COMPLETE] before their explicit confirmation.
+
+You have had ${userTurnCount} exchanges so far. If you still lack clarity on any of the four areas, continue probing — but ask only ONE focused question per turn. Stay concise. Do NOT restart the conversation or loop back to earlier questions.`
     }
 
     // history contains [{role: 'user'|'assistant', content: string}]
@@ -248,7 +245,16 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       }
     ]
 
-    async function callAnthropic(msgs: any[]) {
+    // ── 6. Anthropic helpers ───────────────────────────────
+    async function callAnthropic(msgs: any[], withTools = true) {
+      const body: any = {
+        model:      'claude-sonnet-4-5',
+        max_tokens: 800,
+        system:     systemPrompt,
+        messages:   msgs,
+      }
+      if (withTools) body.tools = tools
+
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: {
@@ -256,13 +262,7 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
           'anthropic-version': '2023-06-01',
           'content-type':      'application/json',
         },
-        body: JSON.stringify({
-          model:      'claude-sonnet-4-5',
-          max_tokens: 800,
-          system:     systemPrompt,
-          tools,
-          messages:   msgs,
-        }),
+        body: JSON.stringify(body),
       })
 
       if (!res.ok) {
@@ -279,9 +279,10 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
       return await res.json()
     }
 
+    const useTools = !isOpener
     let anthropicData
     try {
-      anthropicData = await callAnthropic(messages)
+      anthropicData = await callAnthropic(messages, useTools)
     } catch (e: any) {
       if (e.message === 'BILLING_ERROR') {
         return new Response(
@@ -306,25 +307,27 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
     }
 
     // ── 7. Agentic Tool Loop ───────────────────────────────
-    // Keep executing tool calls until Anthropic returns a final text response.
-    // Safety cap: max 5 tool rounds to prevent runaway loops.
-    const MAX_TOOL_ROUNDS = 5
+    // One round only: Anthropic decides to search → Tavily runs → Anthropic
+    // generates the final reply WITHOUT tools so it can't chain more searches.
+    // 5 rounds × (Tavily + Anthropic) = potential 150s+ platform timeout.
+    const MAX_TOOL_ROUNDS = 1
     let toolRound = 0
 
     while (toolRound < MAX_TOOL_ROUNDS) {
       const toolUseBlocks = anthropicData.content?.filter((b: any) => b.type === 'tool_use') ?? []
-      if (toolUseBlocks.length === 0) break  // No more tool calls — Claude is done searching
+      if (toolUseBlocks.length === 0) break
 
       toolRound++
       messages.push({ role: 'assistant', content: anthropicData.content })
 
-      // Execute all tool calls in this round in parallel
       const toolResults = await Promise.all(
         toolUseBlocks.map(async (toolBlock: any) => {
           let toolResponse = 'No results found.'
           if (toolBlock.name === 'search_web') {
             if (TAVILY_API_KEY) {
               try {
+                const tavilyController = new AbortController()
+                const tavilyTimeout = setTimeout(() => tavilyController.abort(), 8000)
                 const tavilyRes = await fetch('https://api.tavily.com/search', {
                   method: 'POST',
                   headers: { 'Content-Type': 'application/json' },
@@ -333,33 +336,29 @@ Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handof
                     query: toolBlock.input.query,
                     search_depth: 'basic',
                     include_answer: true,
-                  })
-                })
+                  }),
+                  signal: tavilyController.signal,
+                }).finally(() => clearTimeout(tavilyTimeout))
                 const tavilyData = await tavilyRes.json()
                 toolResponse = JSON.stringify({
                   answer: tavilyData.answer,
                   results: tavilyData.results?.slice(0, 3) || []
                 })
-              } catch (err) {
-                toolResponse = 'Web search failed. Proceed without live data.'
+              } catch (err: any) {
+                const errMsg = err.name === 'AbortError' ? 'TIMEOUT_8s' : err.message
+                toolResponse = `Web search failed (${errMsg}). Proceed without live data.`
               }
             } else {
-              toolResponse = 'TAVILY_API_KEY is not configured. Please rely on user input.'
+              toolResponse = 'TAVILY_API_KEY is not configured.'
             }
           }
-          return {
-            type:        'tool_result',
-            tool_use_id: toolBlock.id,
-            content:     toolResponse,
-          }
+          return { type: 'tool_result', tool_use_id: toolBlock.id, content: toolResponse }
         })
       )
 
-      // All tool results go in one user message (Anthropic requirement)
       messages.push({ role: 'user', content: toolResults })
-
-      // Call Anthropic again — may return more tool calls or final text
-      anthropicData = await callAnthropic(messages)
+      // ↓ withTools=false — after search results Anthropic must reply immediately
+      anthropicData = await callAnthropic(messages, false)
     }
 
 
