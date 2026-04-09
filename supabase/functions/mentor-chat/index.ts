@@ -194,30 +194,28 @@ You must strictly read the chat history, output a concise 3-bullet summary of ev
       ? 'Please introduce this coaching session and ask your first question.'
       : message
 
-    // Count how many user turns have happened (not counting __start__)
+    // ── 5b. Natural conclusion guidance ───────────────────
+    // No hard turn limit. Vox concludes when it has genuine strategic clarity,
+    // not after a fixed message count. The guidance is appended every turn so
+    // Vox always sees the closing criteria, but only acts when truly ready.
     const userTurnCount = history.filter((m: {role: string}) => m.role === 'user').length
 
-    // After 8 user messages, force Vox to wrap up.
-    // Two-phase: turn 8 → ask for validation, turn 9+ → immediately conclude.
-    const MAX_TURNS = 8
-    if (!isOpener && !continuation_flag && userTurnCount === MAX_TURNS) {
-      // Phase 1: first time hitting the limit — summarise and ask to confirm
+    if (!isOpener && !continuation_flag) {
       systemPrompt += `
 
-TURN LIMIT REACHED (${userTurnCount} user exchanges complete):
-You have gathered sufficient context. You MUST NOT ask any more questions.
-In this response you must:
-1. Briefly summarise the 3–4 key strategic insights you have captured.
-2. Ask the user ONE closing validation question: "Does this capture your direction accurately?"
-Do NOT ask anything else. Do NOT append [STAGE_COMPLETE] yet — wait for their confirmation.`
-    } else if (!isOpener && !continuation_flag && userTurnCount > MAX_TURNS) {
-      // Phase 2: user has already seen the summary and replied — conclude immediately
-      systemPrompt += `
+CONCLUSION GUIDANCE (read every turn, act only when the conversation is genuinely ready):
+Your goal is strategic clarity on four things:
+  1. The executive's positioning / Category of One
+  2. Primary audience and the key decision-makers they need to influence
+  3. Voice signature and content pillars they own
+  4. Recommended starting phase of the coaching journey
 
-SESSION CONCLUSION:
-The user has seen your summary and responded. Treat their response as confirmation.
-You MUST immediately initiate the Chanakya handoff in this response, and append [STAGE_COMPLETE] at the very end.
-Do NOT summarise again. Do NOT ask any more questions. Simply confirm the handoff and close the session.`
+When you have clear, specific answers to all four AND the executive has agreed — THEN:
+- Summarise the 3-4 key decisions in 2-3 plain conversational sentences (no lists, no headers).
+- Ask ONE closing validation question: "Does this capture your direction accurately?"
+- Once they confirm, initiate the Chanakya handoff and append [STAGE_COMPLETE] at the very end of that message. Do NOT append [STAGE_COMPLETE] before their explicit confirmation.
+
+You have had ${userTurnCount} exchanges so far. If you still lack clarity on any of the four areas, continue probing — but ask only ONE focused question per turn. Stay concise. Do NOT restart the conversation or loop back to earlier questions.`
     }
 
     // history contains [{role: 'user'|'assistant', content: string}]
