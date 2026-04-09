@@ -48,7 +48,8 @@ export default function LoginPage() {
         const { error: resendErr } = await supabase.auth.resend({ type: 'signup', email })
 
         if (!resendErr) {
-          // resend succeeded → account exists but email is unconfirmed. Confirmation re-sent.
+          // resend() returns 200 even for non-existent emails (Supabase anti-enumeration).
+          // We can't guarantee an email was actually sent, so use cautious wording.
           setLoginAlert({ type: 'unconfirmed' })
         } else if (resendErr.message?.toLowerCase().includes('already confirmed')) {
           // resend failed with 'already confirmed' → correct email, wrong password
@@ -303,13 +304,14 @@ export default function LoginPage() {
                       </div>
                     )}
 
-                    {/* Case 1: email exists but unconfirmed — confirmation auto-resent */}
+                    {/* Case 1: unconfirmed OR non-existent — Supabase anti-enum means we can't tell */}
                     {loginAlert?.type === 'unconfirmed' && (
-                      <div style={{ padding: '14px 16px', background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '10px', color: '#6ee7b7', fontSize: '13px', lineHeight: 1.6, display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                        <span style={{ fontSize: '16px', lineHeight: 1, flexShrink: 0 }}>✓</span>
-                        <div>
-                          <strong style={{ display: 'block', marginBottom: '2px', color: '#34d399' }}>Confirmation email sent</strong>
-                          Your account isn't confirmed yet. We've resent the confirmation link to <strong>{email}</strong>. Check your inbox and click the link, then sign in again.
+                      <div style={{ padding: '14px 16px', background: 'rgba(99,102,241,0.07)', border: '1px solid rgba(99,102,241,0.25)', borderRadius: '10px', color: '#c7d2fe', fontSize: '13px', lineHeight: 1.6 }}>
+                        <strong style={{ display: 'block', marginBottom: '4px', color: '#a5b4fc' }}>Check your inbox</strong>
+                        If you recently signed up with <strong>{email}</strong>, look for a confirmation email and click the link to activate your account.
+                        <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid rgba(99,102,241,0.15)', fontSize: '12px', color: '#94A3B8' }}>
+                          Haven't signed up yet?{' '}
+                          <Link to="/signup" style={{ color: '#a5b4fc', fontWeight: '600', textDecoration: 'underline' }}>Apply for access →</Link>
                         </div>
                       </div>
                     )}
