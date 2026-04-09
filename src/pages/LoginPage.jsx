@@ -17,10 +17,9 @@ export default function LoginPage() {
   const [error,              setError]              = useState(null)
   const [mode,               setMode]               = useState('login') // 'login' | 'forgot'
   const [sent,               setSent]               = useState(false)
-  // For the "unconfirmed email" helper
-  const [maybeUnconfirmed,   setMaybeUnconfirmed]   = useState(false)
-  const [resendSent,         setResendSent]         = useState(false)
-  const [resendLoading,      setResendLoading]      = useState(false)
+  // loginAlert replaces the old maybeUnconfirmed/resendSent flags:
+  // type: 'unconfirmed' | 'wrong_password' | 'no_account' | null
+  const [loginAlert,         setLoginAlert]         = useState(null)
 
   // Staggered entry animations classes
   const [mounted, setMounted] = useState(false)
@@ -37,44 +36,39 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setMaybeUnconfirmed(false)
-    setResendSent(false)
+    setLoginAlert(null)
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      // Supabase returns "Invalid login credentials" for BOTH wrong password
-      // AND unconfirmed email. Surface a helpful hint for the latter case.
       const isCredError = error.message?.toLowerCase().includes('invalid login credentials')
-      setMaybeUnconfirmed(isCredError)
-      setError(isCredError
-        ? 'Invalid email or password.'
-        : error.message
-      )
+
+      if (isCredError) {
+        // Probe with resend() to distinguish the three cases.
+        // Supabase returns the same error for wrong password, unconfirmed email,
+        // and non-existent accounts — so we need an extra call to tell them apart.
+        const { error: resendErr } = await supabase.auth.resend({ type: 'signup', email })
+
+        if (!resendErr) {
+          // resend succeeded → account exists but email is unconfirmed. Confirmation re-sent.
+          setLoginAlert({ type: 'unconfirmed' })
+        } else if (resendErr.message?.toLowerCase().includes('already confirmed')) {
+          // resend failed with 'already confirmed' → correct email, wrong password
+          setLoginAlert({ type: 'wrong_password' })
+        } else {
+          // Any other resend failure → email not registered on the system
+          setLoginAlert({ type: 'no_account' })
+        }
+      } else {
+        // Non-credential error (server error, network, etc.)
+        setError(error.message)
+      }
+
       setLoading(false)
       return
     }
 
     navigate(from, { replace: true })
-  }
-
-  // ── Resend confirmation email ────────────────────────────
-  async function handleResendConfirmation() {
-    if (!email) { setError('Please enter your email address above first.'); return }
-    setResendLoading(true)
-    const { error } = await supabase.auth.resend({ type: 'signup', email })
-    setResendLoading(false)
-    if (error) {
-      // "User already confirmed" → email IS confirmed, it's just a wrong password
-      if (error.message?.includes('already confirmed')) {
-        setMaybeUnconfirmed(false)
-        setError('Your email is confirmed. Please check your password.')
-      } else {
-        setError(error.message)
-      }
-    } else {
-      setResendSent(true)
-    }
   }
 
   // ── LinkedIn OAuth ───────────────────────────────────────
@@ -320,31 +314,46 @@ export default function LoginPage() {
                     onBlur={e  => Object.assign(e.target.style, inputStyle)} />
                 </div>
 
-                {error && (
+                {/* ── Login alert banners (mutually exclusive) ─────── */}
+                {(error || loginAlert) && (
                   <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.4s' }}>
-                    <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px' }}>
-                      {error}
-                    </div>
-                    {/* Show confirmation helper when error is likely an unconfirmed email */}
-                    {maybeUnconfirmed && (
-                      <div style={{ marginTop: '10px', padding: '12px 16px', background: 'rgba(250, 204, 21, 0.06)', border: '1px solid rgba(250, 204, 21, 0.2)', borderRadius: '10px', fontSize: '12px', color: '#fde68a', lineHeight: 1.6 }}>
-                        {resendSent ? (
-                          <span style={{ color: '#34d399' }}>✓ Confirmation email sent! Check your inbox and click the link, then try signing in again.</span>
-                        ) : (
-                          <>
-                            <span>Just signed up? You may need to <strong>confirm your email</strong> first.</span>{' '}
-                            <button
-                              type="button"
-                              onClick={handleResendConfirmation}
-                              disabled={resendLoading}
-                              style={{ background: 'none', border: 'none', color: '#fbbf24', fontWeight: '600', cursor: resendLoading ? 'not-allowed' : 'pointer', textDecoration: 'underline', fontSize: '12px', padding: 0 }}
-                            >
-                              {resendLoading ? 'Sending…' : 'Resend confirmation →'}
-                            </button>
-                          </>
-                        )}
+
+                    {/* Generic server/OAuth error */}
+                    {error && !loginAlert && (
+                      <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px' }}>
+                        {error}
                       </div>
                     )}
+
+                    {/* Case 1: email exists but unconfirmed — confirmation auto-resent */}
+                    {loginAlert?.type === 'unconfirmed' && (
+                      <div style={{ padding: '14px 16px', background: 'rgba(16,185,129,0.07)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: '10px', color: '#6ee7b7', fontSize: '13px', lineHeight: 1.6, display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                        <span style={{ fontSize: '16px', lineHeight: 1, flexShrink: 0 }}>✓</span>
+                        <div>
+                          <strong style={{ display: 'block', marginBottom: '2px', color: '#34d399' }}>Confirmation email sent</strong>
+                          Your account isn't confirmed yet. We've resent the confirmation link to <strong>{email}</strong>. Check your inbox and click the link, then sign in again.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Case 2: email confirmed but wrong password */}
+                    {loginAlert?.type === 'wrong_password' && (
+                      <div style={{ padding: '14px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px', lineHeight: 1.6 }}>
+                        <strong style={{ display: 'block', marginBottom: '2px', color: '#f87171' }}>Incorrect password</strong>
+                        The password you entered is wrong. Please try again or{' '}
+                        <button type="button" onClick={() => setMode('forgot')} style={{ background: 'none', border: 'none', color: '#a5b4fc', fontWeight: '600', cursor: 'pointer', textDecoration: 'underline', fontSize: '13px', padding: 0 }}>reset your password</button>.
+                      </div>
+                    )}
+
+                    {/* Case 3: no account found with this email */}
+                    {loginAlert?.type === 'no_account' && (
+                      <div style={{ padding: '14px 16px', background: 'rgba(250,204,21,0.06)', border: '1px solid rgba(250,204,21,0.2)', borderRadius: '10px', color: '#fde68a', fontSize: '13px', lineHeight: 1.6 }}>
+                        <strong style={{ display: 'block', marginBottom: '2px', color: '#fbbf24' }}>No account found</strong>
+                        We couldn't find an Elevox account for <strong>{email}</strong>. Please check the email address or{' '}
+                        <Link to="/signup" style={{ color: '#fbbf24', fontWeight: '600', textDecoration: 'underline' }}>apply for access</Link>.
+                      </div>
+                    )}
+
                   </div>
                 )}
 
