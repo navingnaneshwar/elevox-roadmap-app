@@ -223,7 +223,7 @@ function FieldInput({ field, value, onChange, error }) {
 }
 
 /* ─── Hero Screen ───────────────────────────────────────────── */
-function HeroScreen({ onStart }) {
+function HeroScreen({ onStart, onSignOut }) {
   const [file, setFile] = useState(null);
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -301,6 +301,24 @@ function HeroScreen({ onStart }) {
       minHeight: "100vh", background: "var(--ob-bg)", display: "flex", alignItems: "center",
       justifyContent: "center", padding: "40px 24px", position: "relative", overflow: "hidden",
     }}>
+      {/* Sign-out ghost button — top right */}
+      {onSignOut && (
+        <button
+          onClick={onSignOut}
+          style={{
+            position: "absolute", top: "20px", right: "24px", zIndex: 10,
+            background: "none", border: "1px solid #1E2A3E", borderRadius: "8px",
+            color: "#475569", fontSize: "12px", fontFamily: "'Inter', sans-serif",
+            padding: "7px 14px", cursor: "pointer", letterSpacing: "0.4px",
+            transition: "all 0.2s", display: "flex", alignItems: "center", gap: "6px",
+          }}
+          onMouseEnter={e => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94A3B8"; }}
+          onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.color = "#475569"; }}
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+          Sign out
+        </button>
+      )}
       <div style={{ position: "absolute", top: "15%", left: "10%", width: "500px", height: "500px", borderRadius: "50%", background: "radial-gradient(circle, rgba(99,102,241,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", bottom: "10%", right: "10%", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.10) 0%, transparent 70%)", pointerEvents: "none" }} />
       <div style={{ position: "absolute", inset: 0, backgroundImage: "linear-gradient(rgba(99,102,241,0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.04) 1px, transparent 1px)", backgroundSize: "60px 60px", pointerEvents: "none" }} />
@@ -493,7 +511,7 @@ function SuccessScreen({ formData }) {
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
-export default function OnboardingForm({ onComplete, initialData, onSaveProgress, onSaveAndExit }) {
+export default function OnboardingForm({ onComplete, initialData, onSaveProgress, onSaveAndExit, onSignOut }) {
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
   const [isSaving, setIsSaving] = useState(false);
   
@@ -606,7 +624,7 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
     return () => window.removeEventListener("keydown", handler);
   }, [phase, currentStep, navigate, requiredFilled, handleSubmit]);
 
-  if (phase === "hero") return <HeroScreen onStart={handleHeroStart} />;
+  if (phase === "hero") return <HeroScreen onStart={handleHeroStart} onSignOut={onSignOut} />;
   if (phase === "done") return <SuccessScreen formData={formData} />;
 
   return (
@@ -665,9 +683,28 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
               />
             ))}
           </div>
-          {/* Progress % */}
-          <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
-            <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
+          {/* Right: Progress % + Sign out */}
+          <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+            <div style={{ fontSize: "11px", color: "#334155", fontWeight: "500" }}>
+              <span style={{ color: "#a5b4fc", fontWeight: "600" }}>{progress}%</span> complete
+            </div>
+            {onSignOut && (
+              <button
+                id="onboarding-sign-out"
+                onClick={onSignOut}
+                style={{
+                  background: "none", border: "1px solid #1E2A3E", borderRadius: "7px",
+                  color: "#475569", fontSize: "11px", fontFamily: "'Inter', sans-serif",
+                  padding: "5px 12px", cursor: "pointer", letterSpacing: "0.4px",
+                  transition: "all 0.2s", display: "flex", alignItems: "center", gap: "5px",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = "#334155"; e.currentTarget.style.color = "#94A3B8"; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = "#1E2A3E"; e.currentTarget.style.color = "#475569"; }}
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>
+                Sign out
+              </button>
+            )}
           </div>
         </div>
       </div>
