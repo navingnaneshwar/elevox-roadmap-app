@@ -9,17 +9,25 @@ export default function LoginPage() {
   const location  = useLocation()
   const from      = location.state?.from?.pathname || '/dashboard'
 
-  const [email,    setEmail]    = useState('')
-  const [password, setPassword] = useState('')
-  const [loading,  setLoading]  = useState(false)
-  const [error,    setError]    = useState(null)
-  const [mode,     setMode]     = useState('login') // 'login' | 'forgot'
-  const [sent,     setSent]     = useState(false)
-  
+  const [email,              setEmail]              = useState('')
+  const [password,           setPassword]           = useState('')
+  const [loading,            setLoading]            = useState(false)
+  const [error,              setError]              = useState(null)
+  const [mode,               setMode]               = useState('login') // 'login' | 'forgot'
+  const [sent,               setSent]               = useState(false)
+  // For the "unconfirmed email" helper
+  const [maybeUnconfirmed,   setMaybeUnconfirmed]   = useState(false)
+  const [resendSent,         setResendSent]         = useState(false)
+  const [resendLoading,      setResendLoading]      = useState(false)
+
   // Staggered entry animations classes
   const [mounted, setMounted] = useState(false)
   useEffect(() => {
     setMounted(true)
+    // Pick up ?error= message forwarded by AuthCallbackPage (e.g. LinkedIn failure)
+    const params = new URLSearchParams(window.location.search)
+    const urlError = params.get('error')
+    if (urlError) setError(decodeURIComponent(urlError))
   }, [])
 
   // ── Email + Password Login ───────────────────────────────
@@ -27,16 +35,44 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setMaybeUnconfirmed(false)
+    setResendSent(false)
 
     const { error } = await supabase.auth.signInWithPassword({ email, password })
 
     if (error) {
-      setError(error.message)
+      // Supabase returns "Invalid login credentials" for BOTH wrong password
+      // AND unconfirmed email. Surface a helpful hint for the latter case.
+      const isCredError = error.message?.toLowerCase().includes('invalid login credentials')
+      setMaybeUnconfirmed(isCredError)
+      setError(isCredError
+        ? 'Invalid email or password.'
+        : error.message
+      )
       setLoading(false)
       return
     }
 
     navigate(from, { replace: true })
+  }
+
+  // ── Resend confirmation email ────────────────────────────
+  async function handleResendConfirmation() {
+    if (!email) { setError('Please enter your email address above first.'); return }
+    setResendLoading(true)
+    const { error } = await supabase.auth.resend({ type: 'signup', email })
+    setResendLoading(false)
+    if (error) {
+      // "User already confirmed" → email IS confirmed, it's just a wrong password
+      if (error.message?.includes('already confirmed')) {
+        setMaybeUnconfirmed(false)
+        setError('Your email is confirmed. Please check your password.')
+      } else {
+        setError(error.message)
+      }
+    } else {
+      setResendSent(true)
+    }
   }
 
   // ── LinkedIn OAuth ───────────────────────────────────────
@@ -263,8 +299,30 @@ export default function LoginPage() {
                 </div>
 
                 {error && (
-                  <div className={mounted ? "ob-field-enter" : ""} style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px', animationDelay: '0.4s' }}>
-                    {error}
+                  <div className={mounted ? "ob-field-enter" : ""} style={{ animationDelay: '0.4s' }}>
+                    <div style={{ padding: '12px 16px', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '10px', color: '#fca5a5', fontSize: '13px' }}>
+                      {error}
+                    </div>
+                    {/* Show confirmation helper when error is likely an unconfirmed email */}
+                    {maybeUnconfirmed && (
+                      <div style={{ marginTop: '10px', padding: '12px 16px', background: 'rgba(250, 204, 21, 0.06)', border: '1px solid rgba(250, 204, 21, 0.2)', borderRadius: '10px', fontSize: '12px', color: '#fde68a', lineHeight: 1.6 }}>
+                        {resendSent ? (
+                          <span style={{ color: '#34d399' }}>✓ Confirmation email sent! Check your inbox and click the link, then try signing in again.</span>
+                        ) : (
+                          <>
+                            <span>Just signed up? You may need to <strong>confirm your email</strong> first.</span>{' '}
+                            <button
+                              type="button"
+                              onClick={handleResendConfirmation}
+                              disabled={resendLoading}
+                              style={{ background: 'none', border: 'none', color: '#fbbf24', fontWeight: '600', cursor: resendLoading ? 'not-allowed' : 'pointer', textDecoration: 'underline', fontSize: '12px', padding: 0 }}
+                            >
+                              {resendLoading ? 'Sending…' : 'Resend confirmation →'}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
 
