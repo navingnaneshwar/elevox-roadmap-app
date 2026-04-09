@@ -280,7 +280,8 @@ function HeroScreen({ onStart, onSignOut }) {
       );
       const jsonText = await res.text();
       let json = {};
-      try { json = JSON.parse(jsonText); } catch(e) {}
+      try { json = JSON.parse(jsonText); } catch(_e) { /* non-JSON response — use raw text fallback */ }
+
       
       if (!res.ok) {
         throw new Error(json.error || json.message || jsonText || `Server error ${res.status}`);
