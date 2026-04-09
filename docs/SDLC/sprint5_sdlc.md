@@ -168,6 +168,37 @@
 
 ---
 
+### E1-US5 · Session Sign-Out
+
+**User Story:**
+> As an authenticated user on any page of the app, I want a visible, accessible Sign Out button so I can securely end my session without needing to clear browser storage manually.
+
+**Design Spec:**
+- **Onboarding HeroScreen**: `Sign out` ghost button — `position: absolute`, top-right corner (20px / 24px), `border: 1px solid #1E2A3E`, dark text, hover → slate tint
+- **Onboarding Form Header**: `Sign out` button in the right rail alongside progress %, same ghost style, `id="onboarding-sign-out"`
+- **Dashboard Header**: already exists (wired via `DashboardPage.jsx` → `Dashboard.jsx` → `onSignOut` prop)
+- All buttons: `←` exit icon (SVG arrow), 11-12px label, no filled background — unobtrusive but discoverable
+
+**Functional Spec:**
+- `OnboardingPage.jsx`: destructures `signOut` from `useAuth()`, passes as `onSignOut` prop to `OnboardingForm`
+- `OnboardingForm.jsx`: receives `onSignOut` prop, passed down to `HeroScreen` and rendered in form header bar
+- `signOut()` in `AuthContext`: calls `supabase.auth.signOut()` → clears session → navigates to `/login`
+- Defensive: button only renders when `onSignOut` is truthy (no crash if prop not passed)
+
+**Test Scenarios:**
+| # | Scenario | Expected | Status |
+|---|---|---|---|
+| T5a.1 | Visit `/onboarding` (Hero phase) | "Sign out" button visible top-right | ✅ Pass |
+| T5a.2 | Visit `/onboarding` (Form phase) | "Sign out" button in top header bar right side | ✅ Pass |
+| T5a.3 | Click Sign out from onboarding hero | Session cleared, redirected to `/login` | ✅ Pass |
+| T5a.4 | Click Sign out from onboarding form | Session cleared, redirected to `/login` | ✅ Pass |
+| T5a.5 | Visit `/dashboard` | "Sign Out" button in top-right header | ✅ Pass |
+| T5a.6 | Sign out then navigate back (browser back button) | Protected route redirects to `/login` | ✅ Pass |
+
+**Prod:** ✅ Done · **QA:** ✅ Done · **Issue refs:** ISS-033
+
+---
+
 ---
 
 ## E2 — Vox Coaching Platform
