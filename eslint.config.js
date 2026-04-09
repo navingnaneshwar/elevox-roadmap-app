@@ -26,4 +26,11 @@ export default defineConfig([
       'no-unused-vars': ['warn', { varsIgnorePattern: '^[A-Z_]' }],
     },
   },
+  // Node.js config files (vite.config.js, etc.) — use Node globals, not browser globals
+  {
+    files: ['*.config.js', '*.config.ts', '*.config.mjs'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])
