@@ -1,4 +1,14 @@
 
+[functions.parse-resume]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/parse-resume/index.ts"
+
+[functions.generate-brief]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/generate-brief/index.ts"
+
 [functions.mentor-chat]
 enabled = true
 verify_jwt = false

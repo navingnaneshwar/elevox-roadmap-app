@@ -5,6 +5,7 @@
 //  - onComplete → saves to Supabase + navigates to /dashboard
 //  - Pre-fills form with existing profile data if user returns
 // ─────────────────────────────────────────────────────────────
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -16,9 +17,26 @@ export default function OnboardingPage() {
   const { profile, signOut } = useAuth()
   const { finishOnboarding, saveStep } = useProfile()
 
+  // Track whether the user has submitted; we navigate only AFTER the profile
+  // context has actually updated onboarding_complete → true.  If we call
+  // navigate() immediately after finishOnboarding(), React may not have flushed
+  // the refreshProfile() state update yet and ProtectedRoute would bounce back.
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [submitError,  setSubmitError]  = useState(null)
+
+  // Navigate to dashboard once onboarding_complete is true in context
+  useEffect(() => {
+    if (isCompleting && profile?.onboarding_complete) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isCompleting, profile, navigate])
+
   async function handleComplete(formData) {
+    setSubmitError(null)
+
     const { error } = await finishOnboarding(formData)
     if (error) {
+<<<<<<< HEAD
       console.error('Failed to save onboarding:', error)
       // Non-fatal — still proceed so user isn't stuck
     }
@@ -81,6 +99,51 @@ export default function OnboardingPage() {
     // Chanakya's questions will be ready within a few seconds.
     // ClarificationPage polls for the pending clarification_session.
     navigate('/clarification', { replace: true })
+=======
+      console.error('[Elevox] Failed to save onboarding:', error)
+      setSubmitError(
+        error.message ||
+        'Something went wrong saving your profile. Please try again.'
+      )
+      return          // ← do NOT navigate on failure
+    }
+
+    // Get the session once — reused for both fire-and-forget calls below
+    const { data: { session } } = await supabase.auth.getSession()
+
+    // Immediately kick the orchestrator so the Vox pipeline starts now
+    // rather than waiting for the pg_cron 2-minute cycle. Non-fatal.
+    if (session) {
+      fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        }
+      ).catch(e => console.warn('[Elevox] Orchestrator immediate trigger failed (cron will retry):', e.message))
+
+      // Send welcome email — non-fatal, don't await
+      fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ type: 'welcome' }),
+        }
+      ).catch(e => console.warn('[Elevox] Welcome email failed (non-fatal):', e.message))
+    }
+
+    // Signal completion — useEffect above will navigate once
+    // profile.onboarding_complete flips to true in context.
+    setIsCompleting(true)
+>>>>>>> 405267e (fix(onboarding): useEffect nav + error surface + non-blocking orchestrator (ISS-053))
   }
 
 
@@ -93,6 +156,8 @@ export default function OnboardingPage() {
       initialData={initialData}
       onSaveProgress={saveStep}
       onSignOut={signOut}
+      submitError={submitError}
+      isCompleting={isCompleting}
       onSaveAndExit={async (formData) => {
         await saveStep(formData)
         navigate('/dashboard', { replace: true })

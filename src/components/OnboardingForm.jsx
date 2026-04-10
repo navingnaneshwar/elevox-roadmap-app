@@ -545,7 +545,7 @@ function SuccessScreen({ formData }) {
 }
 
 /* ─── Main Component ────────────────────────────────────────── */
-export default function OnboardingForm({ onComplete, initialData, onSaveProgress, onSaveAndExit, onSignOut }) {
+export default function OnboardingForm({ onComplete, initialData, onSaveProgress, onSaveAndExit, onSignOut, submitError, isCompleting }) {
   const [phase, setPhase] = useState("hero"); // "hero" | "form" | "done"
   const [isSaving, setIsSaving] = useState(false);
   
@@ -941,7 +941,7 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={isSaving}
+                disabled={isSaving || isCompleting}
                 style={{
                   padding: "12px 32px",
                   background: requiredFilled ? "linear-gradient(135deg, #10b981, #059669)" : "#0D1220",
@@ -952,16 +952,34 @@ export default function OnboardingForm({ onComplete, initialData, onSaveProgress
                   fontWeight: "600",
                   fontFamily: "'Inter', sans-serif",
                   letterSpacing: "0.8px",
-                  cursor: isSaving ? "progress" : "pointer",
+                  cursor: (isSaving || isCompleting) ? "progress" : "pointer",
                   boxShadow: requiredFilled ? "0 4px 20px rgba(16,185,129,0.3)" : "none",
+                  opacity: isCompleting ? 0.7 : 1,
                   transition: "all 0.15s",
                 }}
               >
-                Submit Brief ✓
+                {isCompleting ? "Saving…" : "Submit Brief ✓"}
               </button>
             )}
           </div>
         </div>
+
+        {/* Submit error banner — shown when DB save fails */}
+        {submitError && (
+          <div style={{
+            margin: "0 32px 16px",
+            padding: "12px 16px",
+            background: "rgba(239,68,68,0.08)",
+            border: "1px solid rgba(239,68,68,0.3)",
+            borderRadius: "8px",
+            color: "#fca5a5",
+            fontSize: "13px",
+            lineHeight: 1.5,
+          }}>
+            <strong style={{ display: "block", marginBottom: "2px", color: "#f87171" }}>Save failed</strong>
+            {submitError} — please try again or refresh the page.
+          </div>
+        )}
       </div>
     </div>
   );
