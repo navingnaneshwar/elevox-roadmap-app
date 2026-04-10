@@ -5,6 +5,7 @@
 //  - onComplete → saves to Supabase + navigates to /dashboard
 //  - Pre-fills form with existing profile data if user returns
 // ─────────────────────────────────────────────────────────────
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import { useAuth } from '../context/AuthContext'
@@ -16,58 +17,68 @@ export default function OnboardingPage() {
   const { profile, signOut } = useAuth()
   const { finishOnboarding, saveStep } = useProfile()
 
+  // Track whether the user has submitted; we navigate only AFTER the profile
+  // context has actually updated onboarding_complete → true.  If we call
+  // navigate() immediately after finishOnboarding(), React may not have flushed
+  // the refreshProfile() state update yet and ProtectedRoute would bounce back.
+  const [isCompleting, setIsCompleting] = useState(false)
+  const [submitError,  setSubmitError]  = useState(null)
+
+  // Navigate to dashboard once onboarding_complete is true in context
+  useEffect(() => {
+    if (isCompleting && profile?.onboarding_complete) {
+      navigate('/dashboard', { replace: true })
+    }
+  }, [isCompleting, profile, navigate])
+
   async function handleComplete(formData) {
+    setSubmitError(null)
+
     const { error } = await finishOnboarding(formData)
     if (error) {
-      console.error('Failed to save onboarding:', error)
+      console.error('[Elevox] Failed to save onboarding:', error)
+      setSubmitError(
+        error.message ||
+        'Something went wrong saving your profile. Please try again.'
+      )
+      return          // ← do NOT navigate on failure
     }
 
-    // Get the session once — reused for both calls below
+    // Get the session once — reused for both fire-and-forget calls below
     const { data: { session } } = await supabase.auth.getSession()
 
     // Immediately kick the orchestrator so the Vox pipeline starts now
-    // rather than waiting for the pg_cron 2-minute cycle.
+    // rather than waiting for the pg_cron 2-minute cycle. Non-fatal.
     if (session) {
-      try {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({}),
-          }
-        )
-        console.log('[Elevox] Orchestrator triggered — Vox pipeline starting')
-      } catch (orchErr) {
-        // Non-fatal — pg_cron will pick it up within 2 minutes
-        console.warn('[Elevox] Orchestrator immediate trigger failed (will retry via cron):', orchErr.message)
-      }
+      fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({}),
+        }
+      ).catch(e => console.warn('[Elevox] Orchestrator immediate trigger failed (cron will retry):', e.message))
+
+      // Send welcome email — non-fatal, don't await
+      fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
+        {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${session.access_token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ type: 'welcome' }),
+        }
+      ).catch(e => console.warn('[Elevox] Welcome email failed (non-fatal):', e.message))
     }
 
-    // Send welcome email via send-notification Edge Function
-    try {
-      if (session) {
-        await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
-          {
-            method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${session.access_token}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ type: 'welcome' }),
-          }
-        )
-      }
-    } catch (emailErr) {
-      // Non-fatal — don't block navigation if email fails
-      console.warn('Welcome email failed (non-fatal):', emailErr.message)
-    }
-
-    navigate('/dashboard', { replace: true })
+    // Signal completion — useEffect above will navigate once
+    // profile.onboarding_complete flips to true in context.
+    setIsCompleting(true)
   }
 
 
@@ -80,6 +91,8 @@ export default function OnboardingPage() {
       initialData={initialData}
       onSaveProgress={saveStep}
       onSignOut={signOut}
+      submitError={submitError}
+      isCompleting={isCompleting}
       onSaveAndExit={async (formData) => {
         await saveStep(formData)
         navigate('/dashboard', { replace: true })
