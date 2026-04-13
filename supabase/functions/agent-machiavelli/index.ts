@@ -70,7 +70,7 @@ serve(async (req) => {
   }
 
   try {
-    const { job_id, draft_id, framework_id, briefing_id, mode } = await req.json();
+    const { job_id, draft_id, framework_id, briefing_id, mode, calendar_event_id: payloadCalendarEventId } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -161,13 +161,14 @@ serve(async (req) => {
     // Machiavelli's sole responsibility is WHEN and WHERE, not WHETHER.
 
     // 3. Update the pre-reserved calendar slot → confirmed/scheduled
-    // NOTE: slot was reserved by Machiavelli in reserve mode — UPDATE, do not INSERT
+    // ISS-038 fix: calendar_event_id lives in the orchestrator job payload, NOT on the
+    // content_drafts row (that column doesn't exist). Read from the request payload directly.
     const scheduledAt = new Date();
     scheduledAt.setHours(scheduledAt.getHours() + 24);
 
-    const calendarEventId = draft.calendar_event_id ?? null;
+    const calendarEventId = payloadCalendarEventId ?? null;
 
-    if (!calendarEventId) throw new Error(`Draft ${draft_id} has no calendar_event_id — cannot confirm slot`);
+    if (!calendarEventId) throw new Error(`Job ${job_id} has no calendar_event_id in payload — Machiavelli reserve mode must run first`);
 
     const { data: calendarRow, error: updateCalError } = await supabase
       .from('content_calendar')
@@ -181,6 +182,9 @@ serve(async (req) => {
       .single();
 
     if (updateCalError) throw updateCalError;
+    // ISS-038 fix: guard against update matching 0 rows (wrong ID, already deleted, etc.)
+    if (!calendarRow) throw new Error(`Calendar update matched 0 rows for event ${calendarEventId} — slot may have been deleted or ID mismatch`);
+    console.log(`[Machiavelli] Updated slot ${calendarEventId} → status=scheduled`);
 
     // 4. Update the draft status to 'scheduled'
     await supabase.from('content_drafts').update({ status: 'scheduled' }).eq('id', draft_id);
