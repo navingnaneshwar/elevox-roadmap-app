@@ -36,18 +36,20 @@ export default function OnboardingPage() {
 
     const { error } = await finishOnboarding(formData)
     if (error) {
-<<<<<<< HEAD
-      console.error('Failed to save onboarding:', error)
-      // Non-fatal — still proceed so user isn't stuck
+      console.error('[Elevox] Failed to save onboarding:', error)
+      setSubmitError(
+        error.message ||
+        'Something went wrong saving your profile. Please try again.'
+      )
+      return          // ← do NOT navigate on failure
     }
 
+    // Get the session once — reused for all fire-and-forget calls below
     const { data: { session } } = await supabase.auth.getSession()
 
     // ─── S5-03: Two-Stage Chanakya — queue gather_intelligence ───
-    // Instead of immediately building the framework, Chanakya first
-    // reads the profile, identifies gaps, and formulates 3-5 targeted
-    // questions specific to THIS executive. The user then answers
-    // them on /clarification before Stage 2 (build_framework) runs.
+    // Chanakya first reads the profile, identifies gaps, and formulates
+    // 3-5 targeted clarification questions before Stage 2 (build_framework).
     if (session) {
       try {
         const { error: jobError } = await supabase
@@ -57,12 +59,10 @@ export default function OnboardingPage() {
             job_type: 'gather_intelligence',
             payload:  {},
           })
-
         if (jobError) throw jobError
 
-        // Immediately kick the orchestrator to process the job now
-        // (rather than waiting for the 2-min pg_cron cycle)
-        await fetch(
+        // Kick the orchestrator immediately (don't wait for 2-min cron)
+        fetch(
           `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
           {
             method:  'POST',
@@ -72,16 +72,15 @@ export default function OnboardingPage() {
             },
             body: JSON.stringify({}),
           }
-        )
+        ).catch(e => console.warn('[Elevox] Orchestrator trigger failed (cron will retry):', e.message))
+
         console.log('[Elevox] gather_intelligence job queued — Chanakya reviewing profile')
       } catch (jobErr) {
         // Non-fatal — pg_cron will pick it up within 2 min
         console.warn('[Elevox] gather_intelligence queue failed (will retry via cron):', jobErr.message)
       }
-    }
 
-    // ─── Send welcome email (non-blocking) ───────────────────────
-    if (session) {
+      // Welcome email — non-fatal, fire and forget
       fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
         {
@@ -92,58 +91,11 @@ export default function OnboardingPage() {
           },
           body: JSON.stringify({ type: 'welcome' }),
         }
-      ).catch(e => console.warn('Welcome email failed (non-fatal):', e.message))
-    }
-
-    // ─── Redirect to clarification page ──────────────────────────
-    // Chanakya's questions will be ready within a few seconds.
-    // ClarificationPage polls for the pending clarification_session.
-    navigate('/clarification', { replace: true })
-=======
-      console.error('[Elevox] Failed to save onboarding:', error)
-      setSubmitError(
-        error.message ||
-        'Something went wrong saving your profile. Please try again.'
-      )
-      return          // ← do NOT navigate on failure
-    }
-
-    // Get the session once — reused for both fire-and-forget calls below
-    const { data: { session } } = await supabase.auth.getSession()
-
-    // Immediately kick the orchestrator so the Vox pipeline starts now
-    // rather than waiting for the pg_cron 2-minute cycle. Non-fatal.
-    if (session) {
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        }
-      ).catch(e => console.warn('[Elevox] Orchestrator immediate trigger failed (cron will retry):', e.message))
-
-      // Send welcome email — non-fatal, don't await
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ type: 'welcome' }),
-        }
       ).catch(e => console.warn('[Elevox] Welcome email failed (non-fatal):', e.message))
     }
 
-    // Signal completion — useEffect above will navigate once
-    // profile.onboarding_complete flips to true in context.
+    // Signal completion — useEffect navigates once onboarding_complete flips in context
     setIsCompleting(true)
->>>>>>> 405267e (fix(onboarding): useEffect nav + error surface + non-blocking orchestrator (ISS-053))
   }
 
 
