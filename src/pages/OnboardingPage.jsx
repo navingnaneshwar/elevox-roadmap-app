@@ -17,73 +17,111 @@ export default function OnboardingPage() {
   const { profile, signOut } = useAuth()
   const { finishOnboarding, saveStep } = useProfile()
 
-  // Track whether the user has submitted; we navigate only AFTER the profile
-  // context has actually updated onboarding_complete → true.  If we call
-  // navigate() immediately after finishOnboarding(), React may not have flushed
-  // the refreshProfile() state update yet and ProtectedRoute would bounce back.
   const [isCompleting, setIsCompleting] = useState(false)
   const [submitError,  setSubmitError]  = useState(null)
 
-  // Navigate to dashboard once onboarding_complete is true in context
-  useEffect(() => {
-    if (isCompleting && profile?.onboarding_complete) {
-      navigate('/dashboard', { replace: true })
-    }
-  }, [isCompleting, profile, navigate])
-
   async function handleComplete(formData) {
     setSubmitError(null)
+    setIsCompleting(true)
 
     const { error } = await finishOnboarding(formData)
     if (error) {
       console.error('[Elevox] Failed to save onboarding:', error)
-      setSubmitError(
-        error.message ||
-        'Something went wrong saving your profile. Please try again.'
-      )
-      return          // ← do NOT navigate on failure
+      setSubmitError(error.message || 'Something went wrong saving your profile.')
+      setIsCompleting(false)
+      return
     }
 
-    // Get the session once — reused for both fire-and-forget calls below
     const { data: { session } } = await supabase.auth.getSession()
-
-    // Immediately kick the orchestrator so the Vox pipeline starts now
-    // rather than waiting for the pg_cron 2-minute cycle. Non-fatal.
     if (session) {
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({}),
-        }
-      ).catch(e => console.warn('[Elevox] Orchestrator immediate trigger failed (cron will retry):', e.message))
-
-      // Send welcome email — non-fatal, don't await
-      fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-notification`,
-        {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${session.access_token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ type: 'welcome' }),
-        }
-      ).catch(e => console.warn('[Elevox] Welcome email failed (non-fatal):', e.message))
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).catch(e => console.warn('[Elevox] Orchestrator trigger failed:', e.message))
     }
 
-    // Signal completion — useEffect above will navigate once
-    // profile.onboarding_complete flips to true in context.
-    setIsCompleting(true)
+    // S5-11: Poll every 5s for active clarification session → redirect to /clarification
+    // Re-kick orchestrator every 30s: the pipeline has two stages (sweep_industry →
+    // gather_intelligence) each needing a separate invocation. pg_cron handles this
+    // in production; re-kicking here ensures it works in QA without cron too.
+    const userId    = profile?.id
+    const startTime = Date.now()
+    let lastKick    = Date.now()
+
+    const kickOrchestrator = () => {
+      if (!session) return
+      fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/agent-orchestrator`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${session.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).catch(e => console.warn('[Elevox] Orchestrator re-kick failed:', e.message))
+    }
+
+    const pollInterval = setInterval(async () => {
+      if (Date.now() - startTime > 180000) {
+        clearInterval(pollInterval)
+        navigate('/dashboard', { replace: true })
+        return
+      }
+
+      // Re-kick every 30s to advance the pipeline to the next stage
+      if (Date.now() - lastKick >= 30000) {
+        lastKick = Date.now()
+        kickOrchestrator()
+      }
+
+      const { data } = await supabase
+        .from('clarification_sessions')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (data?.id) {
+        clearInterval(pollInterval)
+        navigate('/clarification', { replace: true })
+      }
+    }, 5000)
   }
 
-
-  // Convert profile DB row → form camelCase keys for pre-fill
   const initialData = profile ? dbToFormData(profile) : null
+
+  if (isCompleting) {
+    return (
+      <div style={{
+        minHeight: '100vh',
+        background: 'linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%)',
+        display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'center',
+        fontFamily: "'Inter', sans-serif", color: '#fff',
+        textAlign: 'center', padding: '2rem',
+      }}>
+        <div style={{
+          width: 72, height: 72, borderRadius: '50%',
+          background: 'radial-gradient(circle at 30% 30%, #7c3aed, #4f46e5)',
+          boxShadow: '0 0 40px rgba(124,58,237,0.6)',
+          marginBottom: '2rem',
+          animation: 'elevox-pulse 2s ease-in-out infinite',
+        }} />
+        <style>{`
+          @keyframes elevox-pulse {
+            0%,100% { transform:scale(1); box-shadow:0 0 40px rgba(124,58,237,0.6); }
+            50%      { transform:scale(1.08); box-shadow:0 0 60px rgba(124,58,237,0.9); }
+          }
+        `}</style>
+        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, marginBottom: '0.75rem', letterSpacing: '-0.02em' }}>
+          Chanakya is preparing your profile…
+        </h1>
+        <p style={{ fontSize: '0.95rem', color: 'rgba(255,255,255,0.55)', maxWidth: 420, lineHeight: 1.7 }}>
+          Scanning your industry, mapping the competitive landscape, and crafting
+          personalised questions — usually ready in under 90 seconds.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <OnboardingForm

@@ -72,12 +72,13 @@ export async function completeOnboarding(userId, budget) {
 
   if (error) return { error }
 
-  // Kick off the Vox agent pipeline:
-  // Analyst (discovery sweep) → Strategist (brand framework) → Analyst (news sweep)
-  // → Machiavelli (reserve slot) → Shakespeare (draft) → Aristotle (edit) → Machiavelli (schedule)
+  // Kick off the V2 two-stage pipeline:
+  // sweep_industry (Analyst) → gather_intelligence (Chanakya S1 clarification)
+  // → build_framework (Chanakya S2) → run_news_sweep (Analyst) → reserve_slot
+  // → generate_drafts → review_draft → schedule_post
   const { error: jobError } = await supabase.from('agent_jobs').insert({
     user_id:  userId,
-    job_type: 'run_discovery_sweep',
+    job_type: 'sweep_industry',
     status:   'pending',
     payload:  {},
   })
@@ -259,7 +260,7 @@ export async function saveUserSubmittedDraft(userId, { bodyText, frameworkId }) 
 export async function getActiveClarificationSession(userId) {
   return supabase
     .from('clarification_sessions')
-    .select('id, questions, answers, status, created_at')
+    .select('id, questions, answers, context_summary, status, created_at')
     .eq('user_id', userId)
     .eq('status', 'active')
     .order('created_at', { ascending: false })

@@ -382,11 +382,119 @@ Chanakya must select platforms based on the combination of: primary goal + targe
 
 ---
 
+## Section 8 — New Backlog Items (Sprint 6+)
+
+> Items captured 2026-04-06 and 2026-04-10. To be sized and prioritised at Sprint 6 planning.
+
+---
+
+### S6-B1 — Comment Tracking & Analytics
+Track engagement on published posts: comments received, reply threading, and view analytics per piece of content. Surface trends in the Elevox dashboard so the executive can see which posts drive the most meaningful engagement.
+
+- [ ] Comment ingestion pipeline (LinkedIn API or manual entry)
+- [ ] Per-post analytics card (views, comments, reactions)
+- [ ] Weekly engagement summary surfaced in dashboard
+
+**Priority:** P1 | **Estimate:** 5 pts | **Owner:** BE + FE
+
+---
+
+### S6-B2 — Tagging Flexibility (#tags & @mentions)
+Allow the executive and the AI to include hashtags and @mentions in drafted content. Shakespeare suggests relevant hashtags based on content pillar and industry. The executive approves, removes, or adds mentions before posting.
+
+- [ ] Hashtag suggestion engine in Shakespeare (pillar + industry derived)
+- [ ] @mention support with approval gate in content review UI
+- [ ] Tag analytics: track which tags correlate with higher engagement
+
+**Priority:** P1 | **Estimate:** 3 pts | **Owner:** BE + FE
+
+---
+
+### S6-B3 — Book Writing Support
+Help executives leverage their LinkedIn content, session insights, and brand framework as the foundation for writing a book. AI-assisted chapter outlines, long-form drafts anchored to `verified_career_anchors`, and manuscript export.
+
+- [ ] "Book Mode" toggle — aggregates existing content into chapter outlines
+- [ ] Long-form draft generation via Shakespeare (chapter by chapter)
+- [ ] Export to PDF / Word doc
+- [ ] Credibility anchor enforcement: only verified facts from `verified_career_anchors`
+
+**Priority:** P2 | **Estimate:** 8 pts | **Owner:** BE + FE
+
+---
+
+### S6-B4 — Infographics, Polls & Content Format Expansion
+Expand content formats beyond text posts. Support long-form articles, short-form carousels, AI-assisted infographics, and LinkedIn polls. Each format selectable in the content calendar.
+
+- [ ] Long-form article mode (Shakespeare adapts structure for article format)
+- [ ] Short-form carousel structure (slide-by-slide draft with hook + CTA)
+- [ ] AI-generated infographic prompts (text layout instructions for Canva / design tools)
+- [ ] LinkedIn poll generation: topic + 4 options, Machiavelli schedules
+- [ ] Format selector in content calendar UI
+
+**Priority:** P1 | **Estimate:** 6 pts | **Owner:** BE + FE
+
+---
+
+### S6-B5 — Speaker Session Audience Reach Tracking
+For executives targeting speaking careers, track whether content is reaching bookers, event organisers, and conference producers. Measure whether platform strategy is translating into speaking-adjacent signals.
+
+- [ ] "Speaking Goal" mode in Machiavelli — biases scheduling toward peak booker-active hours
+- [ ] Target persona tagging: mark content intended for speaking-focused audiences
+- [ ] Reach signal dashboard: who is engaging (role-level inference from LinkedIn if available)
+- [ ] Connect to Chanakya speaking career goal override already defined in Section 5
+
+**Priority:** P2 | **Estimate:** 4 pts | **Owner:** BE + FE
+
+---
+
+### S6-B6 — Video Content Support
+Support video as a first-class content format. Shakespeare scripts short-form (60–90 sec) and long-form YouTube-style content. Machiavelli schedules video slots with platform-specific timing.
+
+- [ ] Video script generation in Shakespeare (hook + body + CTA, time-coded)
+- [ ] Short-form brief (Reels / TikTok / LinkedIn Video) vs long-form (YouTube)
+- [ ] Connect `videoComfort` onboarding field (Section 3) to gate this feature per user
+- [ ] Teleprompter-friendly formatting option
+- [ ] Video slot type in content calendar
+
+**Priority:** P2 | **Estimate:** 5 pts | **Owner:** BE + FE
+
+---
+
+### S6-B7 — User Performance Dashboard (Multi-Channel Analytics)
+A user-specific dashboard that consolidates social media performance across all channels Elevox is promoting content on. The executive should be able to see at a glance how their brand is performing — not just what was posted.
+
+- [ ] Per-channel metrics cards: LinkedIn, X/Twitter, YouTube, Instagram (where active)
+- [ ] KPIs tracked: impressions, engagement rate, follower growth, post reach, profile views
+- [ ] Trend lines over time (weekly / monthly view toggle)
+- [ ] Top performing posts surfaced by engagement rate
+- [ ] Platform comparison: side-by-side channel performance to inform future Chanakya strategy
+- [ ] Data ingestion: LinkedIn API (primary), manual override input for unsupported platforms
+- [ ] Machiavelli feeds scheduling data into dashboard — correlate post timing with performance spikes
+
+**Priority:** P1 | **Estimate:** 8 pts | **Owner:** BE + FE
+
+---
+
+### S6-B8 — Industry Trends Feed (Daily Personalised News)
+A daily feed section where the executive can check in every day and see a curated list of the latest news and signals in their specific industry, filtered to their role and areas of expertise. Powers smarter, more timely content.
+
+- [ ] Daily news ingestion via Analyst agent — leverage existing `run_news_sweep` infrastructure
+- [ ] Profile + industry + role-filtered curation (role from `profiles.jobTitle`, industry from `profiles.industry`)
+- [ ] "Trends" tab or section on the dashboard — separated from content calendar
+- [ ] Article cards: headline, source, relevance tag (why this is relevant to the user's pillars), and a one-click "Turn into post" CTA that pre-briefs Shakespeare
+- [ ] Freshness guarantee: new items since last login surfaced first, with timestamps
+- [ ] User-configurable: ability to add/remove topics of interest beyond auto-detected industry signals
+- [ ] Ties into `industry_signals` table planned in Section 2 (S5-02) — extends rather than duplicates
+
+**Priority:** P1 | **Estimate:** 6 pts | **Owner:** BE + FE
+
+---
+
 *EleVox Sprint 5 Backlog · April 2026 · For Antigravity Development Team*
 *Questions: escalate to product before changing RLS policies, the PHASES array, or agent system prompts*
 
 ---
 
-*Last updated: 2026-03-27*
-*Source: Sprint 5 Product Backlog Word doc (April 2026)*
-*Total stories: 12 (S5-00 through S5-11) | Total points: 28*
+*Last updated: 2026-04-10*
+*Source: Sprint 5 Product Backlog Word doc (April 2026) + backlog additions 2026-04-06 & 2026-04-10*
+*Total stories: 12 (S5-00 through S5-11) | Total points: 28 | Sprint 6 backlog: 8 items (~45 pts)*

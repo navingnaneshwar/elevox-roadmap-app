@@ -53,6 +53,7 @@ export default function ClarificationPage() {
       setSession(data)
       setQuestions(data.questions ?? [])
       setAnswers(data.answers ?? {})
+      setIntro(data.context_summary || '')   // Chanakya's personalised opening
       setLoading(false)
     })()
   }, [user])
@@ -184,7 +185,7 @@ export default function ClarificationPage() {
               </div>
             </div>
             <div style={{ fontSize: '16px', color: '#94a3b8', lineHeight: '1.8' }}>
-              I've reviewed your industry, your career, and today's market signals. Before I build your framework, I need to hear it directly from you — in your own words. Your answers become the verified career facts that govern everything Elevox creates for you.
+              {intro || "I've reviewed your industry, your career, and today's market signals. Before I build your framework, I need to hear it directly from you — in your own words. Your answers become the verified career facts that govern everything Elevox creates for you."}
             </div>
           </div>
         )}

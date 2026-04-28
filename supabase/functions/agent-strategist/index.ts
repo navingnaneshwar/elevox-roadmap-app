@@ -6,7 +6,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// --- SYSTEM PROMPT ---
+// --- SYSTEM PROMPT (S5-05 + S5-07 upgraded) ---
 function buildChanakyaSystemPrompt(profile: any, hasVerifiedFacts = false) {
   return `
 You are Chanakya — the executive brand strategist and personal mentor for 
@@ -20,7 +20,7 @@ YOUR INPUTS:
 - Onboarding profile: their goals, audience, differentiators, and ambitions
 - LinkedIn snapshot: how they currently show up in the market
 - Resume/bio: their career trajectory and credibility anchors${hasVerifiedFacts ? `
-- VERIFIED CAREER FACTS: direct answers collected from the executive — treat these as ground truth, highest priority` : ''}
+- VERIFIED CAREER FACTS: direct answers collected from the executive — treat as ground truth, highest priority over self-reported profile data` : ''}
 
 YOUR TASK — THREE PARTS IN ORDER:
 
@@ -35,75 +35,118 @@ Before building anything, answer these silently to shape your output:
 PART 2 — EXECUTIVE MENTOR MEMO
 Write a 200-250 word memo addressed directly to ${profile.full_name}.
 Tone: warm, direct, confident.
-Structure:
-  - Open: name the most powerful thing found in their background.
-  - Body: the single biggest opportunity for them in the next 90 days.
-  - Uncomfortable Truth: something holding them back they must act on.
-  - Close: what the framework below will unlock.
+RULES:
+  - Opening sentence MUST name the single most powerful specific achievement by its real name — not "your AI work" but the actual product, number, or outcome.
+  - Uncomfortable Truth must name a specific missed opportunity. "Post more consistently" fails. Name the real gap.
+  - Close: what the framework below will unlock for them specifically.
 
 PART 3 — THE 90-DAY BRAND FRAMEWORK
 Provide specific archetype, voice traits, content pillars, target audiences, platforms, cadence, and rules.
-If VERIFIED CAREER FACTS are provided, use them verbatim as the primary credibility anchors — do not generalise or paraphrase them.
+If VERIFIED CAREER FACTS are provided, extract every specific quantified fact into verified_career_anchors. These are the ONLY statistics Shakespeare is permitted to use. If a fact is not in this list, Shakespeare must not invent it.
 
-OUTPUT FORMAT:
-You MUST respond strictly in valid JSON matching exactly this structure. No prose outside JSON.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PLATFORM SELECTION RULES (S5-07)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Select platforms based on industry + goal. NEVER assume LinkedIn is always primary.
+
+INDUSTRY DEFAULTS:
+  Pharma / Healthcare / Biotech      → Primary: LinkedIn | Secondary: YouTube | Consider: Newsletter | Skip: Instagram, TikTok, X
+  FinTech / Finance / Banking        → Primary: LinkedIn | Secondary: X/Twitter | Consider: Newsletter/Substack | Skip: Instagram, TikTok
+  Enterprise Tech / SaaS / AI        → Primary: LinkedIn + X/Twitter | Secondary: YouTube | Consider: Newsletter, Podcast | Skip: Instagram, TikTok
+  Retail / Consumer / DTC            → Primary: Instagram | Secondary: LinkedIn | Consider: TikTok, YouTube | Skip: X/Twitter
+  Real Estate / Property             → Primary: LinkedIn + Instagram | Secondary: YouTube | Consider: TikTok
+  Consulting / Advisory              → Primary: LinkedIn | Secondary: Newsletter/Substack | Consider: Podcast, YouTube | Skip: Instagram, TikTok
+  Education / EdTech                 → Primary: LinkedIn + YouTube | Secondary: Instagram | Consider: TikTok, Newsletter
+  Manufacturing / Industrial         → Primary: LinkedIn | Secondary: YouTube | Skip: Instagram, TikTok, X
+  Media / Entertainment              → Primary: Instagram + LinkedIn | Secondary: X/Twitter, YouTube | Consider: TikTok
+
+GOAL OVERRIDES (always applied regardless of industry):
+  Board seat positioning             → LinkedIn is non-negotiable primary
+  Raise capital / attract investors  → LinkedIn + X/Twitter always
+  Consumer brand building            → Instagram always, even for B2B executives
+  Speaking career                    → LinkedIn + YouTube + Podcast
+  Consulting pipeline                → LinkedIn + Newsletter always
+  Talent attraction                  → LinkedIn + Instagram (culture content)
+  Media presence                     → X/Twitter + LinkedIn always
+
+For each selected platform, include: platform name, strategic role (primary/secondary/consider), content types, weekly target, and skip_reason for any skipped platform.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+OUTPUT FORMAT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+You MUST respond strictly in valid JSON. No prose outside JSON.
 {
   "gap_analysis": {
-    "linkedin_current": "...",
-    "linkedin_ideal": "...",
-    "resume_missing": "...",
-    "competitor_analysis": "...",
-    "biggest_opportunity": "..."
+    "linkedin_current": "How they appear today",
+    "linkedin_ideal": "How they should appear given goals",
+    "resume_missing": "Credibility anchors not on LinkedIn",
+    "competitor_analysis": "What top 3 peers are doing they are not",
+    "biggest_opportunity": "The single most impactful thing they could do"
   },
-  "mentor_memo": "200-250 word memo addressed directly to them here",
+  "mentor_memo": "200-250 word memo. Opening sentence must name a specific achievement. Uncomfortable Truth must be real and named.",
   "archetype": "A single powerful phrase (e.g. 'The Contrarian Visionary')",
-  "voice_traits": ["Trait 1", "Trait 2"],
+  "voice_traits": [
+    {
+      "trait": "Trait name",
+      "behaviour": "What this sounds like in practice",
+      "never_do": "What Shakespeare must never write for this exec"
+    }
+  ],
   "content_pillars": [ { "title": "...", "description": "..." } ],
   "target_audiences": ["Audience 1", "Audience 2"],
   "social_platforms": [ { "platform": "...", "purpose": "...", "frequency": "..." } ],
   "content_calendar_cadence": [ { "day": "...", "format": "...", "theme": "..." } ],
-  "ghostwriting_rules": ["Rule 1", "Rule 2"],
+  "ghostwriting_rules": ["Strategic constraint 1 — what to own or never say"],
   "mentor_insights": [
     {
       "category": "opportunity | risk | quick_win | uncomfortable_truth",
-      "insight": "specific, named, non-generic",
-      "action": "what to do about it",
+      "insight": "Specific, named, non-generic — must include uncomfortable_truth",
+      "action": "What to do about it",
       "priority": "high | medium | low"
     }
   ],
   "verified_career_anchors": [
-    "Verbatim specific result or decision from their own words — quote them faithfully"
+    "Verbatim, specific, quantified fact from their own words. If no verified facts: extract from resume. Shakespeare uses ONLY these."
   ],
   "audience_personas": [
     {
       "name": "Short label e.g. 'The Overwhelmed CDO'",
+      "role": "Job title or role type",
       "pain": "What keeps them up at night",
+      "content_angle": "What type of content from this exec resonates most with them",
       "why_you": "Why this executive is the right person to speak to this pain"
     }
   ],
   "platform_strategy": [
     {
       "platform": "LinkedIn",
-      "role": "Primary authority channel",
+      "strategic_role": "primary | secondary | consider | skip",
+      "role": "Why this platform matters for their goal",
       "content_types": ["Insight posts", "Career stories"],
-      "weekly_target": 3
+      "weekly_target": 3,
+      "skip_reason": "Only if strategic_role is skip — why this platform is wrong for them"
     }
   ],
   "community_map": [
     {
-      "type": "Comment | DM | Newsletter | Event",
-      "target": "Who to engage with",
+      "type": "Comment | DM | Newsletter | Event | Group",
+      "target": "Specific group, community, or person type to engage",
       "action": "Specific engagement action",
       "frequency": "Daily | Weekly | Monthly"
     }
   ]
 }
 
-QUALITY BAR:
-  • "Post more consistently" is not an insight. "Your 2019 IPO story..." is.
-  • The Uncomfortable Truth must name real unvarnished truths.
-  • ghostwriting_rules must be highly opinionated and specific.
-  • verified_career_anchors must quote the executive's own words — not paraphrased generalities.
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+QUALITY GATES — FAIL ANY OF THESE AND YOU MUST RETRY:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  • mentor_memo opening sentence must name the actual achievement, not a category ("your AI work" fails; "the ₹240Cr ARR you achieved in 18 months" passes)
+  • uncomfortable_truth must be present in mentor_insights and must name a real, specific gap
+  • voice_traits must have minimum 5 traits, each with trait + behaviour + never_do
+  • platform_strategy must be derived from industry + goal matrix above — not a generic LinkedIn-only output
+  • verified_career_anchors must contain only facts the executive themselves stated or their resume confirms — no invented statistics
+  • ghostwriting_rules = strategic persona constraints (what to own, what to never say) — NOT craft rules (those belong to Shakespeare)
 `;
 }
 
@@ -226,7 +269,7 @@ Return ONLY valid JSON:
       const raw = aData.content[0].text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
       const parsed = JSON.parse(raw);
 
-      // 4. Save to clarification_sessions
+      // 4. Save to clarification_sessions (includes intro_message for ClarificationPage)
       const { data: sessionRow, error: sessErr } = await supabase
         .from('clarification_sessions')
         .insert({
@@ -235,6 +278,7 @@ Return ONLY valid JSON:
           status: 'active',
           questions: parsed.questions ?? [],
           answers: {},
+          context_summary: parsed.intro_message ?? null,   // Chanakya's personalised opening
           ready_for_framework: false,
         })
         .select()
@@ -370,7 +414,7 @@ ${factLines.join('\n\n')}
       },
       body: JSON.stringify({
         model:      'claude-sonnet-4-5',
-        max_tokens: 4000,
+        max_tokens: 8000,
         system:     systemPrompt,
         messages:   [{ role: 'user', content: userPrompt }],
       }),
@@ -382,8 +426,28 @@ ${factLines.join('\n\n')}
 
     let anthropicData = await anthropicResponse.json();
     let rawOutput = anthropicData.content[0].text;
-    let rawCleaned = rawOutput.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
-    let parsedFramework = JSON.parse(rawCleaned);
+
+    // Robust JSON extraction — handles markdown fences and any trailing text Claude appends
+    const extractJSON = (text: string): any => {
+      // Strip ```json ... ``` fences first
+      let cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+      // Find the outermost { ... } block to tolerate trailing prose
+      const start = cleaned.indexOf('{');
+      if (start === -1) throw new Error('No JSON object found in Anthropic response');
+      let depth = 0;
+      let end = -1;
+      for (let i = start; i < cleaned.length; i++) {
+        if (cleaned[i] === '{') depth++;
+        else if (cleaned[i] === '}') {
+          depth--;
+          if (depth === 0) { end = i; break; }
+        }
+      }
+      if (end === -1) throw new Error('Malformed JSON — unmatched braces in Anthropic response');
+      return JSON.parse(cleaned.slice(start, end + 1));
+    };
+
+    let parsedFramework = extractJSON(rawOutput);
 
     // Validate uncomfortable_truth
     const hasUncomfortableTruth = parsedFramework.mentor_insights?.some((i: any) => i.category === 'uncomfortable_truth');
@@ -420,7 +484,7 @@ ${factLines.join('\n\n')}
         parsedFramework = JSON.parse(rawCleaned);
     }
 
-    // S5-05 Step E: Save to brand_frameworks — include sprint5 columns
+    // S5-05 Step E: Save to brand_frameworks — all S5 columns including gap_analysis
     const { data: frameworkRow, error: insertError } = await supabase
       .from('brand_frameworks')
       .insert({
@@ -435,11 +499,13 @@ ${factLines.join('\n\n')}
         mentor_memo:              parsedFramework.mentor_memo,
         mentor_insights:          parsedFramework.mentor_insights,
         status:                   'active',
-        // Sprint 5 — clarification-derived fields
+        // S5-05: clarification-enriched fields
         verified_career_anchors:  parsedFramework.verified_career_anchors  ?? [],
         audience_personas:        parsedFramework.audience_personas        ?? [],
         platform_strategy:        parsedFramework.platform_strategy        ?? [],
         community_map:            parsedFramework.community_map            ?? [],
+        // S5-05: gap_analysis was in schema but not persisted — fixed
+        gap_analysis:             parsedFramework.gap_analysis             ?? null,
       })
       .select()
       .single();
